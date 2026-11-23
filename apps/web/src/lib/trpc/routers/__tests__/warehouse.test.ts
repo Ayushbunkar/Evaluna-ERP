@@ -8,9 +8,12 @@ mock.module("@/lib/db", () => ({ db, pglite: pg }));
 
 const { warehouseRouter } = await import("../warehouse");
 const { pickerRouter } = await import("../picker");
+const { staffRouter } = await import("../staff");
+const { putterRouter } = await import("../putter");
 const { createCallerFactory } = await import("../../init");
 
 const warehouseTables = [
+	schema.user,
 	schema.branches,
 	schema.staff,
 	schema.products,
@@ -18,6 +21,9 @@ const warehouseTables = [
 	schema.customers,
 	schema.purchases,
 	schema.purchaseItems,
+	schema.goodsReceiptNotes,
+	schema.goodsReceiptItems,
+	schema.procurementExceptions,
 	schema.receivingInspections,
 	schema.placementVerifications,
 	schema.productBatches,
@@ -32,6 +38,7 @@ const warehouseTables = [
 	schema.orderItems,
 	schema.stockAdjustments,
 	schema.auditLogs,
+	schema.notifications,
 ];
 
 const WAREHOUSE_SCHEMA_DDL = buildDDL(warehouseTables, false);
@@ -51,7 +58,15 @@ const staffWorker = makeFinanceUser({
 	branchId: 1,
 });
 
+const salesperson = makeFinanceUser({
+	id: "sales-1",
+	email: "sales@test.com",
+	role: "sales_person",
+	branchId: 1,
+});
+
 const callAs = (u) => createCallerFactory(warehouseRouter)({ user: u, db });
+const callPutterAs = (u) => createCallerFactory(putterRouter)({ user: u, db });
 
 beforeAll(async () => {
 	await pg.exec(WAREHOUSE_SCHEMA_DDL);
@@ -62,7 +77,8 @@ beforeAll(async () => {
 		
 		INSERT INTO staff (id, name, email, role, join_date, salary, branch_id) VALUES
 		(1, 'Admin User', 'warehouse-admin@test.com', 'admin', NOW(), 50000, 1),
-		(2, 'Warehouse Worker', 'worker@test.com', 'picker', NOW(), 30000, 1);
+		(2, 'Warehouse Worker', 'worker@test.com', 'picker', NOW(), 30000, 1),
+		(3, 'Sales Rep', 'sales@test.com', 'sales_person', NOW(), 40000, 1);
 		
 		INSERT INTO suppliers (id, name, outstanding_balance) VALUES (1, 'Acme Corp', 0.00);
 		
@@ -232,7 +248,7 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 		expect(pkgRows.rows[0].status).toBe("packed");
 	});
 
-	it("should allow logging exceptions/damages", async () => {
+	it("should allow logging exceptions/damages and retrieving them", async () => {
 		const res = await callAs(admin).logException({
 			productId: 1,
 			qty: 1,
@@ -249,15 +265,149 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 		);
 		expect(adjRows.rows[0].adjustment_type).toBe("damage");
 		expect(adjRows.rows[0].reason).toBe("Water damage to widgets in rack A");
+
+		// Test getExceptions
+		const exceptions = await callAs(admin).getExceptions();
+		expect(exceptions.adjustments).toBeDefined();
+		expect(exceptions.adjustments.length).toBeGreaterThan(0);
+
+		// Test resolveException
+		const resolveRes = await callAs(admin).resolveException({
+			id: res.adjustmentId,
+			source: "adjustment",
+			resolutionNotes: "Moved to quarantine shelf and claimed insurance",
+			actionType: "quarantine_isolated",
+		});
+		expect(resolveRes.success).toBe(true);
+
+		// Test getThroughputAnalytics
+		const analytics = await callAs(admin).getThroughputAnalytics({});
+		expect(analytics).toBeDefined();
+		expect(typeof analytics.backlogUnits).toBe("number");
+		expect(typeof analytics.slaCompliancePercent).toBe("number");
+		expect(typeof analytics.operatorUtilizationPercent).toBe("number");
+		expect(Array.isArray(analytics.hourlyChart)).toBe(true);
+		expect(analytics.hourlyChart.length).toBe(12);
 	});
 
 	it("pickerRouter.getDashboardStats calculates assignedToday, completed, and pending accurately", async () => {
-		const pickerCaller = createCallerFactory(pickerRouter)({ user: staffWorker, db });
+		const pickerCaller = createCallerFactory(pickerRouter)({
+			user: staffWorker,
+			db,
+		});
 		const stats = await pickerCaller.getDashboardStats({});
 		expect(stats).toBeDefined();
 		expect(typeof stats.assignedToday).toBe("number");
 		expect(typeof stats.completed).toBe("number");
 		expect(typeof stats.pending).toBe("number");
 		expect(Array.isArray(stats.recentTasks)).toBe(true);
+	});
+
+	it("staffRouter.getPickers returns only active staff with picker access and excludes other roles and mock users", async () => {
+		const staffCaller = createCallerFactory(staffRouter)({ user: admin, db });
+		const pickers = await staffCaller.getPickers();
+		expect(Array.isArray(pickers)).toBe(true);
+		expect(pickers.length).toBeGreaterThan(0);
+		// All returned records must have picker role
+		for (const p of pickers) {
+			expect(p.role.toLowerCase()).toContain("picker");
+			expect(p.status.toLowerCase()).toBe("active");
+		}
+		// Admin user (id: 1) should NOT be in pickers
+		expect(pickers.some((p) => p.id === 1)).toBe(false);
+		// Staff worker with role 'picker' (id: 2) MUST be in pickers
+		expect(pickers.some((p) => p.id === 2)).toBe(true);
+	});
+
+	it("autoAssignPicking automatically assigns unassigned pick lists to active pickers balancing workload", async () => {
+		// Insert an unassigned pick list
+		await pg.exec(`
+			INSERT INTO pick_lists (id, order_id, reference_type, reference_id, status, assigned_to)
+			VALUES (400, 200, 'sale', 200, 'pending', NULL);
+		`);
+
+		const res = await callAs(admin).autoAssignPicking({});
+		expect(res.success).toBe(true);
+		expect(res.assignedCount).toBeGreaterThan(0);
+
+		const queue = await callAs(admin).getPickingQueue();
+		const pl400 = queue.find((q) => q.id === 400);
+		expect(pl400).toBeDefined();
+		expect(pl400?.assigned_to).toBe(2); // Assigned to staff ID 2 (picker)
+		expect(pl400?.status).toBe("assigned");
+	});
+
+	it("getPipelineHealth returns accurate pipeline diagnostic metrics and bottleneck status", async () => {
+		const health = await callAs(admin).getPipelineHealth();
+		expect(health).toBeDefined();
+		expect(typeof health.unassignedPicks).toBe("number");
+		expect(typeof health.activePicks).toBe("number");
+		expect(typeof health.activePickersCount).toBe("number");
+		expect(health.activePickersCount).toBeGreaterThan(0);
+		expect(Array.isArray(health.bottlenecks)).toBe(true);
+	});
+
+	it("runSelfHealingPipeline executes automated pipeline re-allocation and repair", async () => {
+		const res = await callAs(admin).runSelfHealingPipeline();
+		expect(res.success).toBe(true);
+		expect(typeof res.totalResolved).toBe("number");
+	});
+
+	it("raisePipelineIssue logs a problem, flags task as urgent, and records audit", async () => {
+		const res = await callAs(admin).raisePipelineIssue({
+			referenceType: "pick_list",
+			referenceId: 400,
+			issueType: "damaged_item",
+			notes: "Product box damaged on bottom shelf",
+			autoReassign: true,
+		});
+		expect(res.success).toBe(true);
+
+		const queue = await callAs(admin).getPickingQueue();
+		const pl400 = queue.find((q) => q.id === 400);
+		expect(pl400?.priority).toBe("urgent");
+	});
+
+	it("putter.getMissingStock returns correct product_id and MS- prefix", async () => {
+		await pg.exec(`
+			INSERT INTO branch_inventory (id, branch_id, product_id, in_stock, reserved_stock, reorder_level)
+			VALUES (99, 1, 1, 2, 5, 10);
+		`);
+
+		const shortages = await callPutterAs(salesperson).getMissingStock({});
+		const widgetShortage = shortages.find((s) => s.product_id === 1);
+		expect(widgetShortage).toBeDefined();
+		expect(widgetShortage?.id).toBe("MS-1");
+		expect(widgetShortage?.product).toBe("High-Grade Steel Widget");
+		expect(widgetShortage?.quantity_needed).toBeGreaterThan(0);
+	});
+
+	it("putter.requestReplenishment creates stock_adjustments and notifies supervisors", async () => {
+		const result = await callPutterAs(salesperson).requestReplenishment({
+			product_id: 1,
+			quantity: 15,
+			notes: "Customer order #400 urgent requirement",
+		});
+
+		expect(result).toBeDefined();
+		expect(result.product_id).toBe(1);
+		expect(result.adjustment_type).toBe("replenish_request");
+		expect(result.created_by).toBe(3); // staff id for sales@test.com
+
+		// Verify notification was recorded
+		const notifs = await db.select().from(schema.notifications);
+		const repNotif = notifs.find((n) => n.type === "stock_replenishment");
+		expect(repNotif).toBeDefined();
+		expect(repNotif?.reference_id).toBe(1);
+	});
+
+	it("putter.requestReplenishment throws NOT_FOUND for non-existent product", async () => {
+		expect(
+			callPutterAs(salesperson).requestReplenishment({
+				product_id: 99999,
+				quantity: 5,
+				notes: "Non-existent item",
+			}),
+		).rejects.toThrow("does not exist in the active catalog");
 	});
 });

@@ -3,7 +3,7 @@
 import {
 	CreditCardIcon,
 	LayoutDashboardIcon,
-	ReceiptIcon,
+	ReceiptIndianRupeeIcon,
 	ShoppingCartIcon,
 	TagIcon,
 	UndoIcon,
@@ -17,7 +17,11 @@ import {
 const billerNavItems: NavItem[] = [
 	{ href: "/biller", labelKey: "dashboard", icon: LayoutDashboardIcon },
 	{ href: "/biller/pos", labelKey: "pos", icon: ShoppingCartIcon },
-	{ href: "/biller/billing", labelKey: "billing", icon: ReceiptIcon },
+	{
+		href: "/biller/billing",
+		labelKey: "billing",
+		icon: ReceiptIndianRupeeIcon,
+	},
 	{ href: "/biller/customers", labelKey: "customers", icon: UsersIcon },
 	{ href: "/biller/discounts", labelKey: "discounts", icon: TagIcon },
 	{ href: "/biller/payments", labelKey: "payments", icon: CreditCardIcon },
@@ -30,11 +34,7 @@ export default function Layout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<AppLayoutWithBranch
-			navItems={billerNavItems}
-			namespace="nav"
-			role="sales"
-		>
+		<AppLayoutWithBranch navItems={billerNavItems} namespace="nav" role="sales">
 			{children}
 		</AppLayoutWithBranch>
 	);

@@ -28,6 +28,7 @@ import {
 	Clock,
 	Coffee,
 	Globe,
+	Loader2,
 	LogIn,
 	LogOut,
 	MapPin,
@@ -41,21 +42,37 @@ import {
 	Utensils,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { LogoutModal } from "@/components/shared/logout-modal";
 import { useSession } from "@/hooks/use-session";
 import { authClient } from "@/lib/auth-client";
 import { useBranch } from "@/lib/branch-context";
-import { useTRPC } from "@/lib/trpc/client";
+import {
+	acquireAccurateLocation,
+	type GeolocationProgress,
+} from "@/lib/geolocation";
+import { compressAvatar } from "@/lib/image-compression";
+import { trpc } from "@/lib/trpc/client";
 
-export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = {}) {
+export function DashboardHeader({
+	onMenuClick,
+}: {
+	onMenuClick?: () => void;
+} = {}) {
 	const router = useRouter();
 	const pathname = usePathname();
-	const locale = useLocale();
-	const trpc = useTRPC();
+	let locale = "en";
+	try {
+		locale = useLocale();
+	} catch {
+		// Fallback when rendered outside NextIntlClientProvider or during SSR
+	}
 	const queryClient = useQueryClient();
 
 	// State
@@ -64,22 +81,81 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 
 	// Modals for Profile, Account Settings, and Attendance
 	const [profileOpen, setProfileOpen] = useState(false);
+	const [logoutModalOpen, setLogoutModalOpen] = useState(false);
 	const [settingsOpen, setSettingsOpen] = useState(false);
-	const [notifOpen, setNotifOpen] = useState(false);
 	const [attendanceOpen, setAttendanceOpen] = useState(false);
 	const [workNotes, setWorkNotes] = useState("");
+
+	// Profile editing state
+	const [isEditingProfile, setIsEditingProfile] = useState(false);
+	const [editName, setEditName] = useState("");
+	const [editEmail, setEditEmail] = useState("");
+	const [editPhone, setEditPhone] = useState("");
+	const [editImage, setEditImage] = useState<string>("");
+	const [isCompressingImage, setIsCompressingImage] = useState(false);
 
 	const { activeBranchId } = useBranch();
 	const sessionData = useSession();
 	const user = sessionData.session?.user;
 
 	// Queries
-	const { data: branches } = trpc.branches.list.useQuery(undefined);
 	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery(
 		{},
 		{ refetchInterval: 45000, refetchIntervalInBackground: false, refetchOnWindowFocus: true },
 	);
 	const unreadCount = unreadCountData?.count || 0;
+
+	// Profile query & mutation (cached to prevent blocking initial dashboard renders)
+	const { data: myProfile, refetch: refetchMyProfile } =
+		trpc.users.getMyProfile.useQuery(undefined, {
+			staleTime: 5 * 60 * 1000,
+			refetchOnWindowFocus: false,
+		});
+
+	const effectiveAvatar = myProfile?.image || user?.image;
+
+	const updateProfileMutation = trpc.users.updateMyProfile.useMutation({
+		onSuccess: () => {
+			toast.success("Profile updated successfully!");
+			setIsEditingProfile(false);
+			refetchMyProfile();
+			queryClient.invalidateQueries();
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to update profile");
+		},
+	});
+
+	useEffect(() => {
+		if (profileOpen) {
+			setEditName(myProfile?.name || user?.name || "");
+			setEditEmail(myProfile?.email || user?.email || "");
+			setEditPhone(myProfile?.phone || "");
+			setEditImage(myProfile?.image || user?.image || "");
+		}
+	}, [profileOpen, myProfile, user]);
+
+	const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		try {
+			setIsCompressingImage(true);
+			const compressedDataUrl = await compressAvatar(file);
+			setEditImage(compressedDataUrl);
+			toast.success("Profile photo compressed & ready to save (<15 KB)!");
+		} catch (err: any) {
+			toast.error(err.message || "Failed to process photo.");
+		} finally {
+			setIsCompressingImage(false);
+			e.target.value = "";
+		}
+	};
+
+	// Queries (staleTime prevents duplicate fetches across header re-renders)
+	const { data: branches } = trpc.branches.list.useQuery(undefined, {
+		staleTime: 10 * 60 * 1000,
+		refetchOnWindowFocus: false,
+	});
 	const { data: todayAttendance, refetch: refetchToday } =
 		trpc.attendance.getToday.useQuery(undefined, {
 			refetchInterval: 90000,
@@ -93,6 +169,8 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 	const streamRef = useRef<MediaStream | null>(null);
 	const [cameraOn, setCameraOn] = useState(false);
 	const [attendanceBusy, setAttendanceBusy] = useState(false);
+	const [attendanceGpsProgress, setAttendanceGpsProgress] =
+		useState<GeolocationProgress | null>(null);
 
 	const stopCamera = useCallback(() => {
 		for (const track of streamRef.current?.getTracks() ?? []) track.stop();
@@ -132,13 +210,27 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 			const canvas = canvasRef.current;
 			if (!video || !canvas || !streamRef.current)
 				throw new Error("Start the camera first — a live photo is required.");
-			canvas.width = video.videoWidth || 640;
-			canvas.height = video.videoHeight || 480;
+
+			// Optimize & compress selfie to minimize database storage footprint (~10-18KB)
+			const maxDim = 360;
+			let targetWidth = video.videoWidth || 640;
+			let targetHeight = video.videoHeight || 480;
+			if (targetWidth > maxDim || targetHeight > maxDim) {
+				if (targetWidth > targetHeight) {
+					targetHeight = Math.round((targetHeight * maxDim) / targetWidth);
+					targetWidth = maxDim;
+				} else {
+					targetWidth = Math.round((targetWidth * maxDim) / targetHeight);
+					targetHeight = maxDim;
+				}
+			}
+			canvas.width = targetWidth;
+			canvas.height = targetHeight;
 			const ctx = canvas.getContext("2d");
 			if (!ctx) throw new Error("Could not capture the photo.");
 			ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 			const blob = await new Promise<Blob | null>((res) =>
-				canvas.toBlob(res, "image/jpeg", 0.85),
+				canvas.toBlob(res, "image/jpeg", 0.65),
 			);
 			if (!blob) throw new Error("Could not encode the photo.");
 			const fd = new FormData();
@@ -204,35 +296,17 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 		async (kind: "checkIn" | "checkOut") => {
 			const effectiveBranchId = activeBranchId || (user as any)?.branchId || 1;
 			setAttendanceBusy(true);
+			setAttendanceGpsProgress({
+				status: "locating",
+				message: "Acquiring GPS location...",
+			});
 			try {
-				const gps = await new Promise<{
-					latitude: number;
-					longitude: number;
-					accuracy: number;
-					deviceTimestamp: string;
-				}>((resolve, reject) => {
-					if (!("geolocation" in navigator)) {
-						reject(new Error("This device has no GPS support."));
-						return;
-					}
-					navigator.geolocation.getCurrentPosition(
-						(pos) =>
-							resolve({
-								latitude: pos.coords.latitude,
-								longitude: pos.coords.longitude,
-								accuracy: Math.min(pos.coords.accuracy || 20, 200),
-								deviceTimestamp: new Date(pos.timestamp).toISOString(),
-							}),
-						(err) =>
-							reject(
-								new Error(
-									err.code === err.PERMISSION_DENIED
-										? "Location permission denied. Attendance requires location access."
-										: "Could not read location. Move to open sky and retry.",
-								),
-							),
-						{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-					);
+				const gps = await acquireAccurateLocation({
+					desiredAccuracy: 25,
+					maxAcceptableAccuracy: 500,
+					timeoutMs: 12000,
+					refinementWindowMs: 3500,
+					onProgress: (p) => setAttendanceGpsProgress(p),
 				});
 
 				const imageAttachmentId = await captureAndUpload(kind);
@@ -260,6 +334,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 				toast.error(e?.message || "Something went wrong during check-in/out.");
 			} finally {
 				setAttendanceBusy(false);
+				setAttendanceGpsProgress(null);
 			}
 		},
 		[activeBranchId, user, captureAndUpload, checkInMutation, checkOutMutation],
@@ -269,7 +344,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 	const [newPwd, setNewPwd] = useState("");
 	const [confirmPwd, setConfirmPwd] = useState("");
 
-	const changePasswordMutation = trpc.users.resetCredentials.useMutation({
+	const changePasswordMutation = trpc.users.changeMyPassword.useMutation({
 		onSuccess: () => {
 			toast.success("Password changed successfully!");
 			setNewPwd("");
@@ -278,35 +353,6 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 		},
 		onError: (err) => {
 			toast.error(`Failed to change password: ${err.message}`);
-		},
-	});
-
-	// Notifications Queries & Mutations
-	const { data: notificationsList, refetch: refetchNotifs } =
-		trpc.notifications.list.useQuery({ limit: 10 }, { enabled: notifOpen });
-
-	const markAsReadMutation = trpc.notifications.markAsRead.useMutation({
-		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: [["notifications", "unreadCount"]],
-			});
-			void refetchNotifs();
-		},
-		onError: (err) => {
-			toast.error(`Failed to mark read: ${err.message}`);
-		},
-	});
-
-	const markAllAsReadMutation = trpc.notifications.markAllAsRead.useMutation({
-		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: [["notifications", "unreadCount"]],
-			});
-			void refetchNotifs();
-			toast.success("All notifications marked as read.");
-		},
-		onError: (err) => {
-			toast.error(`Failed to mark all read: ${err.message}`);
 		},
 	});
 
@@ -374,17 +420,16 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 					<Menu className="h-5 w-5 text-gray-700 dark:text-gray-200" />
 				</Button>
 			)}
-
 			{/* 1. Branding (Hidden on desktop to avoid duplication with sidebar) */}
 			<div className="flex items-center gap-2 md:hidden">
 				<Link href="/" className="flex items-center gap-2">
 					<img
 						src="/logo.jpg"
-						alt="Evaluna ERP"
+						alt="Evaluna"
 						className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
 					/>
-					<span className="hidden font-bold text-foreground text-base tracking-tight sm:inline-block">
-						Evaluna ERP
+					<span className="hidden font-bold text-base text-foreground tracking-tight sm:inline-block">
+						Evaluna
 					</span>
 				</Link>
 			</div>
@@ -412,20 +457,8 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 					/>
 				</Button>
 
-				{/* 4. Notification Button */}
-				<Button
-					variant="ghost"
-					size="icon"
-					className="relative h-8 w-8"
-					title="Notifications"
-					aria-label="Notifications"
-					onClick={() => setNotifOpen(true)}
-				>
-					<Bell className="h-4 w-4 text-muted-foreground" />
-					{unreadCount > 0 && (
-						<span className="absolute top-1.5 right-1.5 flex h-2 w-2 rounded-full bg-destructive" />
-					)}
-				</Button>
+				{/* 4. Notification Bell Component (Role-aware modal) */}
+				<NotificationBell />
 
 				{!pathname?.startsWith("/superadmin") && (
 					<>
@@ -436,12 +469,14 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 							variant="outline"
 							size="sm"
 							onClick={() => setAttendanceOpen(true)}
-							className={`h-8 w-8 p-0 sm:w-auto sm:px-2.5 sm:gap-2 border-slate-200 bg-slate-50/80 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/80 dark:hover:bg-slate-800 ${attendanceColor}`}
+							className={`h-8 w-8 border-slate-200 bg-slate-50/80 p-0 hover:bg-slate-100 sm:w-auto sm:gap-2 sm:px-2.5 dark:border-slate-800 dark:bg-slate-800/80 dark:hover:bg-slate-800 ${attendanceColor}`}
 							aria-label="Attendance status"
 							title="Click to Check In / Check Out"
 						>
 							<Clock className="h-4 w-4" />
-							<span className="hidden font-semibold text-xs sm:inline">{attendanceLabel}</span>
+							<span className="hidden font-semibold text-xs sm:inline">
+								{attendanceLabel}
+							</span>
 						</Button>
 					</>
 				)}
@@ -480,7 +515,8 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 					</DropdownMenuContent>
 				</DropdownMenu>
 
-				{/* 7. Language Selector */}
+				{/* 7. Theme & Language Selector */}
+				<ThemeToggle />
 				<LocaleSwitcher />
 
 				{/* 8. Unified User Profile Menu */}
@@ -489,21 +525,43 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 						<Button
 							variant="outline"
 							size="sm"
-							className="h-8 w-8 p-0 sm:w-auto sm:px-3 sm:gap-2 rounded-full sm:rounded-lg border-slate-200 bg-white font-medium text-slate-700 text-xs shadow-xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+							className="h-8 w-8 rounded-full border-slate-200 bg-white p-0 font-medium text-slate-700 text-xs shadow-xs hover:bg-slate-50 sm:w-auto sm:gap-2 sm:rounded-lg sm:px-2.5 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
 							aria-label="Open profile menu"
 						>
-							<UserIcon className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+							{effectiveAvatar ? (
+								<img
+									src={effectiveAvatar}
+									alt="Profile"
+									className="h-5 w-5 rounded-full object-cover shadow-2xs ring-1 ring-primary/40"
+								/>
+							) : (
+								<UserIcon className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+							)}
 							<span className="hidden sm:inline">Profile</span>
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" className="w-[230px]">
-						<div className="flex items-center justify-start gap-2 p-2.5">
-							<div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/10 font-bold text-blue-600 text-xs">
-								{user?.name ? user.name.slice(0, 2).toUpperCase() : "U"}
-							</div>
-							<div className="flex flex-col space-y-0.5 leading-tight">
+						<div
+							onClick={() => {
+								setIsEditingProfile(true);
+								setProfileOpen(true);
+							}}
+							className="flex cursor-pointer items-center justify-start gap-2.5 rounded-lg p-2.5 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70"
+						>
+							{effectiveAvatar ? (
+								<img
+									src={effectiveAvatar}
+									alt={user?.name || "User"}
+									className="h-9 w-9 shrink-0 rounded-full object-cover shadow-xs ring-1 ring-border"
+								/>
+							) : (
+								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 font-bold text-blue-600 text-xs">
+									{user?.name ? user.name.slice(0, 2).toUpperCase() : "U"}
+								</div>
+							)}
+							<div className="flex flex-col space-y-0.5 overflow-hidden leading-tight">
 								{user?.name && (
-									<p className="font-semibold text-slate-900 text-sm dark:text-slate-100">
+									<p className="truncate font-semibold text-slate-900 text-sm dark:text-slate-100">
 										{user.name}
 									</p>
 								)}
@@ -516,11 +574,21 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 						</div>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
-							onSelect={() => setProfileOpen(true)}
-							className="flex cursor-pointer items-center text-xs"
+							onSelect={() => {
+								setIsEditingProfile(true);
+								setProfileOpen(true);
+							}}
+							className="flex cursor-pointer items-center gap-2.5 py-2 text-xs"
 						>
-							<UserCircle className="mr-2 h-4 w-4 text-slate-500" />
-							<span>View Profile Details</span>
+							<UserCircle className="h-4 w-4 shrink-0 text-blue-500" />
+							<div className="flex min-w-0 flex-col">
+								<span className="font-semibold text-foreground">
+									My Profile & Edit
+								</span>
+								<span className="truncate text-[10px] text-muted-foreground">
+									View & update your account details
+								</span>
+							</div>
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							onSelect={() => {
@@ -528,14 +596,21 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 								setConfirmPwd("");
 								setSettingsOpen(true);
 							}}
-							className="flex cursor-pointer items-center text-xs"
+							className="flex cursor-pointer items-center gap-2.5 py-2 text-xs"
 						>
-							<Settings className="mr-2 h-4 w-4 text-slate-500" />
-							<span>Account Security</span>
+							<Settings className="h-4 w-4 shrink-0 text-slate-500" />
+							<div className="flex min-w-0 flex-col">
+								<span className="font-semibold text-foreground">
+									Account Security
+								</span>
+								<span className="truncate text-[10px] text-muted-foreground">
+									Change password & security settings
+								</span>
+							</div>
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
-							onSelect={handleLogout}
+							onSelect={() => setLogoutModalOpen(true)}
 							className="flex cursor-pointer items-center font-medium text-destructive text-xs focus:bg-destructive focus:text-destructive-foreground"
 						>
 							<LogOut className="mr-2 h-4 w-4" />
@@ -545,72 +620,274 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 				</DropdownMenu>
 			</div>
 			{/* Profile Dialog Modal */}
-			<Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+			<Dialog
+				open={profileOpen}
+				onOpenChange={(open) => {
+					setProfileOpen(open);
+					if (!open) setIsEditingProfile(false);
+				}}
+			>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
-						<DialogTitle>My Profile Details</DialogTitle>
+						<DialogTitle>
+							{isEditingProfile ? "Edit Profile Details" : "My Profile Details"}
+						</DialogTitle>
 						<DialogDescription>
-							Overview of your authenticated ERP system credentials.
+							{isEditingProfile
+								? "Update your personal details below. Role cannot be modified."
+								: "Overview of your authenticated ERP system credentials."}
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="space-y-4 py-3">
-						<div className="flex items-center justify-center pb-2">
-							<div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 text-blue-600">
-								<UserIcon className="h-8 w-8" />
-							</div>
-						</div>
-
-						<div className="grid grid-cols-2 gap-4 border-border/40 border-b pb-4 text-xs sm:text-sm">
-							<div>
-								<span className="block font-semibold text-muted-foreground text-xs">
-									Full Name
-								</span>
-								<span className="font-medium text-foreground">
-									{user?.name || "N/A"}
-								</span>
-							</div>
-							<div>
-								<span className="block font-semibold text-muted-foreground text-xs">
-									Email / Login ID
-								</span>
-								<span className="font-medium text-foreground">
-									{user?.email || "N/A"}
-								</span>
-							</div>
-						</div>
-
-						<div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
-							<div>
-								<span className="block font-semibold text-muted-foreground text-xs">
-									Primary Role
-								</span>
-								<span className="font-medium text-foreground capitalize">
-									{user?.role
-										? user.role.toUpperCase().replace("_", " ")
-										: "N/A"}
-								</span>
-							</div>
-							<div>
-								<span className="block font-semibold text-muted-foreground text-xs">
-									Account Status
-								</span>
-								<span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 font-medium text-green-700 text-xs dark:text-green-400">
-									Active Login
-								</span>
-							</div>
-						</div>
-					</div>
-
-					<DialogFooter>
-						<Button
-							type="button"
-							className="w-full"
-							onClick={() => setProfileOpen(false)}
+					{isEditingProfile ? (
+						<form
+							onSubmit={(e) => {
+								e.preventDefault();
+								updateProfileMutation.mutate({
+									name: editName,
+									email: editEmail,
+									phone: editPhone,
+									image: editImage || null,
+								});
+							}}
+							className="space-y-4 py-2"
 						>
-							Close Profile
-						</Button>
-					</DialogFooter>
+							{/* Profile Photo Upload */}
+							<div className="flex flex-col items-center gap-3 pb-2">
+								<div className="group relative">
+									{editImage ? (
+										<img
+											src={editImage}
+											alt="Profile Preview"
+											className="h-20 w-20 rounded-full object-cover shadow-md ring-2 ring-primary/40"
+										/>
+									) : (
+										<div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-2xl text-white shadow-md">
+											{editName
+												? editName.slice(0, 2).toUpperCase()
+												: user?.name
+													? user.name.slice(0, 2).toUpperCase()
+													: "U"}
+										</div>
+									)}
+									{isCompressingImage && (
+										<div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
+											<Loader2 className="h-6 w-6 animate-spin text-white" />
+										</div>
+									)}
+								</div>
+								<input
+									id="avatar-upload"
+									type="file"
+									accept="image/*"
+									className="hidden"
+									onChange={handleImageUpload}
+								/>
+								<div className="flex gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										className="h-7 gap-1.5 text-xs"
+										disabled={isCompressingImage}
+										onClick={() =>
+											document.getElementById("avatar-upload")?.click()
+										}
+									>
+										<Camera className="h-3.5 w-3.5" />
+										{editImage ? "Change Photo" : "Upload Photo"}
+									</Button>
+									{editImage && (
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="h-7 gap-1.5 text-destructive text-xs hover:bg-destructive/10"
+											onClick={() => setEditImage("")}
+										>
+											Remove
+										</Button>
+									)}
+								</div>
+								<p className="text-center text-muted-foreground text-xs">
+									Auto-compressed to &lt;15 KB · Stored in DB
+								</p>
+							</div>
+							<div className="space-y-1.5">
+								<Label htmlFor="profile-name" className="font-semibold text-xs">
+									Full Name
+								</Label>
+								<Input
+									id="profile-name"
+									value={editName}
+									onChange={(e) => setEditName(e.target.value)}
+									placeholder="Enter full name"
+									required
+								/>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label
+									htmlFor="profile-email"
+									className="font-semibold text-xs"
+								>
+									Email / Login ID
+								</Label>
+								<Input
+									id="profile-email"
+									type="email"
+									value={editEmail}
+									onChange={(e) => setEditEmail(e.target.value)}
+									placeholder="Enter email address"
+									required
+								/>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label
+									htmlFor="profile-phone"
+									className="font-semibold text-xs"
+								>
+									Phone Number
+								</Label>
+								<Input
+									id="profile-phone"
+									value={editPhone}
+									onChange={(e) => setEditPhone(e.target.value)}
+									placeholder="Enter phone number"
+								/>
+							</div>
+
+							<div className="grid grid-cols-2 gap-3 pt-1">
+								<div className="space-y-1.5">
+									<Label className="font-semibold text-muted-foreground text-xs">
+										Primary Role (Read-only)
+									</Label>
+									<Input
+										value={
+											user?.role
+												? user.role.toUpperCase().replace("_", " ")
+												: "N/A"
+										}
+										disabled
+										className="cursor-not-allowed bg-muted text-muted-foreground text-xs"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label className="font-semibold text-muted-foreground text-xs">
+										Account Status
+									</Label>
+									<div className="flex h-9 items-center rounded-md bg-green-500/10 px-3 font-medium text-green-700 text-xs dark:text-green-400">
+										Active Login
+									</div>
+								</div>
+							</div>
+
+							<DialogFooter className="gap-2 pt-3">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => setIsEditingProfile(false)}
+									disabled={updateProfileMutation.isPending}
+								>
+									Cancel
+								</Button>
+								<Button
+									type="submit"
+									disabled={updateProfileMutation.isPending}
+								>
+									{updateProfileMutation.isPending
+										? "Saving..."
+										: "Save Changes"}
+								</Button>
+							</DialogFooter>
+						</form>
+					) : (
+						<>
+							<div className="space-y-4 py-3">
+								<div className="flex items-center justify-center pb-2">
+									{effectiveAvatar ? (
+										<img
+											src={effectiveAvatar}
+											alt={user?.name || "Profile"}
+											className="h-20 w-20 rounded-full object-cover shadow-md ring-2 ring-primary/30"
+										/>
+									) : (
+										<div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-2xl text-white shadow-md">
+											{user?.name ? user.name.slice(0, 2).toUpperCase() : "U"}
+										</div>
+									)}
+								</div>
+
+								<div className="grid grid-cols-2 gap-4 border-border/40 border-b pb-4 text-xs sm:text-sm">
+									<div>
+										<span className="block font-semibold text-muted-foreground text-xs">
+											Full Name
+										</span>
+										<span className="font-medium text-foreground">
+											{myProfile?.name || user?.name || "N/A"}
+										</span>
+									</div>
+									<div>
+										<span className="block font-semibold text-muted-foreground text-xs">
+											Email / Login ID
+										</span>
+										<span className="font-medium text-foreground">
+											{myProfile?.email || user?.email || "N/A"}
+										</span>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
+									<div>
+										<span className="block font-semibold text-muted-foreground text-xs">
+											Phone Number
+										</span>
+										<span className="font-medium text-foreground">
+											{myProfile?.phone || "Not set"}
+										</span>
+									</div>
+									<div>
+										<span className="block font-semibold text-muted-foreground text-xs">
+											Primary Role
+										</span>
+										<span className="font-medium text-foreground capitalize">
+											{user?.role
+												? user.role.toUpperCase().replace("_", " ")
+												: "N/A"}
+										</span>
+									</div>
+								</div>
+
+								<div className="pt-2 text-xs sm:text-sm">
+									<span className="block font-semibold text-muted-foreground text-xs">
+										Account Status
+									</span>
+									<span className="mt-1 inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 font-medium text-green-700 text-xs dark:text-green-400">
+										Active Login
+									</span>
+								</div>
+							</div>
+
+							<DialogFooter className="flex gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									className="flex-1"
+									onClick={() => setProfileOpen(false)}
+								>
+									Close Profile
+								</Button>
+								<Button
+									type="button"
+									className="flex-1"
+									onClick={() => setIsEditingProfile(true)}
+								>
+									Edit Profile
+								</Button>
+							</DialogFooter>
+						</>
+					)}
 				</DialogContent>
 			</Dialog>
 			{/* Account Settings Dialog Modal */}
@@ -635,9 +912,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 								return;
 							}
 							changePasswordMutation.mutate({
-								userId: user?.id || "",
 								newPassword: newPwd,
-								forcePasswordChange: false,
 							});
 						}}
 						className="space-y-4 py-2"
@@ -709,96 +984,6 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 							</Button>
 						</DialogFooter>
 					</form>
-				</DialogContent>
-			</Dialog>
-			{/* Notifications Dialog Modal */}
-			<Dialog open={notifOpen} onOpenChange={setNotifOpen}>
-				<DialogContent className="max-h-[80vh] max-w-md overflow-y-auto">
-					<DialogHeader className="flex flex-row items-center justify-between border-border/40 border-b pb-3">
-						<div>
-							<DialogTitle className="font-bold text-base">
-								Notifications Inbox
-							</DialogTitle>
-							<DialogDescription className="mt-0.5 text-muted-foreground text-xs">
-								System-wide alerts, activities, and operational warnings.
-							</DialogDescription>
-						</div>
-						{unreadCount > 0 && (
-							<Button
-								variant="outline"
-								size="xs"
-								className="h-7 text-xs"
-								disabled={markAllAsReadMutation.isPending}
-								onClick={() => markAllAsReadMutation.mutate({})}
-							>
-								Mark All Read
-							</Button>
-						)}
-					</DialogHeader>
-
-					<div className="max-h-96 space-y-3 divide-y divide-border/30 overflow-y-auto py-2">
-						{notificationsList && notificationsList.length > 0 ? (
-							notificationsList.map((notif: any) => (
-								<div
-									key={notif.id}
-									className="flex items-start justify-between gap-3 pt-3 text-xs first:pt-0 sm:text-sm"
-								>
-									<div className="flex-1 space-y-1">
-										<div className="flex items-center gap-1.5">
-											<span
-												className={`h-2 w-2 flex-shrink-0 rounded-full ${
-													notif.is_read
-														? "bg-transparent"
-														: "animate-pulse bg-red-500"
-												}`}
-											/>
-											<span className="font-semibold text-foreground">
-												{notif.title}
-											</span>
-											<span className="ml-auto text-[10px] text-muted-foreground">
-												{notif.created_at
-													? new Date(notif.created_at).toLocaleDateString()
-													: ""}
-											</span>
-										</div>
-										<p className="text-muted-foreground text-xs leading-normal">
-											{notif.message}
-										</p>
-									</div>
-
-									{!notif.is_read && (
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-6 w-6 text-blue-500 hover:text-blue-600"
-											disabled={markAsReadMutation.isPending}
-											onClick={() =>
-												markAsReadMutation.mutate({ id: notif.id })
-											}
-											title="Mark as read"
-										>
-											<Check className="h-3.5 w-3.5" />
-										</Button>
-									)}
-								</div>
-							))
-						) : (
-							<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-xs sm:text-sm">
-								<Bell className="h-8 w-8 text-muted-foreground/40" />
-								<span>No notifications received yet.</span>
-							</div>
-						)}
-					</div>
-
-					<DialogFooter className="border-border/40 border-t pt-2">
-						<Button
-							type="button"
-							className="w-full"
-							onClick={() => setNotifOpen(false)}
-						>
-							Close Inbox
-						</Button>
-					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 			{/* Attendance Action Dialog Modal */}
@@ -915,6 +1100,15 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 										</Button>
 									)}
 
+									{attendanceGpsProgress && (
+										<div className="flex w-full items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 px-3 py-2 text-blue-900 text-xs dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+											<Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
+											<span className="font-medium">
+												{attendanceGpsProgress.message}
+											</span>
+										</div>
+									)}
+
 									{currentState === "NOT_STARTED" && (
 										<Button
 											type="button"
@@ -1016,6 +1210,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+			<LogoutModal open={logoutModalOpen} onOpenChange={setLogoutModalOpen} />
 		</header>
 	);
 }

@@ -70,7 +70,7 @@ export async function loadSettings(db: DB) {
 		enableSelfie: s?.enableSelfie ?? true,
 		enableDeviceLock: s?.enableDeviceLock ?? true,
 		enableBreakTracking: s?.enableBreakTracking ?? true,
-		minGPSAccuracy: s?.minGPSAccuracy ?? 500,
+		minGPSAccuracy: s?.minGPSAccuracy ? Math.max(s.minGPSAccuracy, 300) : 500,
 		graceTime: s?.graceTime ?? 10,
 		maxBreakTime: s?.maxBreakTime ?? 60,
 		workingHours: s?.workingHours ?? 8,
@@ -118,12 +118,15 @@ export async function validateGeofence(
 		Number(fence.latitude),
 		Number(fence.longitude),
 	);
-	const radius = (fence.radius ?? 100) + Math.min(gps.accuracy || 0, 50);
-	const isInside = distance <= radius;
+	// Fence radius plus measurement tolerance (up to minAccuracy)
+	const fenceRadius = fence.radius ?? 100;
+	const accuracyTolerance = Math.min(gps.accuracy || 0, minAccuracy);
+	const effectiveRadius = fenceRadius + accuracyTolerance;
+	const isInside = distance <= effectiveRadius;
 	return {
 		ok: isInside,
 		distance: Math.round(distance * 100) / 100,
-		radius: fence.radius ?? 100,
+		radius: fenceRadius,
 		reason: isInside ? undefined : "outside_geofence",
 	};
 }
@@ -154,6 +157,11 @@ export function assessRisk(input: {
 	if (input.gps.accuracy > 0 && input.gps.accuracy < 1) {
 		score += 20;
 		reasons.push("suspiciously_precise_accuracy");
+	}
+	// High accuracy uncertainty (> 150m) flags for review without blocking
+	if (input.gps.accuracy > 150) {
+		score += 15;
+		reasons.push("wide_gps_accuracy_range");
 	}
 	if (input.gps.deviceTimestamp) {
 		const drift = Math.abs(
@@ -261,19 +269,55 @@ export function assertShiftTransition(
 	}
 }
 
-/** Server-authoritative date key (yyyy-mm-dd) and HH:mm:ss time string. */
-export function serverDateParts(now = new Date()) {
-	const year = now.getFullYear();
-	const month = String(now.getMonth() + 1).padStart(2, "0");
-	const day = String(now.getDate()).padStart(2, "0");
-	const hours = String(now.getHours()).padStart(2, "0");
-	const minutes = String(now.getMinutes()).padStart(2, "0");
-	const seconds = String(now.getSeconds()).padStart(2, "0");
-	return {
-		date: `${year}-${month}-${day}`,
-		time: `${hours}:${minutes}:${seconds}`,
-		now,
-	};
+/**
+ * Server-authoritative date key (yyyy-mm-dd) and HH:mm:ss time string.
+ * Formats in Indian Standard Time (Asia/Kolkata, UTC+5:30) as authoritative operations timezone.
+ */
+export function serverDateParts(
+	now = new Date(),
+	timeZone = process.env.APP_TIMEZONE || "Asia/Kolkata",
+) {
+	try {
+		const formatter = new Intl.DateTimeFormat("en-US", {
+			timeZone,
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+			hour12: false,
+		});
+		const parts = formatter.formatToParts(now);
+		const p: Record<string, string> = {};
+		for (const part of parts) {
+			p[part.type] = part.value;
+		}
+		const year = p.year;
+		const month = p.month;
+		const day = p.day;
+		let hour = p.hour;
+		if (hour === "24") hour = "00";
+		const minute = p.minute;
+		const second = p.second;
+		return {
+			date: `${year}-${month}-${day}`,
+			time: `${hour}:${minute}:${second}`,
+			now,
+		};
+	} catch {
+		const year = now.getFullYear();
+		const month = String(now.getMonth() + 1).padStart(2, "0");
+		const day = String(now.getDate()).padStart(2, "0");
+		const hours = String(now.getHours()).padStart(2, "0");
+		const minutes = String(now.getMinutes()).padStart(2, "0");
+		const seconds = String(now.getSeconds()).padStart(2, "0");
+		return {
+			date: `${year}-${month}-${day}`,
+			time: `${hours}:${minutes}:${seconds}`,
+			now,
+		};
+	}
 }
 
 /**

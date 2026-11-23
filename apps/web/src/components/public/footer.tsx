@@ -15,7 +15,6 @@ export function Footer() {
 	const currentYear = new Date().getFullYear();
 
 	const productLinks = [
-		{ name: "Product Overview", href: "/product" },
 		{ name: "Features", href: "/features" },
 		{ name: "Solutions", href: "/solutions" },
 		{ name: "Pricing", href: "/pricing" },

@@ -1,34 +1,59 @@
-﻿import { Button } from "@evaluna/ui/components/button";
+import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import {
 	ArrowLeft,
 	Database,
 	Monitor,
-	MountainIcon,
 	MousePointer,
 	Settings,
 	Shield,
 	User,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Interactive Live Demo & System Sandbox",
+	description:
+		"Experience Evaluna ERP hands-on with role-based demo accounts: Retail Cashier POS, Warehouse Manager, Field Sales Agent, and Finance Officer.",
+	canonicalPath: "/demo",
+});
 
 export default function DemoPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Demo", url: "/demo" },
+	]);
+
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+		<div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			{/* Navigation */}
-			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
+			<nav className="sticky top-0 z-50 border-b border-border/80 bg-background/80 backdrop-blur-md transition-colors">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex h-16 items-center justify-between">
-						<div className="flex items-center space-x-2">
-							<MountainIcon className="h-8 w-8 text-primary" strokeWidth={2} />
-							<span className="font-bold text-foreground text-xl">
+						<Link href="/" className="group flex items-center space-x-2.5">
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-9 w-9 rounded-xl object-cover shadow-xs transition-transform group-hover:scale-105"
+							/>
+							<span className="font-bold text-foreground text-xl tracking-tight">
 								Evaluna ERP
 							</span>
-						</div>
-						<div className="flex items-center space-x-4">
-							<Button asChild variant="outline" className="text-sm">
+						</Link>
+						<div className="flex items-center space-x-2 sm:space-x-3">
+							<LocaleSwitcher />
+							<ThemeToggle />
+							<Button asChild variant="outline" size="sm" className="border-border/70 hover:bg-muted text-xs">
 								<Link href="/">
-									<ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+									<ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Home
 								</Link>
 							</Button>
 						</div>
@@ -139,12 +164,12 @@ export default function DemoPage() {
 									Our robust data management system ensures data integrity,
 									security, and accessibility.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>â€¢ Centralized database</li>
-									<li>â€¢ Real-time synchronization</li>
-									<li>â€¢ Data backup & recovery</li>
-									<li>â€¢ Advanced search capabilities</li>
-									<li>â€¢ Custom data views</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>Centralized database</li>
+									<li>Real-time synchronization</li>
+									<li>Data backup & recovery</li>
+									<li>Advanced search capabilities</li>
+									<li>Custom data views</li>
 								</ul>
 							</CardContent>
 						</Card>
@@ -159,12 +184,12 @@ export default function DemoPage() {
 									Comprehensive security measures to protect our business data
 									and ensure compliance.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>â€¢ Role-based access control</li>
-									<li>â€¢ Data encryption</li>
-									<li>â€¢ Audit logging</li>
-									<li>â€¢ Two-factor authentication</li>
-									<li>â€¢ Regular security updates</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>Role-based access control</li>
+									<li>Data encryption</li>
+									<li>Audit logging</li>
+									<li>Two-factor authentication</li>
+									<li>Regular security updates</li>
 								</ul>
 							</CardContent>
 						</Card>
@@ -179,12 +204,12 @@ export default function DemoPage() {
 									Flexible user management system with customizable permissions
 									and profiles.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>â€¢ User roles & permissions</li>
-									<li>â€¢ Profile customization</li>
-									<li>â€¢ Activity tracking</li>
-									<li>â€¢ Department-based access</li>
-									<li>â€¢ User onboarding workflows</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>User roles & permissions</li>
+									<li>Profile customization</li>
+									<li>Activity tracking</li>
+									<li>Department-based access</li>
+									<li>User onboarding workflows</li>
 								</ul>
 							</CardContent>
 						</Card>
@@ -293,20 +318,20 @@ export default function DemoPage() {
 								<div className="space-y-4">
 									<div>
 										<h4 className="mb-2 font-medium">Supported Browsers:</h4>
-										<ul className="space-y-1 text-muted-foreground text-sm">
-											<li>â€¢ Chrome (latest version)</li>
-											<li>â€¢ Firefox (latest version)</li>
-											<li>â€¢ Safari (latest version)</li>
-											<li>â€¢ Edge (latest version)</li>
+										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+											<li>Chrome (latest version)</li>
+											<li>Firefox (latest version)</li>
+											<li>Safari (latest version)</li>
+											<li>Edge (latest version)</li>
 										</ul>
 									</div>
 									<div className="mt-4">
 										<h4 className="mb-2 font-medium">Device Requirements:</h4>
-										<ul className="space-y-1 text-muted-foreground text-sm">
-											<li>â€¢ Desktop or laptop computer</li>
-											<li>â€¢ Tablet devices</li>
-											<li>â€¢ Minimum 1024x768 resolution</li>
-											<li>â€¢ Internet connection</li>
+										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+											<li>Desktop or laptop computer</li>
+											<li>Tablet devices</li>
+											<li>Minimum 1024x768 resolution</li>
+											<li>Internet connection</li>
 										</ul>
 									</div>
 								</div>
@@ -325,20 +350,20 @@ export default function DemoPage() {
 								<div className="space-y-4">
 									<div>
 										<h4 className="mb-2 font-medium">Access Methods:</h4>
-										<ul className="space-y-1 text-muted-foreground text-sm">
-											<li>â€¢ Web browser access</li>
-											<li>â€¢ Mobile responsive design</li>
-											<li>â€¢ VPN access for remote users</li>
-											<li>â€¢ Single sign-on (SSO) support</li>
+										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+											<li>Web browser access</li>
+											<li>Mobile responsive design</li>
+											<li>VPN access for remote users</li>
+											<li>Single sign-on (SSO) support</li>
 										</ul>
 									</div>
 									<div className="mt-4">
 										<h4 className="mb-2 font-medium">Support Options:</h4>
-										<ul className="space-y-1 text-muted-foreground text-sm">
-											<li>â€¢ IT help desk</li>
-											<li>â€¢ Online documentation</li>
-											<li>â€¢ Training sessions</li>
-											<li>â€¢ User community forum</li>
+										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+											<li>IT help desk</li>
+											<li>Online documentation</li>
+											<li>Training sessions</li>
+											<li>User community forum</li>
 										</ul>
 									</div>
 								</div>
@@ -368,44 +393,29 @@ export default function DemoPage() {
 			</main>
 
 			{/* Footer */}
-			<footer className="mt-16 border-slate-200 border-t bg-white py-8">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex flex-col items-center justify-between md:flex-row">
-						<div className="mb-4 flex items-center space-x-2 md:mb-0">
-							<MountainIcon className="h-6 w-6 text-primary" strokeWidth={2} />
-							<span className="font-bold text-foreground text-lg">
-								Evaluna ERP
-							</span>
-						</div>
-						<div className="text-muted-foreground text-sm">
-							Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use
-							Only.
-						</div>
+			<footer className="mt-16 border-t border-border/60 bg-muted/20 py-8 transition-colors">
+				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+					<div className="flex items-center space-x-2">
+						<img
+							src="/logo.jpg"
+							alt="Evaluna ERP"
+							className="h-5 w-5 rounded-md object-cover"
+						/>
+						<span className="font-bold text-foreground">Evaluna ERP</span>
+						<span>• Interactive Sandbox</span>
 					</div>
-					<div className="mt-4 flex flex-wrap justify-center space-x-6 text-muted-foreground text-sm md:justify-end">
-						<Link
-							href="/privacy"
-							className="transition-colors hover:text-foreground"
-						>
-							Privacy Policy
+					<div>
+						© {new Date().getFullYear()} Evaluna Technologies Pvt. Ltd. All rights reserved.
+					</div>
+					<div className="flex items-center space-x-4">
+						<Link href="/privacy" className="hover:text-foreground transition-colors">
+							Privacy
 						</Link>
-						<Link
-							href="/terms"
-							className="transition-colors hover:text-foreground"
-						>
-							Terms of Service
+						<Link href="/terms" className="hover:text-foreground transition-colors">
+							Terms
 						</Link>
-						<Link
-							href="/contact"
-							className="transition-colors hover:text-foreground"
-						>
-							Contact IT Support
-						</Link>
-						<Link
-							href="/docs"
-							className="transition-colors hover:text-foreground"
-						>
-							Internal Documentation
+						<Link href="/contact" className="hover:text-foreground transition-colors">
+							Contact
 						</Link>
 					</div>
 				</div>

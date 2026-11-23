@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import {
@@ -8,11 +9,19 @@ import {
 	TableActionButton,
 	TableActions,
 } from "@evaluna/ui/components/data-table";
-import { PlayCircleIcon, RefreshCcwIcon, TrashIcon } from "lucide-react";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { AlertCircleIcon, PlayCircleIcon, RefreshCcwIcon, TrashIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { toast } from "sonner";
-import { RoleGate } from "@/components/auth/RoleGate";
 import {
 	AnimatedCard,
 	PageTransition,
@@ -66,14 +75,59 @@ export default function HoldBillsPage() {
 				: "Are you sure you want to delete this hold bill?",
 		deleteSuccess:
 			locale === "hi"
-				? "होल्ड बिल सफलतापूर्वक हटा दिया गया।"
-				: "Hold bill deleted successfully.",
+				? "होल्ड बिल हटा दिया गया और स्टॉक वेयरहाउस में वापस जुड़ गया।"
+				: "Hold bill deleted and stock successfully restored to warehouse.",
+		deleteDialogTitle:
+			locale === "hi" ? "होल्ड बिल हटाएं और स्टॉक वापस जोड़ें" : "Delete Hold Bill & Restore Stock",
+		deleteDialogDesc:
+			locale === "hi"
+				? "इस होल्ड बिल को हटाने पर होल्ड किए गए सभी उत्पाद वेयरहाउस स्टॉक में तुरंत वापस जुड़ जाएंगे।"
+				: "Deleting this held bill will automatically restore all reserved products back into the warehouse inventory.",
+		reasonLabel:
+			locale === "hi" ? "हटाने का कारण (Reason):" : "Cancellation / Deletion Reason:",
+		reasonPlaceholder:
+			locale === "hi"
+				? "कारण दर्ज करें (जैसे ग्राहक ने मना किया, गलत ऑर्डर)..."
+				: "Enter reason (e.g., Customer cancelled, duplicate, expired)...",
+		cancelBtn: locale === "hi" ? "रद्द करें" : "Cancel",
+		confirmDeleteBtn:
+			locale === "hi"
+				? "बिल हटाएं और स्टॉक वापस जोड़ें"
+				: "Delete & Restore Stock",
+		deletingBtn:
+			locale === "hi" ? "स्टॉक वापस जोड़ रहे हैं..." : "Restoring Stock...",
 	};
+
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+	const [deleteReason, setDeleteReason] = useState("");
+
+	const REASON_PRESETS = [
+		{
+			label: locale === "hi" ? "ग्राहक ने मना किया" : "Customer Cancelled",
+			value: "Customer Cancelled",
+		},
+		{
+			label: locale === "hi" ? "सामान उपलब्ध नहीं" : "Out of Stock / Unavailable",
+			value: "Out of Stock / Unavailable",
+		},
+		{
+			label: locale === "hi" ? "डुप्लीकेट होल्ड बिल" : "Duplicate Hold Bill",
+			value: "Duplicate Hold Bill",
+		},
+		{
+			label: locale === "hi" ? "होल्ड समाप्त / नया बिल" : "Hold Expired / New Bill",
+			value: "Hold Expired / New Bill",
+		},
+	];
 
 	const { data: orders, isLoading } = trpc.orders.list.useQuery();
 	const deleteMutation = trpc.orders.delete.useMutation({
 		onSuccess: () => {
 			toast.success(t.deleteSuccess);
+			setDeleteDialogOpen(false);
+			setOrderToDelete(null);
+			setDeleteReason("");
 			utils.orders.list.invalidate();
 		},
 		onError: (err) => {
@@ -90,10 +144,18 @@ export default function HoldBillsPage() {
 		router.push(`/sales/pos?resume=${id}`);
 	};
 
-	const handleDelete = (id: number) => {
-		if (window.confirm(t.deleteConfirm)) {
-			deleteMutation.mutate({ id });
-		}
+	const openDeleteDialog = (order: Order) => {
+		setOrderToDelete(order);
+		setDeleteReason("");
+		setDeleteDialogOpen(true);
+	};
+
+	const handleConfirmDelete = () => {
+		if (!orderToDelete) return;
+		deleteMutation.mutate({
+			id: orderToDelete.id,
+			reason: deleteReason.trim() || (locale === "hi" ? "होल्ड बिल रद्द किया गया" : "Hold bill cancelled / deleted"),
+		});
 	};
 
 	const columns: Column<Order>[] = [
@@ -132,13 +194,11 @@ export default function HoldBillsPage() {
 						label={t.resumeBill}
 						onClick={() => handleResume(row.id)}
 					/>
-					<RoleGate minRole="manager">
-						<TableActionButton
-							icon={<TrashIcon className="h-4 w-4 text-red-500" />}
-							label={t.deleteBill}
-							onClick={() => handleDelete(row.id)}
-						/>
-					</RoleGate>
+					<TableActionButton
+						icon={<TrashIcon className="h-4 w-4 text-red-500 hover:text-red-600" />}
+						label={t.deleteBill}
+						onClick={() => openDeleteDialog(row)}
+					/>
 				</TableActions>
 			),
 		},
@@ -189,6 +249,81 @@ export default function HoldBillsPage() {
 					/>
 				</CardContent>
 			</Card>
+
+			<Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+				<DialogContent className="max-w-md border-border/80 bg-background/95 backdrop-blur-xl">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-destructive">
+							<AlertCircleIcon className="h-5 w-5" />
+							{t.deleteDialogTitle}
+						</DialogTitle>
+						<DialogDescription className="text-sm">
+							{t.deleteDialogDesc}
+						</DialogDescription>
+					</DialogHeader>
+
+					{orderToDelete && (
+						<div className="rounded-lg border border-border/60 bg-muted/40 p-3 text-sm space-y-1">
+							<div className="flex justify-between font-medium">
+								<span>Bill ID: #{orderToDelete.id}</span>
+								<span>{formatCurrency(Number(orderToDelete.total_amount), locale)}</span>
+							</div>
+							<div className="text-muted-foreground text-xs">
+								Customer: <span className="font-medium text-foreground">{orderToDelete.customer?.name || t.walkIn}</span>
+							</div>
+						</div>
+					)}
+
+					<div className="space-y-3">
+						<label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+							{t.reasonLabel}
+						</label>
+						<div className="flex flex-wrap gap-1.5">
+							{REASON_PRESETS.map((preset) => (
+								<button
+									key={preset.value}
+									type="button"
+									onClick={() => setDeleteReason(preset.value)}
+									className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+										deleteReason === preset.value
+											? "border-primary bg-primary/10 text-primary font-medium"
+											: "border-border/60 bg-muted/20 hover:bg-muted/60 text-muted-foreground"
+									}`}
+								>
+									{preset.label}
+								</button>
+							))}
+						</div>
+						<Input
+							value={deleteReason}
+							onChange={(e) => setDeleteReason(e.target.value)}
+							placeholder={t.reasonPlaceholder}
+							className="mt-1.5"
+						/>
+					</div>
+
+					<DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 mt-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setDeleteDialogOpen(false)}
+							disabled={deleteMutation.isPending}
+						>
+							{t.cancelBtn}
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={handleConfirmDelete}
+							disabled={deleteMutation.isPending}
+							className="gap-1.5"
+						>
+							<TrashIcon className="h-4 w-4" />
+							{deleteMutation.isPending ? t.deletingBtn : t.confirmDeleteBtn}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</PageTransition>
 	);
 }

@@ -1,38 +1,32 @@
-﻿import { Button } from "@evaluna/ui/components/button";
+import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
-import {
-	AlertTriangle,
-	ArrowLeft,
-	FileText,
-	Gavel,
-	MountainIcon,
-	Shield,
-} from "lucide-react";
+import { AlertTriangle, FileText, Gavel, Shield } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { PublicHeader } from "@/components/layout/PublicHeader";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Terms of Service — Enterprise Agreement & Usage Terms",
+	description:
+		"Review terms, conditions, subscription agreements, and SLA policies governing the use of Evaluna ERP software.",
+	canonicalPath: "/terms",
+});
 
 export default function TermsPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Terms of Service", url: "/terms" },
+	]);
+
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-			{/* Navigation */}
-			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex h-16 items-center justify-between">
-						<div className="flex items-center space-x-2">
-							<MountainIcon className="h-8 w-8 text-primary" strokeWidth={2} />
-							<span className="font-bold text-foreground text-xl">
-								Evaluna ERP
-							</span>
-						</div>
-						<div className="flex items-center space-x-4">
-							<Button asChild variant="outline" className="text-sm">
-								<Link href="/">
-									<ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
-								</Link>
-							</Button>
-						</div>
-					</div>
-				</div>
-			</nav>
+		<div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
+			{/* Synchronized Homepage Navigation */}
+			<PublicHeader />
 
 			{/* Main Content */}
 			<main className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
@@ -89,33 +83,27 @@ export default function TermsPage() {
 							<p className="mb-4 text-muted-foreground">
 								When using our ERP system, you agree to:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>· Use the system only for authorized business purposes</li>
+								<li>Comply with all company policies and procedures</li>
+								<li>· Maintain the confidentiality of sensitive information</li>
+								<li>· Use only your assigned credentials and not share them</li>
 								<li>
-									â€¢ Use the system only for authorized business purposes
-								</li>
-								<li>â€¢ Comply with all company policies and procedures</li>
-								<li>
-									â€¢ Maintain the confidentiality of sensitive information
-								</li>
-								<li>
-									â€¢ Use only your assigned credentials and not share them
-								</li>
-								<li>
-									â€¢ Report any security issues or suspicious activity
+									· Report any security issues or suspicious activity
 									immediately
 								</li>
-								<li>â€¢ Follow all data protection and privacy regulations</li>
+								<li>Follow all data protection and privacy regulations</li>
 							</ul>
 							<p className="mt-4 text-muted-foreground">
 								Prohibited activities include, but are not limited to:
 							</p>
-							<ul className="space-y-1 text-muted-foreground text-sm">
-								<li>â€¢ Unauthorized access to data or systems</li>
-								<li>â€¢ Sharing confidential information externally</li>
-								<li>â€¢ Attempting to bypass security measures</li>
-								<li>â€¢ Using the system for personal gain</li>
-								<li>â€¢ Introducing malware or harmful software</li>
-								<li>â€¢ Any activity that violates company policies</li>
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>Unauthorized access to data or systems</li>
+								<li>Sharing confidential information externally</li>
+								<li>Attempting to bypass security measures</li>
+								<li>Using the system for personal gain</li>
+								<li>Introducing malware or harmful software</li>
+								<li>Any activity that violates company policies</li>
 							</ul>
 						</CardContent>
 					</Card>
@@ -131,23 +119,21 @@ export default function TermsPage() {
 							<p className="mb-4 text-muted-foreground">
 								As a user of our ERP system, you are responsible for:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
 								<li>
-									â€¢ Maintaining the confidentiality of your login credentials
+									· Maintaining the confidentiality of your login credentials
 								</li>
 								<li>
-									â€¢ Using the system in compliance with all applicable laws
+									· Using the system in compliance with all applicable laws
 								</li>
+								<li>· Reporting any suspected security breaches immediately</li>
 								<li>
-									â€¢ Reporting any suspected security breaches immediately
+									· Ensuring the accuracy of data you enter into the system
 								</li>
+								<li>Completing required training on system usage</li>
+								<li>Following all company IT security policies</li>
 								<li>
-									â€¢ Ensuring the accuracy of data you enter into the system
-								</li>
-								<li>â€¢ Completing required training on system usage</li>
-								<li>â€¢ Following all company IT security policies</li>
-								<li>
-									â€¢ Using the system only for authorized business purposes
+									· Using the system only for authorized business purposes
 								</li>
 							</ul>
 						</CardContent>
@@ -164,41 +150,36 @@ export default function TermsPage() {
 							<div className="space-y-4">
 								<div>
 									<h3 className="mb-2 font-medium">Access Control:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
 										<li>
-											â€¢ Access is granted based on job role and
-											responsibilities
+											· Access is granted based on job role and responsibilities
 										</li>
 										<li>
-											â€¢ Users may only access data necessary for their job
+											· Users may only access data necessary for their job
 											functions
 										</li>
-										<li>
-											â€¢ Access levels are reviewed and updated regularly
-										</li>
-										<li>
-											â€¢ Unauthorized access attempts will be investigated
-										</li>
+										<li>· Access levels are reviewed and updated regularly</li>
+										<li>· Unauthorized access attempts will be investigated</li>
 									</ul>
 								</div>
 								<div>
 									<h3 className="mb-2 font-medium">Data Security:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
-										<li>â€¢ All data is encrypted in transit and at rest</li>
-										<li>â€¢ Regular security audits are conducted</li>
-										<li>â€¢ System vulnerabilities are patched promptly</li>
-										<li>â€¢ Data backups are performed regularly</li>
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+										<li>All data is encrypted in transit and at rest</li>
+										<li>Regular security audits are conducted</li>
+										<li>System vulnerabilities are patched promptly</li>
+										<li>Data backups are performed regularly</li>
 									</ul>
 								</div>
 								<div>
 									<h3 className="mb-2 font-medium">Incident Reporting:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
 										<li>
-											â€¢ Report lost or compromised credentials immediately
+											· Report lost or compromised credentials immediately
 										</li>
-										<li>â€¢ Report any suspicious system behavior</li>
-										<li>â€¢ Report unauthorized access attempts</li>
-										<li>â€¢ Report any potential data breaches</li>
+										<li>Report any suspicious system behavior</li>
+										<li>Report unauthorized access attempts</li>
+										<li>Report any potential data breaches</li>
 									</ul>
 								</div>
 							</div>
@@ -238,21 +219,19 @@ export default function TermsPage() {
 								All information within our ERP system is considered confidential
 								and proprietary to Evaluna Technologies. You agree to:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
-								<li>â€¢ Maintain the confidentiality of all business data</li>
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>Maintain the confidentiality of all business data</li>
 								<li>
-									â€¢ Not disclose confidential information to unauthorized
+									· Not disclose confidential information to unauthorized
 									parties
 								</li>
 								<li>
-									â€¢ Use confidential information only for authorized business
+									· Use confidential information only for authorized business
 									purposes
 								</li>
+								<li>· Comply with all data protection laws and regulations</li>
 								<li>
-									â€¢ Comply with all data protection laws and regulations
-								</li>
-								<li>
-									â€¢ Report any potential confidentiality breaches immediately
+									· Report any potential confidentiality breaches immediately
 								</li>
 							</ul>
 						</CardContent>
@@ -270,13 +249,13 @@ export default function TermsPage() {
 								Your access to our ERP system may be terminated immediately for
 								any of the following reasons:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
-								<li>â€¢ Violation of these Terms of Service</li>
-								<li>â€¢ Violation of company policies or procedures</li>
-								<li>â€¢ Suspicion of unauthorized or fraudulent activity</li>
-								<li>â€¢ Termination of employment or contract</li>
-								<li>â€¢ Security concerns or potential breaches</li>
-								<li>â€¢ Failure to comply with training requirements</li>
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>Violation of these Terms of Service</li>
+								<li>Violation of company policies or procedures</li>
+								<li>Suspicion of unauthorized or fraudulent activity</li>
+								<li>Termination of employment or contract</li>
+								<li>Security concerns or potential breaches</li>
+								<li>Failure to comply with training requirements</li>
 							</ul>
 							<p className="mt-4 text-muted-foreground">
 								Upon termination of access, you must immediately cease all use
@@ -298,14 +277,14 @@ export default function TermsPage() {
 								Our ERP system is provided "as is" without any warranties,
 								express or implied. We do not guarantee that:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
-								<li>â€¢ The system will be error-free or uninterrupted</li>
-								<li>â€¢ The system will meet your specific requirements</li>
-								<li>â€¢ Any defects will be corrected</li>
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>The system will be error-free or uninterrupted</li>
+								<li>The system will meet your specific requirements</li>
+								<li>Any defects will be corrected</li>
 								<li>
-									â€¢ The system will be compatible with all devices or browsers
+									· The system will be compatible with all devices or browsers
 								</li>
-								<li>â€¢ The system will be secure from all vulnerabilities</li>
+								<li>The system will be secure from all vulnerabilities</li>
 							</ul>
 							<p className="mt-4 text-muted-foreground">
 								We strive to maintain system availability and performance, but
@@ -327,13 +306,13 @@ export default function TermsPage() {
 								To the fullest extent permitted by law, Evaluna Technologies
 								shall not be liable for:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
-								<li>â€¢ Any indirect, incidental, or consequential damages</li>
-								<li>â€¢ Loss of data or business interruption</li>
-								<li>â€¢ Errors or omissions in system data</li>
-								<li>â€¢ Unauthorized access to the system</li>
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>Any indirect, incidental, or consequential damages</li>
+								<li>Loss of data or business interruption</li>
+								<li>Errors or omissions in system data</li>
+								<li>Unauthorized access to the system</li>
 								<li>
-									â€¢ Any damages resulting from system use or inability to use
+									· Any damages resulting from system use or inability to use
 								</li>
 							</ul>
 						</CardContent>
@@ -351,17 +330,15 @@ export default function TermsPage() {
 								We reserve the right to modify these Terms at any time. When we
 								make changes, we will:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
-								<li>â€¢ Post the updated Terms on our internal systems</li>
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>Post the updated Terms on our internal systems</li>
+								<li>· Update the "Effective date" at the top of these Terms</li>
 								<li>
-									â€¢ Update the "Effective date" at the top of these Terms
-								</li>
-								<li>
-									â€¢ Notify employees of significant changes via company
+									· Notify employees of significant changes via company
 									communication channels
 								</li>
 								<li>
-									â€¢ Provide reasonable notice before major changes take effect
+									· Provide reasonable notice before major changes take effect
 								</li>
 							</ul>
 							<p className="mt-4 text-muted-foreground">
@@ -404,38 +381,39 @@ export default function TermsPage() {
 			</main>
 
 			{/* Footer */}
-			<footer className="mt-16 border-slate-200 border-t bg-white py-8">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex flex-col items-center justify-between md:flex-row">
-						<div className="mb-4 flex items-center space-x-2 md:mb-0">
-							<MountainIcon className="h-6 w-6 text-primary" strokeWidth={2} />
-							<span className="font-bold text-foreground text-lg">
-								Evaluna ERP
-							</span>
-						</div>
-						<div className="text-muted-foreground text-sm">
-							Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use
-							Only.
-						</div>
+			<footer className="mt-16 border-border/60 border-t bg-muted/20 py-8 transition-colors">
+				<div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 text-muted-foreground text-xs sm:flex-row sm:px-6 lg:px-8">
+					<div className="flex items-center space-x-2">
+						<img
+							src="/logo.jpg"
+							alt="Evaluna ERP"
+							className="h-5 w-5 rounded-md object-cover"
+						/>
+						<span className="font-bold text-foreground">Evaluna ERP</span>
+						<span>• Terms & Compliance</span>
 					</div>
-					<div className="mt-4 flex flex-wrap justify-center space-x-6 text-muted-foreground text-sm md:justify-end">
+					<div>
+						© {new Date().getFullYear()} Evaluna Technologies Pvt. Ltd. All
+						rights reserved.
+					</div>
+					<div className="flex items-center space-x-4">
 						<Link
 							href="/privacy"
 							className="transition-colors hover:text-foreground"
 						>
-							Privacy Policy
+							Privacy
 						</Link>
 						<Link
 							href="/contact"
 							className="transition-colors hover:text-foreground"
 						>
-							Contact IT Support
+							Contact
 						</Link>
 						<Link
-							href="/docs"
+							href="/about"
 							className="transition-colors hover:text-foreground"
 						>
-							Internal Documentation
+							About
 						</Link>
 					</div>
 				</div>

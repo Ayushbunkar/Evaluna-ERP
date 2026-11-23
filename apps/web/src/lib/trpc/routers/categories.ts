@@ -1,4 +1,4 @@
-import { eq, ilike } from "drizzle-orm";
+import { count, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { productCategories } from "@/lib/db/schema";
 import { publicProcedure, router } from "@/lib/trpc/init";
@@ -6,18 +6,21 @@ import { publicProcedure, router } from "@/lib/trpc/init";
 export const categoriesRouter = router({
 	list: publicProcedure
 		.input(
-			z.object({
-				search: z.string().optional(),
-				limit: z.number().optional(),
-				offset: z.number().optional(),
-			}),
+			z
+				.object({
+					search: z.string().optional(),
+					limit: z.number().optional(),
+					offset: z.number().optional(),
+				})
+				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
+			const { search, limit, offset } = input || {};
 			let query = db.select().from(productCategories);
 
-			if (input.search) {
-				const searchTerm = `%${input.search}%`;
+			if (search) {
+				const searchTerm = `%${search}%`;
 				query = query.where(
 					or(
 						ilike(productCategories.name, searchTerm),
@@ -27,11 +30,11 @@ export const categoriesRouter = router({
 			}
 
 			// Apply pagination
-			if (input.limit !== undefined) {
-				query = query.limit(input.limit);
+			if (limit !== undefined) {
+				query = query.limit(limit);
 			}
-			if (input.offset !== undefined) {
-				query = query.offset(input.offset);
+			if (offset !== undefined) {
+				query = query.offset(offset);
 			}
 
 			const categories = await query.orderBy(productCategories.name);
@@ -40,10 +43,10 @@ export const categoriesRouter = router({
 				.select({ count: count() })
 				.from(productCategories)
 				.where(
-					input.search
+					search
 						? or(
-								ilike(productCategories.name, `%${input.search}%`),
-								ilike(productCategories.description, `%${input.search}%`),
+								ilike(productCategories.name, `%${search}%`),
+								ilike(productCategories.description, `%${search}%`),
 							)
 						: undefined,
 				);
@@ -76,7 +79,7 @@ export const categoriesRouter = router({
 		.input(
 			z.object({
 				name: z.string().min(1),
-				slug: z.string().min(1),
+				slug: z.string().optional(),
 				description: z.string().optional(),
 				parent_id: z.number().optional().nullable(),
 				image_url: z.string().optional(),
@@ -84,11 +87,44 @@ export const categoriesRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
+			const cleanName = input.name.trim();
+
+			// Check if category with this name already exists (case-insensitive)
+			const existingByName = await db
+				.select()
+				.from(productCategories)
+				.where(ilike(productCategories.name, cleanName))
+				.limit(1);
+
+			if (existingByName.length > 0) {
+				return existingByName[0];
+			}
+
+			const baseSlug =
+				input.slug?.trim() ||
+				cleanName
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, "-")
+					.replace(/(^-|-$)/g, "") ||
+				`cat-${Date.now()}`;
+
+			// Check if slug already exists to prevent duplicate key violation
+			const existing = await db
+				.select({ id: productCategories.id })
+				.from(productCategories)
+				.where(eq(productCategories.slug, baseSlug))
+				.limit(1);
+
+			const finalSlug =
+				existing.length > 0
+					? `${baseSlug}-${Date.now().toString().slice(-4)}`
+					: baseSlug;
+
 			const [category] = await db
 				.insert(productCategories)
 				.values({
-					name: input.name,
-					slug: input.slug,
+					name: cleanName,
+					slug: finalSlug,
 					description: input.description ?? null,
 					parent_id: input.parent_id,
 					image_url: input.image_url ?? null,

@@ -8,19 +8,34 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
+import {
 	ArrowLeft,
 	Camera,
 	CheckCircle2,
 	Clock,
 	History,
 	LayoutDashboard,
+	Loader2,
 	LogIn,
 	LogOut,
 	MapPin,
+	Pencil,
 	ShieldCheck,
 	User,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { useSession } from "@/hooks/use-session";
 import {
@@ -36,6 +51,9 @@ export default function StaffProfilePage() {
 	const utils = trpc.useUtils();
 	const sessionData = useSession();
 
+	const [isEditingName, setIsEditingName] = useState(false);
+	const [editNameInput, setEditNameInput] = useState("");
+
 	const { data: statusData, isLoading: isLoadingStatus } =
 		trpc.attendance.myStatus.useQuery();
 
@@ -47,6 +65,23 @@ export default function StaffProfilePage() {
 			{ staff_id: staffMember?.id ?? 0 },
 			{ enabled: !!staffMember?.id },
 		);
+
+	const updateProfileMutation = trpc.staff.updateMyProfile.useMutation({
+		onSuccess: () => {
+			toast.success("Name updated successfully!");
+			setIsEditingName(false);
+			utils.attendance.myStatus.invalidate();
+			utils.staff.me.invalidate();
+		},
+		onError: (err) => {
+			toast.error(`Failed to update name: ${err.message}`);
+		},
+	});
+
+	const handleUpdateName = () => {
+		if (!editNameInput.trim()) return;
+		updateProfileMutation.mutate({ name: editNameInput.trim() });
+	};
 
 	const clockIn = trpc.attendance.clockIn.useMutation({
 		onSuccess: () => {
@@ -142,10 +177,62 @@ export default function StaffProfilePage() {
 					<div className="grid gap-6 md:grid-cols-2">
 						<AnimatedCard>
 							<Card className="h-full border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all">
-								<CardHeader>
+								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 									<CardTitle className="flex items-center gap-2 text-lg">
 										<User className="h-5 w-5 text-blue-500" /> My Profile
 									</CardTitle>
+									<Dialog open={isEditingName} onOpenChange={setIsEditingName}>
+										<DialogTrigger asChild>
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => setEditNameInput(staffMember.name)}
+												className="gap-1.5 border-blue-200 bg-blue-50/50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300"
+											>
+												<Pencil className="h-3.5 w-3.5" /> Edit Name
+											</Button>
+										</DialogTrigger>
+										<DialogContent className="sm:max-w-[425px]">
+											<DialogHeader>
+												<DialogTitle>Edit Profile Name</DialogTitle>
+												<DialogDescription>
+													Update your staff display name. Changes will reflect across your attendance logs and picker assignments.
+												</DialogDescription>
+											</DialogHeader>
+											<div className="grid gap-4 py-4">
+												<div className="grid grid-cols-4 items-center gap-4">
+													<Label htmlFor="name" className="text-right">
+														Name
+													</Label>
+													<Input
+														id="name"
+														value={editNameInput}
+														onChange={(e) => setEditNameInput(e.target.value)}
+														className="col-span-3"
+														placeholder="Enter your full name"
+													/>
+												</div>
+											</div>
+											<DialogFooter>
+												<Button
+													variant="ghost"
+													onClick={() => setIsEditingName(false)}
+												>
+													Cancel
+												</Button>
+												<Button
+													onClick={() => handleUpdateName()}
+													disabled={updateProfileMutation.isPending || !editNameInput.trim()}
+													className="bg-blue-600 text-white hover:bg-blue-700"
+												>
+													{updateProfileMutation.isPending && (
+														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+													)}
+													Save Changes
+												</Button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
 								</CardHeader>
 								<CardContent>
 									<div className="flex flex-col gap-4">

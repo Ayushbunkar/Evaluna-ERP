@@ -6,8 +6,16 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const withPWA = withPWAInit({
 	dest: "public",
 	disable: process.env.NODE_ENV === "development",
+	fallbacks: {
+		document: "/offline.html",
+	},
+	cacheOnFrontEndNav: true,
+	aggressiveFrontEndNavCaching: true,
+	reloadOnOnline: true,
 	workboxOptions: {
-		exclude: [/\/api\//], // Exclude API routes from precaching
+		navigateFallback: "/offline.html",
+		navigateFallbackDenylist: [/^\/api\//],
+		exclude: [/\/api\//],
 		runtimeCaching: [
 			{
 				// Cache fonts with a long TTL - fonts never change
@@ -16,18 +24,44 @@ const withPWA = withPWAInit({
 				options: {
 					cacheName: "fonts-cache",
 					expiration: {
-						maxEntries: 20,
+						maxEntries: 30,
 						maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
 					},
 				},
 			},
 			{
-				urlPattern: /^(?!.*\/api\/trpc\/).*/i,
-				handler: "NetworkFirst",
+				// Cache static images
+				urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
+				handler: "StaleWhileRevalidate",
+				options: {
+					cacheName: "static-images",
+					expiration: {
+						maxEntries: 150,
+						maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+					},
+				},
+			},
+			{
+				// Cache Next.js App Router RSC data payloads and JS chunks
+				urlPattern: /\/_next\/data\/|.*[?&]_rsc=|\/_next\/static\//i,
+				handler: "StaleWhileRevalidate",
+				options: {
+					cacheName: "rsc-static-chunks",
+					expiration: {
+						maxEntries: 300,
+						maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+					},
+				},
+			},
+			{
+				// Cache pages with StaleWhileRevalidate to guarantee offline availability
+				urlPattern: /^(?!.*\/api\/).*/i,
+				handler: "StaleWhileRevalidate",
 				options: {
 					cacheName: "offlineCache",
 					expiration: {
-						maxEntries: 200,
+						maxEntries: 300,
+						maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
 					},
 				},
 			},

@@ -26,16 +26,26 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@evaluna/ui/components/select";
+import {
 	ActivityIcon,
 	AlertTriangleIcon,
 	BarcodeIcon,
 	CheckCircle2Icon,
 	ClockIcon,
 	EyeIcon,
+	HelpCircleIcon,
 	Loader2Icon,
 	PackageCheckIcon,
 	PlusIcon,
 	SearchIcon,
+	ShieldAlertIcon,
+	TagIcon,
 	XCircleIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -234,32 +244,68 @@ export default function AuditorReceivingPage() {
 									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 										Material Condition
 									</label>
-									<select
-										className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+									<Select
 										value={condition}
-										onChange={(e) => setCondition(e.target.value as any)}
+										onValueChange={(val: any) => setCondition(val)}
 									>
-										<option value="good">✅ Good / Intact</option>
-										<option value="damaged">🚨 Damaged Goods</option>
-										<option value="mismatch">⚠️ Qty Mismatch</option>
-									</select>
+										<SelectTrigger className="w-full border-input bg-background text-sm shadow-sm">
+											<SelectValue placeholder="Select Condition" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="good">
+												<div className="flex items-center gap-2">
+													<CheckCircle2Icon className="h-4 w-4 text-emerald-500 shrink-0" />
+													<span>Good / Intact</span>
+												</div>
+											</SelectItem>
+											<SelectItem value="damaged">
+												<div className="flex items-center gap-2">
+													<ShieldAlertIcon className="h-4 w-4 text-rose-500 shrink-0" />
+													<span>Damaged Goods</span>
+												</div>
+											</SelectItem>
+											<SelectItem value="mismatch">
+												<div className="flex items-center gap-2">
+													<AlertTriangleIcon className="h-4 w-4 text-amber-500 shrink-0" />
+													<span>Qty Mismatch</span>
+												</div>
+											</SelectItem>
+										</SelectContent>
+									</Select>
 								</div>
 
 								<div className="space-y-1">
 									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 										Barcode Tag Status
 									</label>
-									<select
-										className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+									<Select
 										value={upcStatus}
-										onChange={(e) => setUpcStatus(e.target.value as any)}
+										onValueChange={(val: any) => setUpcStatus(val)}
 									>
-										<option value="present">🏷️ Present & Valid</option>
-										<option value="missing">❓ Missing Tag</option>
-										<option value="invalid">
-											❌ Invalid / Unreadable Code
-										</option>
-									</select>
+										<SelectTrigger className="w-full border-input bg-background text-sm shadow-sm">
+											<SelectValue placeholder="Select Barcode Status" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="present">
+												<div className="flex items-center gap-2">
+													<TagIcon className="h-4 w-4 text-emerald-500 shrink-0" />
+													<span>Present & Valid</span>
+												</div>
+											</SelectItem>
+											<SelectItem value="missing">
+												<div className="flex items-center gap-2">
+													<HelpCircleIcon className="h-4 w-4 text-amber-500 shrink-0" />
+													<span>Missing Tag</span>
+												</div>
+											</SelectItem>
+											<SelectItem value="invalid">
+												<div className="flex items-center gap-2">
+													<XCircleIcon className="h-4 w-4 text-rose-500 shrink-0" />
+													<span>Invalid / Unreadable Code</span>
+												</div>
+											</SelectItem>
+										</SelectContent>
+									</Select>
 								</div>
 							</div>
 

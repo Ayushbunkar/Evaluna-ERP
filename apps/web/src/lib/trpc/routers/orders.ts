@@ -4,6 +4,7 @@ import {
 	customers,
 	deliveryRoutes,
 	deliveryStops,
+	deliveryTrips,
 	eWayBills,
 	loyaltyHistory,
 	notifications,
@@ -23,6 +24,7 @@ import {
 	staff,
 	stockLedger,
 	transactions,
+	tripStops,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import {
@@ -35,14 +37,24 @@ import {
 	inArray,
 	isNotNull,
 	lte,
+	ne,
 	notInArray,
 	or,
 	sql,
 } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db } from "@/lib/db";
+import {
+	ensurePickingExceptionsTable,
+	ensureProductImageColumns,
+} from "@/lib/product-schema-ensure";
+import {
+	adjustStockForOrderQuantityChange,
+	deductStockForOrder,
+	restoreStockForOrder,
+} from "@/lib/inventory/inventory-service";
 import { notifyOrderCreated } from "@/lib/notification-service";
-import { roleProcedure, router } from "../init";
+import { protectedProcedure, roleProcedure, router } from "../init";
 
 const orderWithCustomerSchema = z.object({
 	id: z.number(),
@@ -89,43 +101,87 @@ const salesDashboardSummarySchema = z.object({
 	),
 });
 
-const orderDetailSchema = z.object({
-	id: z.number(),
-	customer_id: z.number().nullable(),
-	total_amount: z.string(),
-	status: z.string().nullable(),
-	user_uid: z.string(),
-	created_at: z.coerce.date().nullable(),
-	customer: z
-		.object({
-			name: z.string(),
-			phone: z.string().nullable().optional(),
-			address: z.string().nullable().optional(),
-		})
-		.nullable(),
-	route: z
-		.object({
-			id: z.number(),
-			name: z.string(),
-			code: z.string().nullable().optional(),
-		})
-		.nullable()
-		.optional(),
-	orderItems: z.array(
-		z.object({
-			id: z.number(),
-			product_id: z.number().nullable(),
-			quantity: z.number(),
-			price: z.string(),
-			product: z
-				.object({ name: z.string(), category: z.string().nullable() })
-				.nullable(),
-		}),
-	),
-});
+const orderDetailSchema = z
+	.object({
+		id: z.coerce.number(),
+		customer_id: z.coerce.number().nullable().optional(),
+		total_amount: z.coerce.string(),
+		status: z.string().nullable().optional(),
+		finance_status: z.string().nullable().optional(),
+		discount_amount: z.coerce.string().nullable().optional(),
+		discount_reason: z.string().nullable().optional(),
+		other_charges: z.coerce.string().nullable().optional(),
+		other_charges_reason: z.string().nullable().optional(),
+		cgst_amount: z.coerce.string().nullable().optional(),
+		sgst_amount: z.coerce.string().nullable().optional(),
+		igst_amount: z.coerce.string().nullable().optional(),
+		notes: z.string().nullable().optional(),
+		user_uid: z.string().nullable().optional(),
+		created_at: z.coerce.date().nullable().optional(),
+		original_items: z.any().nullable().optional(),
+		customer: z
+			.object({
+				id: z.coerce.number().optional(),
+				name: z.string().nullable().optional(),
+				phone: z.string().nullable().optional(),
+				address: z.string().nullable().optional(),
+				customer_code: z.string().nullable().optional(),
+			})
+			.nullable()
+			.optional(),
+		driver: z
+			.object({
+				id: z.number().optional(),
+				name: z.string().optional(),
+				phone: z.string().nullable().optional(),
+				email: z.string().nullable().optional(),
+			})
+			.nullable()
+			.optional(),
+		route: z
+			.object({
+				id: z.number(),
+				name: z.string(),
+				code: z.string().nullable().optional(),
+			})
+			.nullable()
+			.optional(),
+		orderItems: z.array(
+			z.object({
+				id: z.coerce.number(),
+				product_id: z.coerce.number().nullable(),
+				quantity: z.coerce.number(),
+				original_quantity: z.coerce.number().nullable().optional(),
+				picked_quantity: z.coerce.number().nullable().optional(),
+				price: z.coerce.string(),
+				product: z
+					.object({
+						name: z.string().nullable().optional(),
+						category: z.string().nullable().optional(),
+						sku: z.string().nullable().optional(),
+						unit: z.string().nullable().optional(),
+					})
+					.nullable()
+					.optional(),
+			}),
+		),
+		pickingExceptions: z.array(z.any()).nullable().optional(),
+		deliveryHandover: z.any().nullable().optional(),
+		audits: z.any().nullable().optional(),
+	})
+	.passthrough();
 
 export const ordersRouter = router({
-	get: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+	get: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"sales_person",
+		"salesperson",
+		"sales",
+		"biller",
+		"cashier",
+	])
 		.meta({
 			openapi: {
 				method: "GET",
@@ -137,13 +193,31 @@ export const ordersRouter = router({
 		.input(z.object({ id: z.number() }))
 		.output(orderDetailSchema.nullable())
 		.query(async ({ ctx, input }) => {
+			await ensureProductImageColumns(db);
+			await ensurePickingExceptionsTable(db);
+
 			const result = await db.query.orders.findFirst({
 				where: eq(orders.id, input.id),
 				with: {
-					customer: { columns: { name: true, phone: true, address: true } },
+					customer: {
+						columns: {
+							id: true,
+							name: true,
+							phone: true,
+							address: true,
+							customer_code: true,
+						},
+					},
 					orderItems: {
 						with: {
-							product: { columns: { name: true, category: true } },
+							product: {
+								columns: {
+									name: true,
+									category: true,
+									sku: true,
+									unit: true,
+								},
+							},
 						},
 					},
 				},
@@ -151,18 +225,86 @@ export const ordersRouter = router({
 
 			if (!result) return null;
 
-			let route = null;
+			// Fetch picking exceptions safely so missing table never crashes orders.get
+			let pickingExceptionsList: any[] = [];
+			try {
+				const { pickingExceptions } = require("@evaluna/db/schema");
+				pickingExceptionsList = await db.query.pickingExceptions.findMany({
+					where: eq(pickingExceptions.order_id, input.id),
+					with: {
+						product: {
+							columns: {
+								name: true,
+								sku: true,
+							},
+						},
+					},
+				});
+			} catch (e) {
+				pickingExceptionsList = [];
+			}
+
+			let route: any = null;
+			let assignedDriver: any = null;
+			let activeTripStop: any = null;
+
+			// Check if this customer / order is part of an active delivery trip
 			if (result.customer_id) {
 				try {
-					const existingStops = await db
+					const [ts] = await db
+						.select({
+							stopId: tripStops.id,
+							tripId: tripStops.trip_id,
+							stopStatus: tripStops.status,
+							routeId: deliveryTrips.route_id,
+							driverId: deliveryTrips.driver_id,
+							tripStatus: deliveryTrips.status,
+						})
+						.from(tripStops)
+						.innerJoin(deliveryTrips, eq(tripStops.trip_id, deliveryTrips.id))
+						.where(
+							and(
+								eq(tripStops.customer_id, result.customer_id),
+								ne(deliveryTrips.status, "cancelled"),
+							),
+						)
+						.orderBy(desc(tripStops.created_at))
+						.limit(1);
+
+					if (ts) {
+						activeTripStop = ts;
+						if (ts.routeId) {
+							const r = await db.query.deliveryRoutes.findFirst({
+								where: eq(deliveryRoutes.id, ts.routeId),
+							});
+							if (r) {
+								route = { id: r.id, name: r.name, code: r.code };
+							}
+						}
+						if (ts.driverId) {
+							const dId = Number(ts.driverId);
+							if (!isNaN(dId)) {
+								assignedDriver = await db.query.staff.findFirst({
+									where: eq(staff.id, dId),
+								});
+							}
+						}
+					}
+				} catch (e) {}
+			}
+
+			// Fallback: If no active trip route, check master customer route assignment
+			if (!route && result.customer_id) {
+				try {
+					const [rs] = await db
 						.select()
 						.from(routeStops)
 						.where(eq(routeStops.customer_id, result.customer_id))
 						.limit(1);
 
-					if (existingStops.length > 0 && existingStops[0].route_id) {
+					if (rs && rs.route_id) {
 						const r = await db.query.deliveryRoutes.findFirst({
-							where: eq(deliveryRoutes.id, existingStops[0].route_id),
+							where: eq(deliveryRoutes.id, rs.route_id),
 						});
 						if (r) {
 							route = { id: r.id, name: r.name, code: r.code };
@@ -171,9 +313,201 @@ export const ordersRouter = router({
 				} catch (e) {}
 			}
 
+			// Fallback for driver directly attached to order
+			if (!assignedDriver && result.driver_id) {
+				try {
+					assignedDriver = await db.query.staff.findFirst({
+						where: eq(staff.id, result.driver_id),
+					});
+				} catch (e) {}
+			}
+
+			// Fetch Proof of Delivery & Delivery Handover Details
+			let deliveryHandover: any = null;
+			try {
+				const [pod] = await db
+					.select()
+					.from(proofOfDeliveries)
+					.where(eq(proofOfDeliveries.order_id, input.id))
+					.orderBy(desc(proofOfDeliveries.created_at))
+					.limit(1);
+
+				const txns = await db.query.transactions.findMany({
+					where: eq(transactions.order_id, input.id),
+					orderBy: [desc(transactions.created_at)],
+				});
+
+				// ONLY create deliveryHandover if POD actually exists OR order status is completed
+				if (pod || result.status === "completed") {
+					let parsedNotes = pod?.notes || result.notes || "";
+					let parsedReturns: any[] = [];
+					let parsedDeliveredItems: any[] = [];
+					let cashAmount = 0;
+					let onlineAmount = 0;
+					let driverDiscountAmount = 0;
+					let driverDiscountReason = "";
+					let driverExtraCharges = 0;
+					let driverExtraChargesReason = "";
+
+					if (pod?.notes) {
+						try {
+							const p = JSON.parse(pod.notes);
+							parsedNotes = p.deliveryNotes || "";
+							if (Array.isArray(p.returns) && p.returns.length > 0) {
+								parsedReturns = p.returns;
+							}
+							if (
+								Array.isArray(p.deliveredItems) &&
+								p.deliveredItems.length > 0
+							) {
+								parsedDeliveredItems = p.deliveredItems;
+							}
+							if (p.cashAmount) cashAmount = Number(p.cashAmount);
+							if (p.onlineAmount) onlineAmount = Number(p.onlineAmount);
+							if (p.discountAmount !== undefined)
+								driverDiscountAmount = Number(p.discountAmount);
+							if (p.discountReason)
+								driverDiscountReason = String(p.discountReason);
+							if (p.extraCharges !== undefined)
+								driverExtraCharges = Number(p.extraCharges);
+							if (p.extraChargesReason)
+								driverExtraChargesReason = String(p.extraChargesReason);
+						} catch {
+							parsedNotes = pod.notes;
+						}
+					}
+
+					// Fallback: If legacy POD notes JSON has no deliveredItems, construct from orderItems or original_items
+					if (parsedDeliveredItems.length === 0) {
+						if (result.orderItems && result.orderItems.length > 0) {
+							parsedDeliveredItems = result.orderItems.map((oi: any) => ({
+								id: oi.id,
+								name: oi.product?.name || `Item #${oi.product_id}`,
+								qty: oi.quantity,
+								price: Number(oi.price || 0),
+							}));
+						} else if (
+							Array.isArray(result.original_items) &&
+							result.original_items.length > 0
+						) {
+							parsedDeliveredItems = result.original_items.map((oi: any) => ({
+								id: oi.id || Math.random(),
+								name:
+									oi.name ||
+									oi.product?.name ||
+									`Item #${oi.id || oi.product_id}`,
+								qty: Number(oi.quantity || 1),
+								price: Number(oi.price || 0),
+							}));
+						}
+					}
+
+					// Also check tripCollections for actual driver cash & online split
+					let tripCols: any[] = [];
+					if (result.customer_id) {
+						try {
+							tripCols = await db.query.tripCollections.findMany({
+								where: eq(tripCollections.customer_id, result.customer_id),
+								orderBy: [desc(tripCollections.collected_at)],
+							});
+						} catch (e) {}
+					}
+
+					if (tripCols.length > 0) {
+						let tcCash = 0;
+						let tcOnline = 0;
+						for (const tc of tripCols) {
+							const amt = Number(tc.amount || 0);
+							const meth = (tc.payment_method || "").toLowerCase();
+							if (meth.includes("cash")) {
+								tcCash += amt;
+							} else {
+								tcOnline += amt;
+							}
+						}
+						if (tcCash > 0 || tcOnline > 0) {
+							cashAmount = tcCash;
+							onlineAmount = tcOnline;
+						}
+					}
+
+					// Fallback to transactions if amounts not parsed
+					if (cashAmount === 0 && onlineAmount === 0 && txns.length > 0) {
+						for (const t of txns) {
+							const amt = Number(t.amount || 0);
+							if (
+								t.reference_type === "driver_cash_collection" ||
+								t.description?.toLowerCase().includes("cash")
+							) {
+								cashAmount += amt;
+							} else {
+								onlineAmount += amt;
+							}
+						}
+					}
+
+					deliveryHandover = {
+						deliveredAt:
+							pod?.delivered_at ||
+							pod?.created_at ||
+							(result.status === "completed" ? result.updated_at : null),
+						deliveryStatus:
+							pod?.delivery_status ||
+							(result.status === "completed" ? "delivered" : "pending"),
+						driverName: assignedDriver?.name || null,
+						driverEmail: assignedDriver?.email || null,
+						driverPhone: assignedDriver?.phone || null,
+						deliveryNotes: parsedNotes,
+						returnedItems: parsedReturns,
+						deliveredItems: parsedDeliveredItems,
+						cashCollected: cashAmount,
+						onlineCollected: onlineAmount,
+						totalCollected:
+							cashAmount + onlineAmount > 0
+								? cashAmount + onlineAmount
+								: Number(result.total_amount || 0),
+						driverDiscountAmount,
+						driverDiscountReason,
+						driverExtraCharges,
+						driverExtraChargesReason,
+						transactions: txns.map((t) => ({
+							id: t.id,
+							amount: Number(t.amount || 0),
+							type: t.reference_type || t.category || "Payment",
+							status: t.status,
+							date: t.created_at
+								? new Date(t.created_at).toLocaleString()
+								: "—",
+						})),
+					};
+				}
+			} catch (e) {
+				console.warn("[orders.get] POD fetch fallback:", e);
+			}
+
+			// Fetch order audits history
+			let audits: any[] = [];
+			try {
+				audits = await db.query.orderAudits.findMany({
+					where: eq(orderAudits.order_id, input.id),
+					orderBy: [desc(orderAudits.created_at)],
+				});
+			} catch (e) {}
+
 			return {
 				...result,
+				driver: assignedDriver
+					? {
+							id: assignedDriver.id,
+							name: assignedDriver.name,
+							phone: assignedDriver.phone,
+							email: assignedDriver.email,
+						}
+					: null,
 				route,
+				pickingExceptions: pickingExceptionsList,
+				deliveryHandover,
+				audits,
 			};
 		}),
 
@@ -199,6 +533,7 @@ export const ordersRouter = router({
 			const branchId = ctx.user?.branchId ?? null;
 			const privilegedRoles = [
 				"admin",
+				"super_admin",
 				"manager",
 				"finance",
 				"warehouse_manager",
@@ -206,14 +541,23 @@ export const ordersRouter = router({
 				"sales_person",
 				"salesperson",
 				"sales",
+				"biller",
+				"cashier",
+				"auditor",
+				"picker",
+				"packer",
+				"loader",
+				"checker",
+				"driver",
 			];
 			const isPrivileged =
 				ctx.user?.isSuperadmin ||
-				(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
+				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role)) ||
+				!ctx.user?.role;
 
 			const baseScope = branchId
 				? isPrivileged
-					? or(eq(orders.branch_id, branchId), eq(orders.user_uid, ctx.user?.id))
+					? eq(orders.branch_id, branchId)
 					: and(
 							eq(orders.branch_id, branchId),
 							eq(orders.user_uid, ctx.user?.id),
@@ -228,7 +572,26 @@ export const ordersRouter = router({
 			const endOfToday = new Date();
 			endOfToday.setHours(23, 59, 59, 999);
 
-			const dailyGoal = 50000;
+			// Fetch individual staff monthly sales target if available
+			let dailyGoal = 50000;
+			try {
+				if (ctx.user?.email) {
+					const [staffRecord] = await db
+						.select({ monthly_sales_target: staff.monthly_sales_target })
+						.from(staff)
+						.where(eq(staff.email, ctx.user.email))
+						.limit(1);
+
+					if (staffRecord?.monthly_sales_target) {
+						const monthlyTarget = Number(staffRecord.monthly_sales_target);
+						if (monthlyTarget > 0) {
+							dailyGoal = Math.round(monthlyTarget / 30);
+						}
+					}
+				}
+			} catch (err) {
+				console.error("Failed to fetch staff sales target:", err);
+			}
 
 			const [[salesAgg], recentOrdersList] = await Promise.all([
 				db
@@ -264,7 +627,10 @@ export const ordersRouter = router({
 			]);
 
 			const todaySales = Number(salesAgg?.todayTotal) || 0;
-			const progress = Math.min(Math.round((todaySales / dailyGoal) * 100), 100);
+			const progress = Math.min(
+				Math.round((todaySales / dailyGoal) * 100),
+				100,
+			);
 
 			return {
 				todaySales,
@@ -274,7 +640,16 @@ export const ordersRouter = router({
 			};
 		}),
 
-	list: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+	list: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"sales_person",
+		"salesperson",
+		"sales",
+		"biller",
+		"cashier",
+	])
 		.meta({
 			openapi: {
 				method: "GET",
@@ -290,6 +665,10 @@ export const ordersRouter = router({
 					limit: z.number().int().min(1).max(500).optional(),
 					search: z.string().optional(),
 					status: z.string().optional(),
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+					dateFrom: z.string().optional(),
+					dateTo: z.string().optional(),
 				})
 				.optional(),
 		)
@@ -298,6 +677,7 @@ export const ordersRouter = router({
 			const branchId = ctx.user?.branchId ?? null;
 			const privilegedRoles = [
 				"admin",
+				"super_admin",
 				"manager",
 				"finance",
 				"warehouse_manager",
@@ -305,14 +685,23 @@ export const ordersRouter = router({
 				"sales_person",
 				"salesperson",
 				"sales",
+				"biller",
+				"cashier",
+				"auditor",
+				"picker",
+				"packer",
+				"loader",
+				"checker",
+				"driver",
 			];
 			const isPrivileged =
 				ctx.user?.isSuperadmin ||
-				(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
+				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role)) ||
+				!ctx.user?.role;
 
 			const baseScope = branchId
 				? isPrivileged
-					? or(eq(orders.branch_id, branchId), eq(orders.user_uid, ctx.user?.id))
+					? eq(orders.branch_id, branchId)
 					: and(
 							eq(orders.branch_id, branchId),
 							eq(orders.user_uid, ctx.user?.id),
@@ -321,9 +710,32 @@ export const ordersRouter = router({
 					? undefined
 					: eq(orders.user_uid, ctx.user?.id);
 
-			const { page = 1, limit = 50, search, status } = input || {};
+			const {
+				page = 1,
+				limit = 50,
+				search,
+				status,
+				startDate,
+				endDate,
+				dateFrom,
+				dateTo,
+			} = input || {};
 			const conditions = [];
 			if (baseScope) conditions.push(baseScope);
+
+			// Server-side date range / single date filter
+			const fromDateStr = startDate || dateFrom;
+			const toDateStr = endDate || dateTo;
+			if (fromDateStr) {
+				const fromDate = new Date(fromDateStr);
+				fromDate.setHours(0, 0, 0, 0);
+				conditions.push(gte(orders.created_at, fromDate));
+			}
+			if (toDateStr) {
+				const toDate = new Date(toDateStr);
+				toDate.setHours(23, 59, 59, 999);
+				conditions.push(lte(orders.created_at, toDate));
+			}
 
 			// Server-side status filter
 			if (status && status !== "all") {
@@ -345,9 +757,7 @@ export const ordersRouter = router({
 						]),
 					);
 				} else if (status === "completed") {
-					conditions.push(
-						inArray(orders.status, ["completed", "delivered"]),
-					);
+					conditions.push(inArray(orders.status, ["completed", "delivered"]));
 				} else if (status === "cancelled") {
 					conditions.push(eq(orders.status, "cancelled"));
 				} else {
@@ -382,42 +792,82 @@ export const ordersRouter = router({
 					customer_name: customers.name,
 					customer_phone: customers.phone,
 					customer_address: customers.address,
-					route_id: routeStops.route_id,
-					route_name: deliveryRoutes.name,
 				})
 				.from(orders)
 				.leftJoin(customers, eq(orders.customer_id, customers.id))
-				.leftJoin(routeStops, eq(routeStops.customer_id, orders.customer_id))
-				.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
 				.where(conditions.length > 0 ? and(...conditions) : undefined)
 				.orderBy(desc(orders.created_at), desc(orders.id))
 				.limit(limit)
 				.offset(offset);
 
-			return rows.map((r) => ({
-				id: r.id,
-				customer_id: r.customer_id,
-				total_amount: r.total_amount,
-				status: r.status,
-				driver_id: r.driver_id ?? null,
-				finance_status: r.finance_status ?? undefined,
-				user_uid: r.user_uid,
-				created_at: r.created_at,
-				customer: r.customer_name
-					? {
-							id: r.customer_id_val ?? undefined,
-							name: r.customer_name,
-							phone: r.customer_phone ?? null,
-							address: r.customer_address ?? null,
+			// Safely resolve customer delivery routes without multiplying order rows
+			const customerIds = Array.from(
+				new Set(rows.map((r) => r.customer_id).filter(Boolean)),
+			) as number[];
+			const customerRouteMap = new Map<number, { id: number; name: string }>();
+
+			if (customerIds.length > 0) {
+				try {
+					const stops = await db
+						.select({
+							customer_id: routeStops.customer_id,
+							route_id: deliveryRoutes.id,
+							route_name: deliveryRoutes.name,
+						})
+						.from(routeStops)
+						.innerJoin(
+							deliveryRoutes,
+							eq(deliveryRoutes.id, routeStops.route_id),
+						)
+						.where(inArray(routeStops.customer_id, customerIds));
+
+					for (const s of stops) {
+						if (!customerRouteMap.has(s.customer_id)) {
+							customerRouteMap.set(s.customer_id, {
+								id: s.route_id,
+								name: s.route_name,
+							});
 						}
-					: null,
-				route: r.route_id && r.route_name
-					? {
-							id: r.route_id,
-							name: r.route_name,
-						}
-					: null,
-			}));
+					}
+				} catch (e) {
+					// Soft fallback if route tables aren't reachable
+				}
+			}
+
+			// Ensure deduplicated unique orders
+			const seenOrderIds = new Set<number>();
+			const uniqueOrders = [];
+
+			for (const r of rows) {
+				if (seenOrderIds.has(r.id)) continue;
+				seenOrderIds.add(r.id);
+
+				const route = r.customer_id
+					? (customerRouteMap.get(r.customer_id) ?? null)
+					: null;
+
+				uniqueOrders.push({
+					id: r.id,
+					customer_id: r.customer_id,
+					total_amount: r.total_amount,
+					status: r.status,
+					driver_id: r.driver_id ?? null,
+					finance_status: r.finance_status ?? undefined,
+					user_uid: r.user_uid,
+					created_at: r.created_at,
+					customer: r.customer_name
+						? {
+								id: r.customer_id_val ?? undefined,
+								name: r.customer_name,
+								phone: r.customer_phone ?? null,
+								address: r.customer_address ?? null,
+							}
+						: null,
+					route,
+				});
+			}
+
+			return uniqueOrders;
 		}),
 
 	create: roleProcedure(["admin", "manager", "auditor", "sales_person"])
@@ -436,11 +886,11 @@ export const ordersRouter = router({
 				products: z.array(
 					z.object({
 						id: z.number(),
-						quantity: z.number().int().positive(),
-						price: z.number().int(),
+						quantity: z.number().positive(),
+						price: z.number().nonnegative(),
 					}),
 				),
-				total: z.number().int(),
+				total: z.number().nonnegative(),
 			}),
 		)
 		.output(orderWithCustomerSchema)
@@ -450,6 +900,7 @@ export const ordersRouter = router({
 					.insert(orders)
 					.values({
 						customer_id: input.customerId,
+						branch_id: ctx.user?.branchId || 1,
 						total_amount: input.total.toString(),
 						user_uid: ctx.user.id,
 						status: "completed",
@@ -489,49 +940,14 @@ export const ordersRouter = router({
 					);
 				}
 
-				// Validate and Reserve stock in branch inventory (assuming branch_id = ctx.user.branchId or 1)
+				// Centralized stock deduction for finalized order
 				const branchId = ctx.user?.branchId || 1;
-				const productIds = input.products.map((p) => p.id);
-
-				const inventoryRecords = await tx
-					.select()
-					.from(branchInventory)
-					.where(
-						and(
-							eq(branchInventory.branch_id, branchId),
-							inArray(branchInventory.product_id, productIds),
-						),
-					);
-
-				const inventoryMap = new Map(
-					inventoryRecords.map((inv: any) => [inv.product_id, inv]),
-				);
-
-				for (const product of input.products) {
-					let inv: any = inventoryMap.get(product.id);
-
-					if (!inv) {
-						const [newInv] = await tx
-							.insert(branchInventory)
-							.values({
-								branch_id: branchId,
-								product_id: product.id,
-								in_stock: 10000,
-								reserved_stock: product.quantity,
-								reorder_level: 10,
-							})
-							.returning();
-						inv = newInv;
-						inventoryMap.set(product.id, inv);
-					} else {
-						await tx
-							.update(branchInventory)
-							.set({
-								reserved_stock: (inv.reserved_stock || 0) + product.quantity,
-							})
-							.where(eq(branchInventory.id, inv.id));
-					}
-				}
+				await deductStockForOrder(tx, {
+					orderId: orderData.id,
+					branchId,
+					items: input.products,
+					referenceType: "sale",
+				});
 
 				// Audit Log
 				await tx.insert(auditLogs).values({
@@ -678,6 +1094,23 @@ export const ordersRouter = router({
 						);
 					}
 				}
+			} else if (updated.status === "cancelled") {
+				await db
+					.update(pickLists)
+					.set({ status: "cancelled" })
+					.where(eq(pickLists.order_id, updated.id));
+
+				const targetBranchId = updated.branch_id || ctx.user?.branchId || 1;
+				await restoreStockForOrder(db, {
+					orderId: updated.id,
+					branchId: targetBranchId,
+					reason: "Status changed to cancelled",
+				});
+
+				await db
+					.update(transactions)
+					.set({ status: "cancelled" })
+					.where(eq(transactions.order_id, updated.id));
 			}
 
 			const customer = updated?.customer_id
@@ -690,7 +1123,13 @@ export const ordersRouter = router({
 			return { ...updated, customer: customer ?? null };
 		}),
 
-	delete: roleProcedure(["admin", "manager"])
+	delete: roleProcedure([
+		"admin",
+		"manager",
+		"sales_person",
+		"sales",
+		"salesperson",
+	])
 		.meta({
 			openapi: {
 				method: "DELETE",
@@ -699,10 +1138,25 @@ export const ordersRouter = router({
 				summary: "Delete an order and its items",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.number(), reason: z.string().optional() }))
 		.output(z.object({ success: z.boolean() }))
 		.mutation(async ({ ctx, input }) => {
 			await db.transaction(async (tx: any) => {
+				const existingOrder = await tx.query.orders.findFirst({
+					where: eq(orders.id, input.id),
+				});
+
+				// If order had deducted stock and is being deleted, restore stock cleanly
+				if (existingOrder && existingOrder.status !== "cancelled") {
+					const targetBranchId =
+						existingOrder.branch_id || ctx.user?.branchId || 1;
+					await restoreStockForOrder(tx, {
+						orderId: input.id,
+						branchId: targetBranchId,
+						reason: input.reason || "Order Deleted",
+					});
+				}
+
 				await tx
 					.delete(transactions)
 					.where(eq(transactions.order_id, input.id));
@@ -797,7 +1251,10 @@ export const ordersRouter = router({
 		"admin",
 		"manager",
 		"sales_person",
+		"salesperson",
 		"sales",
+		"biller",
+		"cashier",
 	])
 		.input(z.void())
 		.query(async ({ ctx }) => {
@@ -807,7 +1264,10 @@ export const ordersRouter = router({
 				where: and(
 					inArray(orders.status, ["pending_review", "under_review"]),
 					branchId
-						? or(eq(orders.branch_id, branchId), sql`${orders.branch_id} IS NULL`)
+						? or(
+								eq(orders.branch_id, branchId),
+								sql`${orders.branch_id} IS NULL`,
+							)
 						: undefined,
 				),
 				orderBy: [desc(orders.created_at)],
@@ -819,22 +1279,35 @@ export const ordersRouter = router({
 					orderItems: { columns: { id: true } },
 				},
 			});
-			return rows.map((o) => ({
-				id: o.id,
-				orderRef: `ORD-${o.id}`,
-				status: o.status,
-				customerName: o.customer?.name ?? "—",
-				customerPhone: o.customer?.phone ?? null,
-				customerCode: o.customer?.customer_code ?? null,
-				itemsCount: o.orderItems.length,
-				createdAt: o.created_at,
-			}));
+			return rows.map((o) => {
+				let reviewedBy: string | null = null;
+				if (o.notes) {
+					const match = o.notes.match(/\[REVIEWED_BY:\s*([^\]]+)\]/);
+					if (match && match[1]) {
+						reviewedBy = match[1].trim();
+					}
+				}
+				return {
+					id: o.id,
+					orderRef: `ORD-${o.id}`,
+					status: o.status,
+					customerName: o.customer?.name ?? "—",
+					customerPhone: o.customer?.phone ?? null,
+					customerCode: o.customer?.customer_code ?? null,
+					itemsCount: o.orderItems.length,
+					createdAt: o.created_at,
+					reviewedBy,
+				};
+			});
 		}),
 	getPendingCount: roleProcedure([
 		"admin",
 		"manager",
 		"sales_person",
+		"salesperson",
 		"sales",
+		"biller",
+		"cashier",
 	])
 		.input(z.void())
 		.query(async ({ ctx }) => {
@@ -887,6 +1360,55 @@ export const ordersRouter = router({
 			if (!order)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
 
+			let reviewedBy: string | null = null;
+			const notesText = order.notes || "";
+			const match = notesText.match(/\[REVIEWED_BY:\s*([^\]]+)\]/);
+			if (match && match[1]) {
+				reviewedBy = match[1].trim();
+			} else {
+				const currentSalesPersonName =
+					ctx.user?.name || ctx.user?.email?.split("@")[0] || "Salesperson";
+				reviewedBy = currentSalesPersonName;
+				const updatedNotes = notesText
+					? `${notesText} [REVIEWED_BY: ${currentSalesPersonName}]`
+					: `[REVIEWED_BY: ${currentSalesPersonName}]`;
+				try {
+					await db
+						.update(orders)
+						.set({ notes: updatedNotes, status: "under_review" })
+						.where(eq(orders.id, input.id));
+				} catch (e) {
+					console.warn("[getForReview] Failed to set reviewedBy:", e);
+				}
+			}
+
+			const productIds = (order.orderItems ?? [])
+				.map((it) => it.product_id)
+				.filter(Boolean) as number[];
+
+			const stockMap = new Map<number, number>();
+			if (productIds.length > 0) {
+				const stocks = await db
+					.select({
+						productId: branchInventory.product_id,
+						stock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
+					})
+					.from(branchInventory)
+					.where(
+						and(
+							inArray(branchInventory.product_id, productIds),
+							order.branch_id
+								? eq(branchInventory.branch_id, order.branch_id)
+								: sql`true`,
+						),
+					)
+					.groupBy(branchInventory.product_id);
+
+				for (const s of stocks) {
+					stockMap.set(s.productId, Number(s.stock));
+				}
+			}
+
 			return {
 				id: order.id,
 				orderRef: `ORD-${order.id}`,
@@ -897,6 +1419,7 @@ export const ordersRouter = router({
 				discountAmount: Number(order.discount_amount ?? 0),
 				deliveryAddress: order.shipping_address,
 				customerNotes: order.notes,
+				reviewedBy,
 				customer: {
 					id: order.customer?.id ?? 0,
 					name: order.customer?.name ?? "Guest",
@@ -912,12 +1435,11 @@ export const ordersRouter = router({
 					productName: it.product?.name ?? "Unknown",
 					sku: it.product?.sku ?? "—",
 					unit: it.product?.unit ?? "pcs",
-					quantity: it.quantity,
-					// Stored order-item price (already numeric string) or fallback to catalog price
+					quantity: Number(it.quantity),
 					price: Number(it.price || it.product?.price || 0),
-					// Base unit cost (for salesperson margin awareness)
 					basePrice: Number(it.product?.buying_price ?? 0),
 					catalogPrice: Number(it.product?.price ?? 0),
+					stock: Number(stockMap.get(it.product_id as number) ?? 0),
 				})),
 			};
 		}),
@@ -928,11 +1450,7 @@ export const ordersRouter = router({
 	// ERP pricing. Recomputes the running total and moves the order to
 	// `under_review`. Rejected once the order is confirmed/locked. Does NOT touch
 	// stock — inventory is only committed at confirmOrder.
-	updateReviewItems: roleProcedure([
-		"admin",
-		"manager",
-		"sales_person",
-	])
+	updateReviewItems: roleProcedure(["admin", "manager", "sales_person"])
 		.input(
 			z.object({
 				id: z.number(),
@@ -940,7 +1458,7 @@ export const ordersRouter = router({
 					.array(
 						z.object({
 							productId: z.number().int().positive(),
-							quantity: z.number().int().positive(),
+							quantity: z.number().positive(),
 							price: z.number().nonnegative(),
 						}),
 					)
@@ -990,6 +1508,42 @@ export const ordersRouter = router({
 					}
 				}
 
+				// Preserve customer's initial submitted items as original_items for dashboard diffing
+				if (!existing.original_items) {
+					const prevItems = await tx
+						.select()
+						.from(orderItems)
+						.where(eq(orderItems.order_id, input.id));
+					if (prevItems.length > 0) {
+						const prodIds = prevItems
+							.map((p) => p.product_id)
+							.filter(Boolean) as number[];
+						const prods =
+							prodIds.length > 0
+								? await tx
+										.select({
+											id: products.id,
+											name: products.name,
+											sku: products.sku,
+										})
+										.from(products)
+										.where(inArray(products.id, prodIds))
+								: [];
+						const prodMap = new Map(prods.map((p) => [p.id, p]));
+						const origList = prevItems.map((pi) => ({
+							productId: pi.product_id,
+							quantity: Number(pi.quantity),
+							price: Number(pi.price),
+							name: prodMap.get(pi.product_id as number)?.name ?? "Product",
+							sku: prodMap.get(pi.product_id as number)?.sku ?? "",
+						}));
+						await tx
+							.update(orders)
+							.set({ original_items: origList })
+							.where(eq(orders.id, input.id));
+					}
+				}
+
 				// Replace the item set with the salesperson-priced version.
 				await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
 				await tx.insert(orderItems).values(
@@ -1021,6 +1575,82 @@ export const ordersRouter = router({
 			});
 		}),
 
+	// Update items on a confirmed order with accurate inventory delta adjustments
+	updateConfirmedOrderItems: roleProcedure(["admin", "manager", "sales_person"])
+		.input(
+			z.object({
+				id: z.number(),
+				items: z
+					.array(
+						z.object({
+							productId: z.number().int().positive(),
+							quantity: z.number().positive(),
+							price: z.number().nonnegative(),
+						}),
+					)
+					.min(1),
+				reason: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			return await db.transaction(async (tx) => {
+				const existing = await tx.query.orders.findFirst({
+					where: eq(orders.id, input.id),
+				});
+				if (!existing) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Order not found",
+					});
+				}
+				if (existing.status === "cancelled") {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: "Cannot edit items on a cancelled order.",
+					});
+				}
+
+				const branchId = existing.branch_id || 1;
+
+				// Adjust stock for item quantity changes (deltas)
+				await adjustStockForOrderQuantityChange(tx, {
+					orderId: existing.id,
+					branchId,
+					newItems: input.items,
+				});
+
+				// Update orderItems
+				await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
+				await tx.insert(orderItems).values(
+					input.items.map((it) => ({
+						order_id: input.id,
+						product_id: it.productId,
+						quantity: it.quantity.toString(),
+						price: it.price.toString(),
+					})),
+				);
+
+				// Recalculate total
+				const subtotal = input.items.reduce(
+					(sum, it) => sum + it.quantity * it.price,
+					0,
+				);
+				const discount = Number(existing.discount_amount ?? 0);
+				const extra = Number(existing.other_charges ?? 0);
+				const total = Math.max(0, subtotal - discount + extra);
+
+				const [updated] = await tx
+					.update(orders)
+					.set({
+						total_amount: total.toFixed(2),
+					})
+					.where(eq(orders.id, input.id))
+					.returning();
+
+				return { success: true, order: updated };
+			});
+		}),
+
 	// PLACEHOLDER_SALES_PROCS_4
 
 	// CONFIRM — the protected, transactional finalize. Sets final pricing, deducts
@@ -1041,7 +1671,7 @@ export const ordersRouter = router({
 					.array(
 						z.object({
 							productId: z.number().int().positive(),
-							quantity: z.number().int().positive(),
+							quantity: z.number().positive(),
 							price: z.number().nonnegative(),
 						}),
 					)
@@ -1093,7 +1723,7 @@ export const ordersRouter = router({
 					});
 				}
 
-				const branchId = existing.branch_id ?? ctx.user?.branchId ?? null;
+				const branchId = existing.branch_id || ctx.user?.branchId || 1;
 
 				// Resolve the final priced item set.
 				let finalItems: {
@@ -1103,12 +1733,49 @@ export const ordersRouter = router({
 				}[];
 				if (input.items && input.items.length > 0) {
 					finalItems = input.items;
+
+					// Preserve customer's initial submitted items as original_items for dashboard diffing
+					if (!existing.original_items) {
+						const prevItems = await tx
+							.select()
+							.from(orderItems)
+							.where(eq(orderItems.order_id, input.id));
+						if (prevItems.length > 0) {
+							const prodIds = prevItems
+								.map((p) => p.product_id)
+								.filter(Boolean) as number[];
+							const prods =
+								prodIds.length > 0
+									? await tx
+											.select({
+												id: products.id,
+												name: products.name,
+												sku: products.sku,
+											})
+											.from(products)
+											.where(inArray(products.id, prodIds))
+									: [];
+							const prodMap = new Map(prods.map((p) => [p.id, p]));
+							const origList = prevItems.map((pi) => ({
+								productId: pi.product_id,
+								quantity: Number(pi.quantity),
+								price: Number(pi.price),
+								name: prodMap.get(pi.product_id as number)?.name ?? "Product",
+								sku: prodMap.get(pi.product_id as number)?.sku ?? "",
+							}));
+							await tx
+								.update(orders)
+								.set({ original_items: origList })
+								.where(eq(orders.id, input.id));
+						}
+					}
+
 					await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
 					await tx.insert(orderItems).values(
 						finalItems.map((it) => ({
 							order_id: input.id,
 							product_id: it.productId,
-							quantity: it.quantity,
+							quantity: it.quantity.toString(),
 							price: it.price.toString(),
 						})),
 					);
@@ -1119,7 +1786,7 @@ export const ordersRouter = router({
 						.where(eq(orderItems.order_id, input.id));
 					finalItems = stored.map((it) => ({
 						productId: it.product_id as number,
-						quantity: it.quantity,
+						quantity: Number(it.quantity),
 						price: Number(it.price),
 					}));
 				}
@@ -1138,76 +1805,13 @@ export const ordersRouter = router({
 					});
 				}
 
-				// ── Stock validation + deduction (branch inventory) ─────────────
-				if (branchId) {
-					const productIds = finalItems.map((i) => i.productId);
-					const stocks = await tx
-						.select()
-						.from(branchInventory)
-						.where(
-							and(
-								eq(branchInventory.branch_id, branchId),
-								inArray(branchInventory.product_id, productIds),
-							),
-						);
-					const stockMap = new Map(stocks.map((s) => [s.product_id, s]));
-					for (const it of finalItems) {
-						let inv = stockMap.get(it.productId);
-						if (!inv) {
-							const [newInv] = await tx
-								.insert(branchInventory)
-								.values({
-									branch_id: branchId,
-									product_id: it.productId,
-									in_stock: 10000,
-									reserved_stock: 0,
-								})
-								.returning();
-							inv = newInv;
-							stockMap.set(it.productId, newInv);
-						} else {
-							const available =
-								(inv.in_stock ?? 0) - (inv.reserved_stock ?? 0);
-							if (available < it.quantity) {
-								const [updatedInv] = await tx
-									.update(branchInventory)
-									.set({
-										in_stock: sql`${branchInventory.in_stock} + ${Math.max(1000, it.quantity * 10)}`,
-									})
-									.where(eq(branchInventory.id, inv.id))
-									.returning();
-								inv = updatedInv;
-								stockMap.set(it.productId, updatedInv);
-							}
-						}
-					}
-					// All lines validated — deduct on-hand stock.
-					await Promise.all(
-						finalItems.map((it) => {
-							const inv = stockMap.get(it.productId)!;
-							return tx
-								.update(branchInventory)
-								.set({
-									in_stock: sql`${branchInventory.in_stock} - ${it.quantity}`,
-								})
-								.where(eq(branchInventory.id, inv.id));
-						}),
-					);
-
-					// Stock ledger (out movement), mirroring the POS checkout pattern.
-					await tx.insert(stockLedger).values(
-						finalItems.map((it) => ({
-							product_id: it.productId,
-							transaction_type: "out" as const,
-							quantity: -it.quantity,
-							unit_cost: it.price.toString(),
-							total_cost: (it.price * it.quantity).toString(),
-							reference_id: input.id,
-							reference_type: "sale",
-							branch_id: branchId,
-						})),
-					);
-				}
+				// ── Centralized stock deduction (branch inventory & stock ledger) ─────────────
+				await deductStockForOrder(tx, {
+					orderId: input.id,
+					branchId,
+					items: finalItems,
+					referenceType: "sale",
+				});
 
 				// ── Totals ────────────────────────────────────────────────────
 				const subtotal = finalItems.reduce(
@@ -1295,12 +1899,7 @@ export const ordersRouter = router({
 						igst_amount: igst.toString(),
 						payment_method_id: safePaymentMethodId,
 					})
-					.where(
-						and(
-							eq(orders.id, input.id),
-							eq(orders.locked, false),
-						),
-					)
+					.where(and(eq(orders.id, input.id), eq(orders.locked, false)))
 					.returning();
 
 				if (confirmed.length === 0) {
@@ -1387,17 +1986,20 @@ export const ordersRouter = router({
 						.from(pickListItems)
 						.where(eq(pickListItems.pick_list_id, pl.id));
 
-					if (existingItems.length === 0) {
-						await db.insert(pickListItems).values(
-							result.items.map((it) => ({
-								pick_list_id: pl!.id,
-								product_id: it.productId,
-								quantity_ordered: it.quantity,
-								quantity_picked: 0,
-								status: "pending",
-							})),
-						);
+					if (existingItems.length > 0) {
+						await db
+							.delete(pickListItems)
+							.where(eq(pickListItems.pick_list_id, pl.id));
 					}
+					await db.insert(pickListItems).values(
+						result.items.map((it) => ({
+							pick_list_id: pl!.id,
+							product_id: it.productId,
+							quantity_ordered: it.quantity,
+							quantity_picked: 0,
+							status: "pending",
+						})),
+					);
 				}
 
 				// ── Send targeted, WMS-scoped in-app notifications to pickers & packers (Batched) ──
@@ -1410,11 +2012,13 @@ export const ordersRouter = router({
 							notificationBatch.push({
 								user_id: s.id,
 								branch_id: result.branchId,
-								type: "info",
+								type: "picking",
 								channel: "in_app",
 								priority: "high",
-								title: "📦 New Picking Task Available!",
+								title: "New Picking Task Available!",
 								message: `Picklist PL-${pl.id} (Order ORD-${result.orderId}) is ready for picking. Please assign yourself and start picking immediately.`,
+								reference_type: "pick_lists",
+								reference_id: pl.id,
 								status: "pending",
 							});
 						} else if (
@@ -1424,11 +2028,13 @@ export const ordersRouter = router({
 							notificationBatch.push({
 								user_id: s.id,
 								branch_id: result.branchId,
-								type: "info",
+								type: "packing",
 								channel: "in_app",
 								priority: "normal",
 								title: "🏷️ New Packing Task Queued",
 								message: `Order ORD-${result.orderId} is confirmed and has been queued for picking and subsequent packing.`,
+								reference_type: "packages",
+								reference_id: pl.id,
 								status: "pending",
 							});
 						}
@@ -1532,6 +2138,13 @@ export const ordersRouter = router({
 				});
 			}
 
+			if (existing.status === "cancelled") {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "This order is already cancelled.",
+				});
+			}
+
 			let changedBy: number | null = null;
 			if (ctx.user?.email) {
 				const staffRec = await db.query.staff.findFirst({
@@ -1559,6 +2172,15 @@ export const ordersRouter = router({
 					})
 					.where(eq(orders.id, input.id));
 
+				// Centralized stock restoration (branch inventory & stock ledger)
+				const targetBranchId = existing.branch_id || ctx.user?.branchId || 1;
+				await restoreStockForOrder(tx, {
+					orderId: input.id,
+					branchId: targetBranchId,
+					reason: input.reason,
+					actorId: changedBy,
+				});
+
 				// If there is any associated pick list, mark it as cancelled
 				await tx
 					.update(pickLists)
@@ -1566,6 +2188,12 @@ export const ordersRouter = router({
 						status: "cancelled",
 					})
 					.where(eq(pickLists.order_id, input.id));
+
+				// Void/cancel transactions for this order
+				await tx
+					.update(transactions)
+					.set({ status: "cancelled" })
+					.where(eq(transactions.order_id, input.id));
 			});
 
 			return { success: true, orderId: input.id };
@@ -1599,7 +2227,10 @@ export const ordersRouter = router({
 						sql`LOWER(${orders.status}) = 'canceled'`,
 					),
 					branchId
-						? or(eq(orders.branch_id, branchId), sql`${orders.branch_id} IS NULL`)
+						? or(
+								eq(orders.branch_id, branchId),
+								sql`${orders.branch_id} IS NULL`,
+							)
 						: undefined,
 				),
 				orderBy: [desc(orders.created_at)],
@@ -1666,11 +2297,600 @@ export const ordersRouter = router({
 							price: Number(it.price || it.product?.price || 0),
 							unit: it.product?.unit || "Pcs",
 						})),
-						cancelReason: cancelAudit?.reason || "Customer requested cancellation",
+						cancelReason:
+							cancelAudit?.reason || "Customer requested cancellation",
 						cancelledBy: cancelAudit?.changedBy?.name || "Sales Team",
 						cancelledAt: cancelAudit?.created_at || o.created_at,
 					};
 				});
 		}),
-});
 
+	// ── Comprehensive Sales Analytics & Report Data Aggregator ────────────────
+	getComprehensiveSalesReport: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"sales_person",
+		"salesperson",
+		"sales",
+		"biller",
+	])
+		.input(
+			z.object({
+				startDate: z.string().optional(),
+				endDate: z.string().optional(),
+				search: z.string().optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const branchId = ctx.user?.branchId ?? null;
+			const privilegedRoles = [
+				"admin",
+				"super_admin",
+				"manager",
+				"finance",
+				"warehouse_manager",
+				"accountant",
+			];
+			const isPrivileged =
+				ctx.user?.isSuperadmin ||
+				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
+
+			const baseScope = branchId
+				? isPrivileged
+					? eq(orders.branch_id, branchId)
+					: and(
+							eq(orders.branch_id, branchId),
+							eq(orders.user_uid, ctx.user?.id),
+						)
+				: isPrivileged
+					? undefined
+					: eq(orders.user_uid, ctx.user?.id);
+
+			const conditions = [
+				ne(orders.status, "cancelled"),
+				ne(orders.status, "canceled"),
+			];
+			if (baseScope) conditions.push(baseScope);
+
+			if (input.startDate) {
+				const fromDate = new Date(input.startDate);
+				fromDate.setHours(0, 0, 0, 0);
+				conditions.push(gte(orders.created_at, fromDate));
+			}
+			if (input.endDate) {
+				const toDate = new Date(input.endDate);
+				toDate.setHours(23, 59, 59, 999);
+				conditions.push(lte(orders.created_at, toDate));
+			}
+
+			if (input.search?.trim()) {
+				const term = `%${input.search.trim().toLowerCase()}%`;
+				conditions.push(
+					or(
+						ilike(customers.name, term),
+						sql`${orders.id}::text ILIKE ${term}`,
+					)!,
+				);
+			}
+
+			// Fetch all matching non-cancelled orders with full relations
+			const matchingOrders = await db.query.orders.findMany({
+				where: and(...conditions),
+				orderBy: [desc(orders.created_at)],
+				with: {
+					customer: true,
+					orderItems: {
+						with: {
+							product: true,
+						},
+					},
+				},
+			});
+
+			// Fetch all staff users for salesperson mapping
+			const staffList = await db.select().from(staff);
+			const staffMap = new Map<
+				string,
+				{ id: number; name: string; email: string }
+			>();
+			for (const s of staffList) {
+				if (s.email)
+					staffMap.set(s.email.toLowerCase(), {
+						id: s.id,
+						name: s.name,
+						email: s.email,
+					});
+			}
+
+			// Fetch customer route mapping
+			const customerIds = Array.from(
+				new Set(matchingOrders.map((o) => o.customer_id).filter(Boolean)),
+			) as number[];
+
+			const customerRouteMap = new Map<
+				number,
+				{ routeId: number; routeName: string; villageName: string }
+			>();
+
+			if (customerIds.length > 0) {
+				try {
+					const stops = await db
+						.select({
+							customer_id: routeStops.customer_id,
+							route_id: deliveryRoutes.id,
+							route_name: deliveryRoutes.name,
+						})
+						.from(routeStops)
+						.innerJoin(
+							deliveryRoutes,
+							eq(deliveryRoutes.id, routeStops.route_id),
+						)
+						.where(inArray(routeStops.customer_id, customerIds));
+
+					for (const s of stops) {
+						if (!customerRouteMap.has(s.customer_id)) {
+							customerRouteMap.set(s.customer_id, {
+								routeId: s.route_id,
+								routeName: s.route_name,
+								villageName: "General Area",
+							});
+						}
+					}
+				} catch (e) {}
+			}
+
+			// Aggregations
+			let totalSalesAmount = 0;
+			let totalItemsSoldQuantity = 0;
+			const uniqueCustomerSet = new Set<number>();
+			const uniqueRouteSet = new Set<string>();
+			const uniqueVillageSet = new Set<string>();
+
+			// Detailed Order Lines Array for Operational CSV
+			const detailedOrderLines: any[] = [];
+
+			// Customer Performance Aggregation
+			const customerAggMap = new Map<
+				number,
+				{
+					id: number;
+					name: string;
+					code: string;
+					phone: string;
+					address: string;
+					village: string;
+					route: string;
+					salesPerson: string;
+					orderCount: number;
+					totalQty: number;
+					totalAmount: number;
+					firstOrderDate: Date | null;
+					lastOrderDate: Date | null;
+				}
+			>();
+
+			// Product Performance Aggregation
+			const productAggMap = new Map<
+				number,
+				{
+					id: number;
+					name: string;
+					category: string;
+					unit: string;
+					price: number;
+					orderCount: number;
+					uniqueCustomerSet: Set<number>;
+					totalQty: number;
+					totalSalesAmount: number;
+				}
+			>();
+
+			// Route Demand Aggregation
+			const routeAggMap = new Map<
+				string,
+				{
+					routeName: string;
+					orderCount: number;
+					customerSet: Set<number>;
+					totalQty: number;
+					totalSalesAmount: number;
+					productQtyMap: Map<string, number>;
+				}
+			>();
+
+			// Village / Area Demand Aggregation
+			const villageAggMap = new Map<
+				string,
+				{
+					villageName: string;
+					routeName: string;
+					orderCount: number;
+					customerSet: Set<number>;
+					totalQty: number;
+					totalSalesAmount: number;
+				}
+			>();
+
+			// Salesperson Performance Aggregation
+			const salespersonAggMap = new Map<
+				string,
+				{
+					salesPersonName: string;
+					userUid: string;
+					orderCount: number;
+					customerSet: Set<number>;
+					totalQty: number;
+					totalSalesAmount: number;
+					routeSet: Set<string>;
+				}
+			>();
+
+			// Time Trend Aggregation (by Date YYYY-MM-DD)
+			const dailyTrendMap = new Map<
+				string,
+				{
+					date: string;
+					orders: number;
+					sales: number;
+					totalPieces: number;
+					productsMap: Map<
+						number,
+						{
+							id: number;
+							name: string;
+							category: string;
+							unit: string;
+							price: number;
+							totalQty: number;
+							totalAmount: number;
+							orderCount: number;
+						}
+					>;
+				}
+			>();
+
+			for (const o of matchingOrders) {
+				const orderAmount = Number(o.total_amount || 0);
+				totalSalesAmount += orderAmount;
+
+				const orderDateObj = o.created_at ? new Date(o.created_at) : new Date();
+				const dateKey = orderDateObj.toISOString().substring(0, 10);
+
+				const trend = dailyTrendMap.get(dateKey) || {
+					date: dateKey,
+					orders: 0,
+					sales: 0,
+					totalPieces: 0,
+					productsMap: new Map(),
+				};
+				trend.orders += 1;
+				trend.sales += orderAmount;
+				dailyTrendMap.set(dateKey, trend);
+
+				const custId = o.customer_id || 0;
+				const custName = o.customer?.name || "Walk-in Customer";
+				const custPhone = o.customer?.phone || "—";
+				const custAddress = o.customer?.address || "—";
+				const custCode = o.customer?.customer_code || `CUST-${o.customer_id}`;
+
+				if (o.customer_id) {
+					uniqueCustomerSet.add(o.customer_id);
+				}
+
+				// Extract village & route
+				const routeInfo = o.customer_id
+					? customerRouteMap.get(o.customer_id)
+					: null;
+				const routeName = routeInfo?.routeName || "Unassigned Route";
+
+				// Extract village from address string if available
+				let villageName = "General Village";
+				if (custAddress && custAddress.includes(",")) {
+					const parts = custAddress.split(",");
+					villageName = parts[0].trim() || "General Village";
+				} else if (custAddress && custAddress.trim()) {
+					villageName = custAddress.trim();
+				}
+
+				uniqueRouteSet.add(routeName);
+				uniqueVillageSet.add(villageName);
+
+				// Salesperson resolution
+				const spName =
+					staffMap.get(o.user_uid?.toLowerCase())?.name ||
+					(o.user_uid === ctx.user?.id
+						? ctx.user?.name || "Sales Agent"
+						: "Sales Team");
+
+				// Update Customer Aggregation
+				if (o.customer_id) {
+					const cAgg = customerAggMap.get(o.customer_id) || {
+						id: o.customer_id,
+						name: custName,
+						code: custCode,
+						phone: custPhone,
+						address: custAddress,
+						village: villageName,
+						route: routeName,
+						salesPerson: spName,
+						orderCount: 0,
+						totalQty: 0,
+						totalAmount: 0,
+						firstOrderDate: orderDateObj,
+						lastOrderDate: orderDateObj,
+					};
+					cAgg.orderCount += 1;
+					cAgg.totalAmount += orderAmount;
+					if (!cAgg.firstOrderDate || orderDateObj < cAgg.firstOrderDate) {
+						cAgg.firstOrderDate = orderDateObj;
+					}
+					if (!cAgg.lastOrderDate || orderDateObj > cAgg.lastOrderDate) {
+						cAgg.lastOrderDate = orderDateObj;
+					}
+					customerAggMap.set(o.customer_id, cAgg);
+				}
+
+				// Update Route Aggregation
+				const rAgg = routeAggMap.get(routeName) || {
+					routeName,
+					orderCount: 0,
+					customerSet: new Set<number>(),
+					totalQty: 0,
+					totalSalesAmount: 0,
+					productQtyMap: new Map<string, number>(),
+				};
+				rAgg.orderCount += 1;
+				rAgg.totalSalesAmount += orderAmount;
+				if (o.customer_id) rAgg.customerSet.add(o.customer_id);
+
+				// Update Village Aggregation (scoped by route so duplicate village names across different routes are not collapsed)
+				const vKey = `${routeName}:::${villageName}`;
+				const vAgg = villageAggMap.get(vKey) || {
+					villageName,
+					routeName,
+					orderCount: 0,
+					customerSet: new Set<number>(),
+					totalQty: 0,
+					totalSalesAmount: 0,
+				};
+				vAgg.orderCount += 1;
+				vAgg.totalSalesAmount += orderAmount;
+				if (o.customer_id) vAgg.customerSet.add(o.customer_id);
+
+				// Update Salesperson Aggregation
+				const spKey = o.user_uid || spName;
+				const spAgg = salespersonAggMap.get(spKey) || {
+					salesPersonName: spName,
+					userUid: o.user_uid || "—",
+					orderCount: 0,
+					customerSet: new Set<number>(),
+					totalQty: 0,
+					totalSalesAmount: 0,
+					routeSet: new Set<string>(),
+				};
+				spAgg.orderCount += 1;
+				spAgg.totalSalesAmount += orderAmount;
+				spAgg.routeSet.add(routeName);
+				if (o.customer_id) spAgg.customerSet.add(o.customer_id);
+
+				// Process Order Items
+				const items = o.orderItems || [];
+				let orderTotalQty = 0;
+
+				for (const item of items) {
+					const qty = Number(item.quantity || 0);
+					const price = Number(item.price || 0);
+					const lineAmount = qty * price;
+					orderTotalQty += qty;
+					totalItemsSoldQuantity += qty;
+
+					const pId = item.product_id || 0;
+					const pName = item.product?.name || `Product #${pId}`;
+					const pCategory = item.product?.category || "General";
+					const pUnit = item.product?.unit || "Pcs";
+
+					// Add to Product Aggregation
+					if (pId > 0) {
+						const pAgg = productAggMap.get(pId) || {
+							id: pId,
+							name: pName,
+							category: pCategory,
+							unit: pUnit,
+							price,
+							orderCount: 0,
+							uniqueCustomerSet: new Set<number>(),
+							totalQty: 0,
+							totalSalesAmount: 0,
+						};
+						pAgg.orderCount += 1;
+						pAgg.totalQty += qty;
+						pAgg.totalSalesAmount += lineAmount;
+						if (o.customer_id) pAgg.uniqueCustomerSet.add(o.customer_id);
+						productAggMap.set(pId, pAgg);
+					}
+
+					trend.totalPieces += qty;
+					if (pId > 0) {
+						const dp = trend.productsMap.get(pId) || {
+							id: pId,
+							name: pName,
+							category: pCategory,
+							unit: pUnit,
+							price,
+							totalQty: 0,
+							totalAmount: 0,
+							orderCount: 0,
+						};
+						dp.totalQty += qty;
+						dp.totalAmount += lineAmount;
+						dp.orderCount += 1;
+						trend.productsMap.set(pId, dp);
+					}
+
+					// Route Top Product tracking
+					const currentProductQty = rAgg.productQtyMap.get(pName) || 0;
+					rAgg.productQtyMap.set(pName, currentProductQty + qty);
+
+					// Detailed Order CSV Row
+					detailedOrderLines.push({
+						orderId: o.id,
+						orderRef: `ORD-${o.id}`,
+						orderDate: orderDateObj.toLocaleDateString(),
+						orderTime: orderDateObj.toLocaleTimeString(),
+						salesPerson: spName,
+						customerId: o.customer_id || "—",
+						customerName: custName,
+						customerPhone: custPhone,
+						village: villageName,
+						route: routeName,
+						productId: pId,
+						productName: pName,
+						category: pCategory,
+						quantity: qty,
+						unit: pUnit,
+						unitPrice: price,
+						lineAmount,
+						orderTotal: orderAmount,
+						orderStatus: o.status || "confirmed",
+						paymentStatus: o.finance_status || "pending_collection",
+					});
+				}
+
+				rAgg.totalQty += orderTotalQty;
+				vAgg.totalQty += orderTotalQty;
+				spAgg.totalQty += orderTotalQty;
+
+				if (o.customer_id && customerAggMap.has(o.customer_id)) {
+					const cObj = customerAggMap.get(o.customer_id)!;
+					cObj.totalQty += orderTotalQty;
+				}
+
+				routeAggMap.set(routeName, rAgg);
+				villageAggMap.set(vKey, vAgg);
+				salespersonAggMap.set(spKey, spAgg);
+			}
+
+			// Format aggregated arrays
+			const customerList = Array.from(customerAggMap.values()).sort(
+				(a, b) => b.totalAmount - a.totalAmount,
+			);
+
+			const productList = Array.from(productAggMap.values())
+				.map((p) => ({
+					...p,
+					uniqueCustomerCount: p.uniqueCustomerSet.size,
+				}))
+				.sort((a, b) => b.totalQty - a.totalQty);
+
+			const mostSellingProducts = [...productList].sort(
+				(a, b) => b.totalQty - a.totalQty,
+			);
+			const highestRevenueProducts = [...productList].sort(
+				(a, b) => b.totalSalesAmount - a.totalSalesAmount,
+			);
+			const leastSellingProducts = [...productList]
+				.filter((p) => p.totalQty > 0)
+				.sort((a, b) => a.totalQty - b.totalQty);
+
+			const routeList = Array.from(routeAggMap.values())
+				.map((r) => {
+					let topProduct = "None";
+					let topQty = 0;
+					for (const [pName, q] of r.productQtyMap.entries()) {
+						if (q > topQty) {
+							topQty = q;
+							topProduct = pName;
+						}
+					}
+					return {
+						routeName: r.routeName,
+						orderCount: r.orderCount,
+						customerCount: r.customerSet.size,
+						totalQty: r.totalQty,
+						totalSalesAmount: r.totalSalesAmount,
+						avgOrderValue:
+							r.orderCount > 0
+								? Math.round(r.totalSalesAmount / r.orderCount)
+								: 0,
+						topProduct,
+					};
+				})
+				.sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
+
+			const villageList = Array.from(villageAggMap.values())
+				.map((v) => ({
+					villageName: v.villageName,
+					routeName: v.routeName,
+					orderCount: v.orderCount,
+					customerCount: v.customerSet.size,
+					totalQty: v.totalQty,
+					totalSalesAmount: v.totalSalesAmount,
+				}))
+				.sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
+
+			const salespersonList = Array.from(salespersonAggMap.values())
+				.map((s) => ({
+					salesPersonName: s.salesPersonName,
+					userUid: s.userUid,
+					orderCount: s.orderCount,
+					customerCount: s.customerSet.size,
+					totalQty: s.totalQty,
+					totalSalesAmount: s.totalSalesAmount,
+					avgOrderValue:
+						s.orderCount > 0
+							? Math.round(s.totalSalesAmount / s.orderCount)
+							: 0,
+					routesCoveredCount: s.routeSet.size,
+				}))
+				.sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
+
+			const dailyTrend = Array.from(dailyTrendMap.values())
+				.map((d) => ({
+					date: d.date,
+					orders: d.orders,
+					sales: d.sales,
+					totalPieces: d.totalPieces || 0,
+					products: Array.from(d.productsMap.values()).sort(
+						(a, b) => b.totalQty - a.totalQty,
+					),
+				}))
+				.sort((a, b) => b.date.localeCompare(a.date));
+
+			const totalOrders = matchingOrders.length;
+			const uniqueCustomers = uniqueCustomerSet.size;
+			const avgOrderValue =
+				totalOrders > 0 ? Math.round(totalSalesAmount / totalOrders) : 0;
+			const avgItemsPerOrder =
+				totalOrders > 0
+					? Math.round((totalItemsSoldQuantity / totalOrders) * 10) / 10
+					: 0;
+
+			return {
+				period: {
+					startDate: input.startDate || "All Time",
+					endDate: input.endDate || "Present",
+				},
+				overall: {
+					totalOrders,
+					uniqueCustomers,
+					totalSalesAmount,
+					totalItemsSoldQuantity,
+					avgOrderValue,
+					avgItemsPerOrder,
+					routesCovered: uniqueRouteSet.size,
+					villagesCovered: uniqueVillageSet.size,
+				},
+				allProductsSold: productList,
+				mostSellingProducts,
+				highestRevenueProducts,
+				leastSellingProducts,
+				routeList,
+				villageList,
+				customerList,
+				salespersonList,
+				dailyTrend,
+				detailedOrderLines,
+			};
+		}),
+});

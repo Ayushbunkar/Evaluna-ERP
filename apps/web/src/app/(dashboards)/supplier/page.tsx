@@ -191,7 +191,7 @@ export default function SupplierDashboard() {
 										<div className="flex flex-col">
 											<p className="font-medium text-sm">Order #{order.id}</p>
 											<p className="text-muted-foreground text-xs">
-												{order.customerName} â€¢ {order.items} items
+												{order.customerName} · {order.items} items
 											</p>
 										</div>
 										<div className="flex items-center gap-2 text-right">

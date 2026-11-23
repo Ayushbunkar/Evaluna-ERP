@@ -167,7 +167,7 @@ describe("Inventory inspection — count fan-out (audit.ts)", () => {
 			[auditId],
 		);
 		expect(queue.length).toBe(1);
-		expect(queue[0].quantity).toBe(3);
+		expect(Number(queue[0].quantity)).toBe(3);
 		expect(queue[0].status).toBe("missing");
 	});
 

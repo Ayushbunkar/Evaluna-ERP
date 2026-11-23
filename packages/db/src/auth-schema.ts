@@ -61,6 +61,14 @@ export const user = pgTable("user", {
 		.notNull(),
 	twoFactorEnabled: boolean("twoFactorEnabled").default(false),
 
+	// ── Google Profile & OIDC Synchronization Fields ──────────────────────────
+	given_name: text("given_name"),
+	family_name: text("family_name"),
+	locale: text("locale"),
+	date_of_birth: text("date_of_birth"),
+	last_login_at: timestamp("last_login_at"),
+	last_profile_sync_at: timestamp("last_profile_sync_at"),
+
 	// ── Evaluna ERP extensions ─────────────────────────────────────────────────
 	/** Link to the staff/employee record. Unique constraint ensures 1:1. */
 	staff_id: integer("staff_id")

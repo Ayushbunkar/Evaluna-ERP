@@ -1,11 +1,24 @@
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent } from "@evaluna/ui/components/card";
 import { Rocket } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { Footer } from "@/components/public/footer";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Careers — Join the Evaluna Engineering Team",
+	description:
+		"Help us build high-availability software for retail chains, logistics networks, and businesses across India. View open engineering and product roles.",
+	canonicalPath: "/careers",
+});
 
 export default function CareersPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Careers", url: "/careers" },
+	]);
 	const openPositions = [
 		{
 			title: "Senior Full-Stack Engineer (Next.js / Node.js)",
@@ -35,6 +48,10 @@ export default function CareersPage() {
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 text-slate-900">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			<Navbar />
 
 			<section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">

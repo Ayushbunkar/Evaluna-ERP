@@ -22,32 +22,47 @@ import {
 	Loader2Icon,
 	PackageIcon,
 	SearchIcon,
+	UserIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
+import {
+	DateFilterBar,
+	getTodayStr,
+} from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
+import { formatQty } from "@/lib/utils";
 
 export default function PickerCompletedPage() {
 	const t = useTranslations();
 	const trpc = useTRPC();
+	const [startDate, setStartDate] = useState(getTodayStr());
+	const [endDate, setEndDate] = useState(getTodayStr());
+	const [datePreset, setDatePreset] = useState("today");
+
 	const {
 		data: completedPicks,
 		isLoading,
 		error,
-	} = trpc.picker.getCompleted.useQuery({});
+	} = trpc.picker.getCompleted.useQuery({
+		startDate: startDate || undefined,
+		endDate: endDate || undefined,
+	});
 
 	const [searchQuery, setSearchQuery] = useState("");
 
 	const filteredPicks = completedPicks?.filter(
-		(p) =>
+		(p: any) =>
 			p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			p.order_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			p.completed_by.toLowerCase().includes(searchQuery.toLowerCase()),
+			p.completed_by.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(p.customerName &&
+				p.customerName.toLowerCase().includes(searchQuery.toLowerCase())),
 	);
 
 	return (
-		<PageTransition className="container mx-auto space-y-6">
+		<PageTransition className="w-full max-w-full min-w-0 flex flex-col gap-4 sm:gap-6">
 			{/* Page Header */}
 			<div className="flex flex-col gap-1">
 				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
@@ -140,6 +155,21 @@ export default function PickerCompletedPage() {
 						/>
 					</div>
 				</CardHeader>
+
+				<div className="px-6 pb-2">
+					<DateFilterBar
+						startDate={startDate}
+						endDate={endDate}
+						datePreset={datePreset}
+						totalCount={filteredPicks?.length}
+						countLabel="picks"
+						onDateChange={(start, end, preset) => {
+							setStartDate(start);
+							setEndDate(end);
+							setDatePreset(preset);
+						}}
+					/>
+				</div>
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
@@ -162,6 +192,7 @@ export default function PickerCompletedPage() {
 									<TableRow>
 										<TableHead>{t("picker.picklistId")}</TableHead>
 										<TableHead>{t("picker.orderId")}</TableHead>
+										<TableHead>Customer Name</TableHead>
 										<TableHead>{t("picker.totalItems")}</TableHead>
 										<TableHead>{t("picker.completedBy")}</TableHead>
 										<TableHead>{t("common.status")}</TableHead>
@@ -169,7 +200,7 @@ export default function PickerCompletedPage() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{filteredPicks.map((pick) => (
+									{filteredPicks.map((pick: any) => (
 										<TableRow key={pick.id} className="hover:bg-muted/50">
 											<TableCell className="font-mono font-semibold text-xs">
 												{pick.id}
@@ -177,8 +208,30 @@ export default function PickerCompletedPage() {
 											<TableCell className="font-semibold text-sm">
 												{pick.order_id}
 											</TableCell>
+											<TableCell className="font-medium text-xs text-foreground">
+												<div className="flex items-center gap-1.5">
+													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+													<span className="font-semibold text-gray-900 dark:text-gray-100">
+														{pick.customerName || "Customer"}
+													</span>
+												</div>
+											</TableCell>
 											<TableCell className="font-medium text-sm">
-												{pick.items} {t("driver.orderItems")}
+												<div className="font-bold text-gray-900 dark:text-gray-100">
+													{formatQty(pick.items)}{" "}
+													{Number(formatQty(pick.items)) === 1
+														? "Product"
+														: "Products"}
+												</div>
+												<div className="text-[11px] text-muted-foreground font-medium">
+													({formatQty(pick.total_quantity ?? pick.items)}{" "}
+													{Number(
+														formatQty(pick.total_quantity ?? pick.items),
+													) === 1
+														? "unit"
+														: "units"}{" "}
+													total)
+												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pick.completed_by}

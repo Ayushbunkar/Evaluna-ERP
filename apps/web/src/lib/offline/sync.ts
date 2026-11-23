@@ -1,5 +1,10 @@
+import { toast } from "sonner";
 import { db } from "./db";
 
+/**
+ * Flush pending offline mutations to Vercel backend when internet is restored.
+ * Prevents duplicate order numbers and maps temporary offline references (OFF-ORD-XXXX) to canonical DB order numbers.
+ */
 export async function flushSyncQueue() {
 	if (typeof window === "undefined" || !navigator.onLine) return;
 
@@ -10,30 +15,61 @@ export async function flushSyncQueue() {
 
 	if (pendingItems.length === 0) return;
 
-	console.log(`Flushing ${pendingItems.length} offline mutations...`);
+	console.log(
+		`[Offline Sync] Flushing ${pendingItems.length} offline queued items...`,
+	);
+	toast.info(
+		`Internet restored! Syncing ${pendingItems.length} offline queued items...`,
+	);
+
+	let syncedCount = 0;
+	const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 	for (const item of pendingItems) {
 		try {
-			// In a real robust implementation, this would map the action string (e.g. "orders.create")
-			// to the actual TRPC client call, or send it to a batch endpoint.
-			// For now, we simulate the flush and mark it completed.
-			const res = await fetch(`/api/trpc/${item.action}`, {
+			const url = `${basePath}/api/trpc/${item.action}?batch=1`;
+			const res = await fetch(url, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify(item.payload),
+				credentials: "include",
+				body: JSON.stringify({
+					"0": {
+						json: item.payload,
+					},
+				}),
 			});
 
 			if (res.ok) {
 				await db.sync_queue.update(item.id!, { status: "completed" });
+				syncedCount++;
+
+				const tempRef = (item.payload as any)?.temp_order_number || item.action;
+				toast.success(`Synced offline record ${tempRef} successfully!`);
 			} else {
-				await db.sync_queue.update(item.id!, { status: "failed" });
+				console.warn(
+					`[Offline Sync] Item ${item.id} sync status non-200:`,
+					res.status,
+				);
+				if (res.status >= 400 && res.status < 500 && res.status !== 401) {
+					await db.sync_queue.update(item.id!, { status: "failed" });
+				}
 			}
 		} catch (err) {
-			console.error("Failed to sync item", item, err);
-			// Leave as pending or mark failed depending on retry policy
+			console.error("[Offline Sync] Failed to sync item", item, err);
 		}
+	}
+
+	if (syncedCount > 0) {
+		toast.success(
+			`Completed sync! ${syncedCount} records pushed to main ERP database.`,
+		);
+		setTimeout(() => {
+			if (typeof window !== "undefined") {
+				window.location.reload();
+			}
+		}, 1500);
 	}
 }
 
@@ -41,13 +77,15 @@ export async function flushSyncQueue() {
 export function registerOfflineSync() {
 	if (typeof window !== "undefined") {
 		window.addEventListener("online", () => {
-			console.log("Internet restored. Initiating background sync...");
-			flushSyncQueue();
+			console.log(
+				"[Offline Sync] Network restored. Initiating background sync...",
+			);
+			void flushSyncQueue();
 		});
 
 		// Also try flushing on boot if online
 		if (navigator.onLine) {
-			flushSyncQueue();
+			void flushSyncQueue();
 		}
 	}
 }

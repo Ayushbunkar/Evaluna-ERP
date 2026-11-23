@@ -1,0 +1,902 @@
+"use client";
+
+import { Badge } from "@evaluna/ui/components/badge";
+import { Button } from "@evaluna/ui/components/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@evaluna/ui/components/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@evaluna/ui/components/table";
+import {
+	CheckCircle2Icon,
+	ClockIcon,
+	EyeIcon,
+	Loader2Icon,
+	PackageCheckIcon,
+	SearchIcon,
+	TruckIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import { PageTransition } from "@/lib/animations";
+import { useTRPC } from "@/lib/trpc/client";
+
+export default function IncomingShipmentsPage() {
+	const router = useRouter();
+	const trpc = useTRPC();
+	const utils = trpc.useUtils();
+
+	const [searchQuery, setSearchQuery] = useState("");
+	const [statusFilter, setStatusFilter] = useState("all");
+
+	// Queries
+	const { data: pos, isLoading: posLoading } =
+		trpc.procurement.listPOs.useQuery({
+			search: searchQuery || undefined,
+		});
+	const { data: grns } = trpc.procurement.listGRNs.useQuery({});
+	const { data: kpis } = trpc.procurement.getProcurementKpis.useQuery();
+
+	// Receive Modal State
+	const [selectedPOId, setSelectedPOId] = useState<number | null>(null);
+	const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
+	const [deliveryNoteNumber, setDeliveryNoteNumber] = useState("");
+	const [vehicleNumber, setVehicleNumber] = useState("");
+	const [receiptNotes, setReceiptNotes] = useState("");
+
+	// Line item inspection state
+	const [receivedItems, setReceivedItems] = useState<
+		Array<{
+			purchaseItemId: number;
+			productId: number;
+			productName: string;
+			orderedQuantity: number;
+			receivedQuantity: number;
+			acceptedQuantity: number;
+			rejectedQuantity: number;
+			damagedQuantity: number;
+			unitCost: number;
+			batchNumber: string;
+			inspectionNotes: string;
+		}>
+	>([]);
+
+	// Selected PO Query
+	const { data: poDetail, isLoading: poLoading } =
+		trpc.procurement.getPO.useQuery(
+			{ id: selectedPOId! },
+			{ enabled: !!selectedPOId },
+		);
+
+	// Mutation
+	const recordReceiptMutation = trpc.procurement.recordReceipt.useMutation({
+		onSuccess: (grn) => {
+			toast.success(
+				`Goods Receipt Note ${grn.grn_number} generated! Inventory updated for accepted goods.`,
+			);
+			utils.procurement.listPOs.invalidate();
+			utils.procurement.listGRNs.invalidate();
+			utils.procurement.getProcurementKpis.invalidate();
+			utils.warehouse.getReceivingPOs.invalidate();
+			setIsReceiveDialogOpen(false);
+			setSelectedPOId(null);
+		},
+		onError: (err) => {
+			toast.error(`Goods receipt failed: ${err.message}`);
+		},
+	});
+
+	const handleOpenReceive = (po: any) => {
+		setSelectedPOId(po.id);
+		setDeliveryNoteNumber(`DN-${Date.now().toString().slice(-5)}`);
+		setVehicleNumber("");
+		setReceiptNotes("");
+		setIsReceiveDialogOpen(true);
+	};
+
+	// When poDetail loads, initialize receivedItems
+	const handleInitInspection = () => {
+		if (poDetail?.items) {
+			setReceivedItems(
+				poDetail.items.map((it: any) => {
+					const hasGrn =
+						it.has_grn_record ||
+						(it.received_quantity !== undefined && Number(it.received_quantity) > 0) ||
+						(it.damaged_quantity !== undefined && Number(it.damaged_quantity) > 0) ||
+						(it.rejected_quantity !== undefined && Number(it.rejected_quantity) > 0);
+
+					const receivedQty = hasGrn
+						? Number(it.received_quantity) || 0
+						: Number(it.quantity);
+					const acceptedQty = hasGrn
+						? Number(it.accepted_quantity) || 0
+						: Number(it.quantity);
+					const damagedQty = hasGrn ? Number(it.damaged_quantity) || 0 : 0;
+					const rejectedQty = hasGrn ? Number(it.rejected_quantity) || 0 : 0;
+					const batchNum =
+						it.batch_number || `B-${Date.now().toString().slice(-4)}`;
+					const notes =
+						it.inspection_notes ||
+						(damagedQty > 0
+							? `Damaged: ${damagedQty} units`
+							: "Good condition upon inspection");
+
+					return {
+						purchaseItemId: it.id,
+						productId: it.product_id,
+						productName: it.product_name,
+						orderedQuantity: Number(it.quantity),
+						receivedQuantity: receivedQty,
+						acceptedQuantity: acceptedQty,
+						rejectedQuantity: rejectedQty,
+						damagedQuantity: damagedQty,
+						unitCost: Number(it.price),
+						batchNumber: batchNum,
+						inspectionNotes: notes,
+					};
+				}),
+			);
+		}
+	};
+
+	const handleItemChange = (index: number, field: string, val: any) => {
+		setReceivedItems((prev) => {
+			const updated = [...prev];
+			const current = { ...updated[index], [field]: val };
+
+			const numReceived = Math.max(0, Number(current.receivedQuantity) || 0);
+			const numAccepted = Math.max(0, Number(current.acceptedQuantity) || 0);
+			const numRejected = Math.max(0, Number(current.rejectedQuantity) || 0);
+			const numDamaged = Math.max(0, Number(current.damagedQuantity) || 0);
+
+			if (field === "receivedQuantity") {
+				current.receivedQuantity = numReceived;
+				current.acceptedQuantity = Math.max(
+					0,
+					numReceived - (numRejected + numDamaged),
+				);
+			} else if (field === "acceptedQuantity") {
+				current.acceptedQuantity = numAccepted;
+				current.receivedQuantity = numAccepted + numDamaged + numRejected;
+			} else if (field === "rejectedQuantity" || field === "damagedQuantity") {
+				current.damagedQuantity = numDamaged;
+				current.rejectedQuantity = numRejected;
+
+				const badTotal = numDamaged + numRejected;
+				if (numReceived < numAccepted + badTotal) {
+					current.receivedQuantity = numAccepted + badTotal;
+				} else {
+					current.acceptedQuantity = Math.max(0, numReceived - badTotal);
+				}
+			}
+
+			updated[index] = current;
+			return updated;
+		});
+	};
+
+	const filteredGRNs =
+		grns?.filter((g) => {
+			if (!searchQuery) return true;
+			const q = searchQuery.toLowerCase();
+			return (
+				g.grn_number?.toLowerCase().includes(q) ||
+				g.po_number?.toLowerCase().includes(q) ||
+				g.supplier_name?.toLowerCase().includes(q) ||
+				g.delivery_note_number?.toLowerCase().includes(q) ||
+				g.vehicle_number?.toLowerCase().includes(q)
+			);
+		}) || [];
+
+	const filteredPOs =
+		pos?.filter((p) => {
+			if (statusFilter === "all") return p.status !== "cancelled";
+			if (statusFilter === "pending")
+				return p.receiving_status === "pending" && p.status !== "cancelled";
+			if (statusFilter === "partial")
+				return p.receiving_status === "partial" && p.status !== "cancelled";
+			if (statusFilter === "received") return p.receiving_status === "received";
+			if (statusFilter === "cancelled") return p.status === "cancelled";
+			return true;
+		}) || [];
+
+	return (
+		<PageTransition>
+			<div className="space-y-6">
+				{/* Header */}
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+					<div className="space-y-1">
+						<h1 className="font-bold text-2xl text-foreground tracking-tight sm:text-3xl">
+							Incoming Inventory & Warehouse Inbound
+						</h1>
+						<p className="text-muted-foreground text-sm">
+							Track inbound supplier shipments, verify physical deliveries,
+							inspect quality, and post accepted stock to the warehouse ledger.
+						</p>
+					</div>
+				</div>
+
+				{/* KPI Cards */}
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+					<Card
+						onClick={() => setStatusFilter("pending")}
+						className="cursor-pointer border-border/60 border-l-4 border-l-amber-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md"
+					>
+						<CardContent className="flex items-center justify-between p-5">
+							<div>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Pending Delivery
+								</p>
+								<h3 className="mt-1 font-bold text-2xl text-amber-600 tracking-tight dark:text-amber-400">
+									{pos?.filter((p) => p.receiving_status === "pending")
+										.length ?? 0}
+								</h3>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Awaiting dock arrival
+								</p>
+							</div>
+							<div className="rounded-xl bg-amber-500/10 p-3 text-amber-600 dark:text-amber-400">
+								<TruckIcon className="h-6 w-6" />
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card
+						onClick={() => setStatusFilter("partial")}
+						className="cursor-pointer border-border/60 border-l-4 border-l-blue-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md"
+					>
+						<CardContent className="flex items-center justify-between p-5">
+							<div>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Partially Received
+								</p>
+								<h3 className="mt-1 font-bold text-2xl text-blue-600 tracking-tight dark:text-blue-400">
+									{kpis?.partiallyReceived ?? 0}
+								</h3>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Split shipments in-progress
+								</p>
+							</div>
+							<div className="rounded-xl bg-blue-500/10 p-3 text-blue-600 dark:text-blue-400">
+								<ClockIcon className="h-6 w-6" />
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card
+						onClick={() => setStatusFilter("received")}
+						className="cursor-pointer border-border/60 border-l-4 border-l-emerald-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md"
+					>
+						<CardContent className="flex items-center justify-between p-5">
+							<div>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Fully Received
+								</p>
+								<h3 className="mt-1 font-bold text-2xl text-emerald-600 tracking-tight dark:text-emerald-400">
+									{pos?.filter((p) => p.receiving_status === "received")
+										.length ?? 0}
+								</h3>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Stock ledger incremented
+								</p>
+							</div>
+							<div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600 dark:text-emerald-400">
+								<CheckCircle2Icon className="h-6 w-6" />
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card
+						onClick={() => setStatusFilter("grn_history")}
+						className="cursor-pointer border-border/60 border-l-4 border-l-purple-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md"
+					>
+						<CardContent className="flex items-center justify-between p-5">
+							<div>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Goods Receipt Notes
+								</p>
+								<h3 className="mt-1 font-bold text-2xl text-purple-600 tracking-tight dark:text-purple-400">
+									{grns?.length ?? 0}
+								</h3>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Official GRNs logged (Click to view)
+								</p>
+							</div>
+							<div className="rounded-xl bg-purple-500/10 p-3 text-purple-600 dark:text-purple-400">
+								<PackageCheckIcon className="h-6 w-6" />
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+
+				{/* Filters & Table */}
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="relative w-full max-w-sm">
+						<SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+						<Input
+							placeholder={
+								statusFilter === "grn_history"
+									? "Search GRN #, PO #, challan..."
+									: "Search by PO # or supplier..."
+							}
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+							className="border-border/80 bg-background/50 pl-9"
+						/>
+					</div>
+
+					<div className="flex flex-wrap items-center gap-2">
+						{[
+							{ id: "all", label: "All POs" },
+							{ id: "pending", label: "Pending Inbound" },
+							{ id: "partial", label: "Partially Received" },
+							{ id: "received", label: "Fully Received" },
+							{ id: "cancelled", label: "Cancelled" },
+							{
+								id: "grn_history",
+								label: `GRN Inspection History (${grns?.length ?? 0})`,
+							},
+						].map((tab) => (
+							<Button
+								key={tab.id}
+								variant={statusFilter === tab.id ? "default" : "outline"}
+								size="sm"
+								onClick={() => setStatusFilter(tab.id)}
+								className="font-semibold text-xs"
+							>
+								{tab.label}
+							</Button>
+						))}
+					</div>
+				</div>
+
+				<Card className="border-border/60 bg-card/90 shadow-xs backdrop-blur-md">
+					<CardHeader className="border-border/60 border-b p-4">
+						<CardTitle className="font-bold text-base text-foreground">
+							{statusFilter === "grn_history"
+								? `Goods Receipt Notes (GRN) Inspection History (${filteredGRNs.length})`
+								: `Inbound PO Shipments Queue (${filteredPOs.length})`}
+						</CardTitle>
+						<CardDescription className="text-muted-foreground text-xs">
+							{statusFilter === "grn_history"
+								? "Official warehouse check-ins, recorded lot batches, and physical inspection receipts. Click any row to view full item breakdown."
+								: `Showing ${filteredPOs.length} purchase orders ready for gate check-in & inspection. Click any row to inspect.`}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="p-0">
+						<div className="overflow-x-auto">
+							{statusFilter === "grn_history" ? (
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>GRN Number</TableHead>
+											<TableHead>PO Reference</TableHead>
+											<TableHead>Supplier Partner</TableHead>
+											<TableHead>Received Date</TableHead>
+											<TableHead>Received By</TableHead>
+											<TableHead>Challan / Vehicle</TableHead>
+											<TableHead>Status</TableHead>
+											<TableHead className="text-right">Action</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{filteredGRNs.length === 0 ? (
+											<TableRow>
+												<TableCell
+													colSpan={8}
+													className="h-32 text-center text-muted-foreground text-sm"
+												>
+													No goods receipt notes found matching search.
+												</TableCell>
+											</TableRow>
+										) : (
+											filteredGRNs.map((grn) => (
+												<TableRow
+													key={grn.id}
+													onClick={() =>
+														router.push(
+															`/procurement/incoming/${grn.purchase_id}`,
+														)
+													}
+													className="group cursor-pointer transition-colors hover:bg-muted/60"
+												>
+													<TableCell className="font-bold font-mono text-foreground text-xs group-hover:text-primary">
+														{grn.grn_number}
+													</TableCell>
+													<TableCell className="font-mono text-xs">
+														{grn.po_number || `PO-${grn.purchase_id}`}
+													</TableCell>
+													<TableCell className="font-semibold text-xs text-foreground">
+														{grn.supplier_name || "Supplier"}
+													</TableCell>
+													<TableCell className="text-muted-foreground text-xs">
+														{grn.received_at
+															? new Date(grn.received_at).toLocaleString()
+															: "N/A"}
+													</TableCell>
+													<TableCell className="text-xs">
+														{grn.received_by || "Staff"}
+													</TableCell>
+													<TableCell className="text-xs">
+														<div className="flex flex-col font-mono text-[11px]">
+															<span>
+																{grn.delivery_note_number || "No Challan"}
+															</span>
+															{grn.vehicle_number && (
+																<span className="text-muted-foreground">
+																	{grn.vehicle_number}
+																</span>
+															)}
+														</div>
+													</TableCell>
+													<TableCell>
+														<Badge
+															variant="outline"
+															className={
+																grn.status === "accepted"
+																	? "border-emerald-500/30 bg-emerald-500/10 font-bold text-[10px] text-emerald-600 dark:text-emerald-400"
+																	: "border-amber-500/30 bg-amber-500/10 font-bold text-[10px] text-amber-600 dark:text-amber-400"
+															}
+														>
+															{(grn.status || "ACCEPTED").toUpperCase()}
+														</Badge>
+													</TableCell>
+													<TableCell
+														className="text-right"
+														onClick={(e) => e.stopPropagation()}
+													>
+														<Button
+															size="sm"
+															variant="outline"
+															asChild
+															className="h-8 gap-1 border-emerald-500/30 font-semibold text-emerald-600 text-xs hover:bg-emerald-50 dark:text-emerald-400"
+														>
+															<Link
+																href={`/procurement/incoming/${grn.purchase_id}`}
+															>
+																<EyeIcon className="h-3.5 w-3.5" />
+																View Receipt Details
+															</Link>
+														</Button>
+													</TableCell>
+												</TableRow>
+											))
+										)}
+									</TableBody>
+								</Table>
+							) : (
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>PO Number</TableHead>
+											<TableHead>Supplier</TableHead>
+											<TableHead>Expected Delivery</TableHead>
+											<TableHead>Confirmed Delivery</TableHead>
+											<TableHead>Items / Qty</TableHead>
+											<TableHead>Receiving Status</TableHead>
+											<TableHead className="text-right">Action</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{posLoading ? (
+											<TableRow>
+												<TableCell colSpan={7} className="h-32 text-center">
+													<Loader2Icon className="mx-auto h-6 w-6 animate-spin text-gray-400" />
+													<p className="mt-2 text-gray-500 text-xs">
+														Loading inbound queue...
+													</p>
+												</TableCell>
+											</TableRow>
+										) : filteredPOs.length === 0 ? (
+											<TableRow>
+												<TableCell
+													colSpan={7}
+													className="h-32 text-center text-gray-500 text-sm"
+												>
+													No inbound purchase orders found matching current
+													criteria.
+												</TableCell>
+											</TableRow>
+										) : (
+											filteredPOs.map((po) => {
+												const isOverdue =
+													po.expected_delivery_date &&
+													new Date(po.expected_delivery_date) < new Date() &&
+													po.receiving_status !== "received";
+
+												return (
+													<TableRow
+														key={po.id}
+														onClick={() =>
+															router.push(`/procurement/incoming/${po.id}`)
+														}
+														className="group cursor-pointer transition-colors hover:bg-muted/60"
+													>
+														<TableCell className="font-mono font-semibold text-foreground text-xs group-hover:text-primary">
+															{po.po_number || `PO-${po.id}`}
+														</TableCell>
+														<TableCell className="font-medium text-foreground">
+															{po.supplier_name}
+														</TableCell>
+														<TableCell className="text-xs">
+															{po.expected_delivery_date ? (
+																<span
+																	className={
+																		isOverdue
+																			? "font-bold text-red-600"
+																			: "text-foreground/80"
+																	}
+																>
+																	{new Date(
+																		po.expected_delivery_date,
+																	).toLocaleDateString()}
+																	{isOverdue && " (Overdue)"}
+																</span>
+															) : (
+																<span className="text-muted-foreground">
+																	Not set
+																</span>
+															)}
+														</TableCell>
+														<TableCell className="text-muted-foreground text-xs">
+															{po.confirmed_delivery_date
+																? new Date(
+																		po.confirmed_delivery_date,
+																	).toLocaleDateString()
+																: "Pending Supplier"}
+														</TableCell>
+														<TableCell className="font-medium text-xs">
+															{po.item_count} items ({po.total_quantity} units)
+														</TableCell>
+														<TableCell>
+															<Badge
+																variant="outline"
+																className={
+																	po.status === "cancelled"
+																		? "border-destructive/30 bg-destructive/10 font-bold text-[10px] text-destructive"
+																		: po.receiving_status === "received"
+																			? "border-emerald-500/30 bg-emerald-500/10 font-bold text-[10px] text-emerald-600 dark:text-emerald-400"
+																			: po.receiving_status === "partial"
+																				? "border-blue-500/30 bg-blue-500/10 font-bold text-[10px] text-blue-600 dark:text-blue-400"
+																				: "border-amber-500/30 bg-amber-500/10 font-bold text-[10px] text-amber-600 dark:text-amber-400"
+																}
+															>
+																{po.status === "cancelled"
+																	? "CANCELLED"
+																	: (
+																			po.receiving_status || "pending"
+																		).toUpperCase()}
+															</Badge>
+														</TableCell>
+														<TableCell
+															className="text-right"
+															onClick={(e) => e.stopPropagation()}
+														>
+															{po.receiving_status !== "received" &&
+															po.status !== "cancelled" ? (
+																<Button
+																	size="sm"
+																	asChild
+																	className="h-8 gap-1 bg-emerald-600 font-semibold text-white text-xs hover:bg-emerald-700"
+																>
+																	<Link href={`/procurement/incoming/${po.id}`}>
+																		<PackageCheckIcon className="h-3.5 w-3.5" />
+																		Inspect & Receive
+																	</Link>
+																</Button>
+															) : po.status === "cancelled" ? (
+																<span className="font-semibold text-destructive text-xs">
+																	Cancelled
+																</span>
+															) : (
+																<Button
+																	size="sm"
+																	variant="outline"
+																	asChild
+																	className="h-8 gap-1 border-emerald-500/30 font-semibold text-emerald-600 text-xs dark:text-emerald-400"
+																>
+																	<Link href={`/procurement/incoming/${po.id}`}>
+																		<EyeIcon className="h-3.5 w-3.5" />
+																		Inspect / View
+																	</Link>
+																</Button>
+															)}
+														</TableCell>
+													</TableRow>
+												);
+											})
+										)}
+									</TableBody>
+								</Table>
+							)}
+						</div>
+					</CardContent>
+				</Card>
+
+				{/* Inspect & Receive Modal */}
+				<Dialog
+					open={isReceiveDialogOpen}
+					onOpenChange={setIsReceiveDialogOpen}
+				>
+					<DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+						<DialogHeader>
+							<DialogTitle className="flex items-center gap-2">
+								<PackageCheckIcon className="h-5 w-5 text-emerald-600" />
+								Warehouse Goods Receipt & Quality Inspection
+							</DialogTitle>
+							<DialogDescription>
+								Record actual delivered quantities, inspect quality, record
+								shortages/damages, and post accepted inventory.
+							</DialogDescription>
+						</DialogHeader>
+
+						{poLoading || !poDetail ? (
+							<div className="py-12 text-center">
+								<Loader2Icon className="mx-auto h-8 w-8 animate-spin text-gray-400" />
+							</div>
+						) : (
+							<div className="space-y-4 py-2">
+								<div className="grid grid-cols-3 gap-4 rounded-lg bg-muted/40 p-3 text-xs">
+									<div>
+										<span className="block text-muted-foreground">
+											PO Number
+										</span>
+										<span className="font-bold font-mono text-sm">
+											{poDetail.po_number || `PO-${poDetail.id}`}
+										</span>
+									</div>
+									<div>
+										<span className="block text-muted-foreground">
+											Supplier
+										</span>
+										<span className="font-semibold">
+											{poDetail.supplier_name}
+										</span>
+									</div>
+									<div>
+										<span className="block text-muted-foreground">
+											PO Value
+										</span>
+										<span className="font-bold text-sm">
+											₹{Number(poDetail.total_amount).toFixed(2)}
+										</span>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-2 gap-4">
+									<div>
+										<Label className="text-xs">
+											Supplier Delivery Note / Challan #
+										</Label>
+										<Input
+											value={deliveryNoteNumber}
+											onChange={(e) => setDeliveryNoteNumber(e.target.value)}
+											className="mt-1"
+										/>
+									</div>
+									<div>
+										<Label className="text-xs">
+											Delivery Vehicle # (Optional)
+										</Label>
+										<Input
+											placeholder="e.g. DL-01-AB-1234"
+											value={vehicleNumber}
+											onChange={(e) => setVehicleNumber(e.target.value)}
+											className="mt-1"
+										/>
+									</div>
+								</div>
+
+								{receivedItems.length === 0 ? (
+									<div className="rounded-lg border border-dashed p-6 text-center">
+										<p className="mb-3 text-muted-foreground text-xs">
+											Load PO items into inspection table to record delivered
+											quantities.
+										</p>
+										<Button
+											size="sm"
+											onClick={handleInitInspection}
+											className="bg-blue-600 text-xs"
+										>
+											Load PO Line Items
+										</Button>
+									</div>
+								) : (
+									<div>
+										<h4 className="mb-2 font-semibold text-xs">
+											Item-Level Quality & Quantity Inspection
+										</h4>
+										<div className="overflow-hidden rounded-md border">
+											<Table>
+												<TableHeader className="bg-muted/50">
+													<TableRow>
+														<TableHead>Product</TableHead>
+														<TableHead className="text-center">
+															Ordered
+														</TableHead>
+														<TableHead className="text-center">
+															Received
+														</TableHead>
+														<TableHead className="text-center">
+															Accepted
+														</TableHead>
+														<TableHead className="text-center">
+															Damaged / Rejected
+														</TableHead>
+														<TableHead>Batch #</TableHead>
+													</TableRow>
+												</TableHeader>
+												<TableBody>
+													{receivedItems.map((row, idx) => (
+														<TableRow key={idx}>
+															<TableCell className="font-medium text-xs">
+																{row.productName}
+															</TableCell>
+															<TableCell className="text-center font-mono text-xs">
+																{row.orderedQuantity}
+															</TableCell>
+															<TableCell className="text-center">
+																<Input
+																	type="number"
+																	step="0.001"
+																	value={row.receivedQuantity}
+																	onChange={(e) =>
+																		handleItemChange(
+																			idx,
+																			"receivedQuantity",
+																			Number.parseFloat(e.target.value) || 0,
+																		)
+																	}
+																	className="mx-auto h-7 w-20 text-center text-xs"
+																/>
+															</TableCell>
+															<TableCell className="text-center">
+																<Input
+																	type="number"
+																	step="0.001"
+																	value={row.acceptedQuantity}
+																	onChange={(e) =>
+																		handleItemChange(
+																			idx,
+																			"acceptedQuantity",
+																			Number.parseFloat(e.target.value) || 0,
+																		)
+																	}
+																	className="mx-auto h-7 w-20 bg-emerald-50 text-center font-bold text-emerald-700 text-xs"
+																/>
+															</TableCell>
+															<TableCell className="text-center">
+																<div className="flex justify-center gap-1">
+																	<Input
+																		type="number"
+																		placeholder="Dmg"
+																		value={row.damagedQuantity}
+																		onChange={(e) =>
+																			handleItemChange(
+																				idx,
+																				"damagedQuantity",
+																				Number.parseFloat(e.target.value) || 0,
+																			)
+																		}
+																		className="h-7 w-16 text-center text-red-600 text-xs"
+																	/>
+																	<Input
+																		type="number"
+																		placeholder="Rej"
+																		value={row.rejectedQuantity}
+																		onChange={(e) =>
+																			handleItemChange(
+																				idx,
+																				"rejectedQuantity",
+																				Number.parseFloat(e.target.value) || 0,
+																			)
+																		}
+																		className="h-7 w-16 text-center text-amber-600 text-xs"
+																	/>
+																</div>
+															</TableCell>
+															<TableCell>
+																<Input
+																	value={row.batchNumber}
+																	onChange={(e) =>
+																		handleItemChange(
+																			idx,
+																			"batchNumber",
+																			e.target.value,
+																		)
+																	}
+																	className="h-7 font-mono text-xs"
+																/>
+															</TableCell>
+														</TableRow>
+													))}
+												</TableBody>
+											</Table>
+										</div>
+									</div>
+								)}
+
+								<div>
+									<Label className="text-xs">
+										Inspection Remarks / Warehouse Notes
+									</Label>
+									<Input
+										placeholder="Optional receiving notes..."
+										value={receiptNotes}
+										onChange={(e) => setReceiptNotes(e.target.value)}
+										className="mt-1"
+									/>
+								</div>
+							</div>
+						)}
+
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => setIsReceiveDialogOpen(false)}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={() =>
+									recordReceiptMutation.mutate({
+										purchaseId: selectedPOId!,
+										deliveryNoteNumber,
+										vehicleNumber,
+										notes: receiptNotes,
+										items: receivedItems.map((i) => ({
+											purchaseItemId: i.purchaseItemId,
+											productId: i.productId,
+											orderedQuantity: i.orderedQuantity,
+											receivedQuantity: i.receivedQuantity,
+											acceptedQuantity: i.acceptedQuantity,
+											rejectedQuantity: i.rejectedQuantity,
+											damagedQuantity: i.damagedQuantity,
+											shortageQuantity: Math.max(
+												0,
+												i.orderedQuantity - i.receivedQuantity,
+											),
+											unitCost: i.unitCost,
+											batchNumber: i.batchNumber,
+										})),
+									})
+								}
+								disabled={
+									recordReceiptMutation.isPending || receivedItems.length === 0
+								}
+								className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
+							>
+								{recordReceiptMutation.isPending && (
+									<Loader2Icon className="h-4 w-4 animate-spin" />
+								)}
+								Generate GRN & Update Inventory
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			</div>
+		</PageTransition>
+	);
+}

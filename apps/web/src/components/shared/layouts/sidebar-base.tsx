@@ -3,7 +3,7 @@
 import { Button } from "@evaluna/ui/components/button";
 import { cn } from "@evaluna/ui/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ChevronRight, MountainIcon, X } from "lucide-react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";

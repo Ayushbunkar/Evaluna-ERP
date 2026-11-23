@@ -31,14 +31,20 @@ export const purchasesRouter = router({
 			} = input;
 
 			const grn = `GRN-${Math.floor(10000 + Math.random() * 90000)}`;
+			const poNumber = `PO-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
 
 			const newPurchase = await db
 				.insert(purchases)
 				.values({
 					...purchaseData,
+					branch_id: ctx.user.branchId ?? 1,
+					po_number: poNumber,
 					supplier_id: Number.parseInt(supplierId, 10),
 					total_amount: total.toString(),
 					user_uid: ctx.user.id,
+					status: "pending_finance",
+					receiving_status: "pending",
+					invoice_status: "pending",
 					grn_number: grn,
 					amount_paid: "0",
 					payment_status: "unpaid",
@@ -46,42 +52,48 @@ export const purchasesRouter = router({
 				.returning();
 
 			if (newPurchase[0] && items) {
+				const rawItemIds = items
+					.map((item) => Number.parseInt(item.productId, 10))
+					.filter((id) => !Number.isNaN(id));
+				const resolvedIdMap = new Map<number, number>();
+
+				if (rawItemIds.length > 0) {
+					const existingProds = await db
+						.select({ id: products.id })
+						.from(products)
+						.where(inArray(products.id, rawItemIds));
+					const validSet = new Set(existingProds.map((p) => p.id));
+					const missing = rawItemIds.filter((id) => !validSet.has(id));
+
+					if (missing.length > 0) {
+						const mappedInv = await db
+							.select({
+								id: branchInventory.id,
+								productId: branchInventory.product_id,
+							})
+							.from(branchInventory)
+							.where(inArray(branchInventory.id, missing));
+						for (const row of mappedInv) {
+							resolvedIdMap.set(row.id, row.productId);
+						}
+					}
+				}
+
 				// Insert purchase items (batch)
 				await db.insert(purchaseItems).values(
-					items.map((item) => ({
-						...item,
-						purchase_id: newPurchase[0].id,
-						product_id: Number.parseInt(item.productId, 10),
-						price: item.price.toString(),
-					})),
-				);
-
-				// Batch fetch all products at once, then insert ledger entries in one query
-				const productIds = items.map((item) =>
-					Number.parseInt(item.productId, 10),
-				);
-				const foundProducts = await db.query.products.findMany({
-					where: inArray(products.id, productIds),
-				});
-				const productMap = new Map(foundProducts.map((p) => [p.id, p]));
-
-				const ledgerEntries = items
-					.map((item) => {
-						const product = productMap.get(Number.parseInt(item.productId, 10));
-						if (!product) return null;
+					items.map((item) => {
+						const rawId = Number.parseInt(item.productId, 10);
+						const finalProdId = resolvedIdMap.get(rawId) ?? rawId;
 						return {
-							product_id: product.id,
-							transaction_type: "in" as const,
-							quantity: item.quantity,
-							unit_cost: item.price.toString(),
-							total_cost: (item.quantity * Number(item.price)).toString(),
+							...item,
+							purchase_id: newPurchase[0].id,
+							product_id: finalProdId,
+							price: item.price.toString(),
 						};
-					})
-					.filter(Boolean) as any[];
+					}),
+				);
 
-				if (ledgerEntries.length > 0) {
-					await db.insert(stockLedger).values(ledgerEntries);
-				}
+				// Note: Stock ledger entries must ONLY be posted when goods are inspected and accepted at warehouse receiving, NOT upon issuing a purchase order.
 
 				// Increase supplier outstanding balance
 				const supplier = await db.query.suppliers.findFirst({

@@ -26,7 +26,16 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@evaluna/ui/components/select";
+import {
 	ActivityIcon,
+	AlertTriangleIcon,
+	BarcodeIcon,
 	ClipboardListIcon,
 	DownloadIcon,
 	EyeIcon,
@@ -159,19 +168,34 @@ export default function AuditorReportsPage() {
 								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 									Report Type
 								</label>
-								<select
-									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+								<Select
 									value={exportType}
-									onChange={(e) => setExportType(e.target.value)}
+									onValueChange={(val) => setExportType(val)}
 								>
-									<option value="full">
-										📊 Full Audit Log Trail (All System Events)
-									</option>
-									<option value="findings">
-										⚠️ Audit Findings & Exceptions Summary
-									</option>
-									<option value="upc">🏷️ UPC / Barcode Compliance Report</option>
-								</select>
+									<SelectTrigger className="w-full text-sm">
+										<SelectValue placeholder="Select Report Type" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="full">
+											<div className="flex items-center gap-2">
+												<FileBarChart className="h-4 w-4 text-blue-500 shrink-0" />
+												<span>Full Audit Log Trail (All System Events)</span>
+											</div>
+										</SelectItem>
+										<SelectItem value="findings">
+											<div className="flex items-center gap-2">
+												<AlertTriangleIcon className="h-4 w-4 text-amber-500 shrink-0" />
+												<span>Audit Findings & Exceptions Summary</span>
+											</div>
+										</SelectItem>
+										<SelectItem value="upc">
+											<div className="flex items-center gap-2">
+												<BarcodeIcon className="h-4 w-4 text-indigo-500 shrink-0" />
+												<span>UPC / Barcode Compliance Report</span>
+											</div>
+										</SelectItem>
+									</SelectContent>
+								</Select>
 							</div>
 
 							<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-blue-800 text-xs dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">

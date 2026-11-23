@@ -3,11 +3,29 @@ import {
 	customers,
 	expenses,
 	orders,
+	products,
+	proofOfDeliveries,
+	purchaseItems,
+	purchases,
 	suppliers,
 	transactions,
 	tripCollections,
+	tripStops,
 } from "@evaluna/db/schema";
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import {
+	and,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	isNull,
+	lte,
+	or,
+	sql,
+	sum,
+} from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -122,10 +140,16 @@ export const financeRouter = router({
 			if (type) conditions.push(eq(transactions.type, type));
 			if (category) conditions.push(eq(transactions.category, category));
 			if (status) conditions.push(eq(transactions.status, status));
-			if (date_from)
-				conditions.push(gte(transactions.created_at, new Date(date_from)));
-			if (date_to)
-				conditions.push(lte(transactions.created_at, new Date(date_to)));
+			if (date_from) {
+				const fromDate = new Date(date_from);
+				fromDate.setHours(0, 0, 0, 0);
+				conditions.push(gte(transactions.created_at, fromDate));
+			}
+			if (date_to) {
+				const toDate = new Date(date_to);
+				toDate.setHours(23, 59, 59, 999);
+				conditions.push(lte(transactions.created_at, toDate));
+			}
 			if (search) {
 				conditions.push(
 					sql`${transactions.description} ILIKE ${"%" + search + "%"}`,
@@ -303,17 +327,20 @@ export const financeRouter = router({
 
 			const rawRes: any = await ctx.db.execute(sql`
 				SELECT
-					(SELECT coalesce(sum(total_amount), 0) FROM orders ${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}) AS revenue,
-					(SELECT coalesce(sum(outstanding_balance), 0) FROM suppliers) AS purchases,
+					(SELECT coalesce(sum(total_amount), 0) FROM orders WHERE status != 'cancelled' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS revenue,
+					(SELECT coalesce(sum(total_amount), 0) FROM purchases ${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}) AS purchases,
 					(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('in', 'credit') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS cash_in,
 					(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('out', 'debit') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS cash_out,
 					(
 						SELECT coalesce(json_agg(t), '[]'::json)
 						FROM (
-							SELECT expense_category as category, COALESCE(SUM(amount), 0)::numeric as total
-							FROM expenses
-							${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
-							GROUP BY expense_category
+							SELECT coalesce(category, 'General') as category, sum(amt)::numeric as total
+							FROM (
+								SELECT expense_category as category, amount as amt FROM expenses ${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
+								UNION ALL
+								SELECT category as category, amount as amt FROM transactions WHERE type IN ('out', 'debit') AND category IN ('expense', 'petty_cash', 'logistics') AND (reference_type IS NULL OR reference_type != 'expense') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+							) exp_combined
+							GROUP BY category
 						) t
 					) AS expense_breakdown
 			`);
@@ -384,12 +411,65 @@ export const financeRouter = router({
 			const rawRes: any = await ctx.db.execute(sql`
 				SELECT
 					(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('in', 'credit') AND created_at >= ${todayStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS todays_cash,
-					(SELECT coalesce(sum(total_amount), 0) FROM orders WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS monthly_revenue,
-					(SELECT coalesce(sum(amount), 0) FROM expenses WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS total_expenses,
-					(SELECT coalesce(sum(credit_used), 0) FROM customers) AS receivables,
+					(SELECT coalesce(sum(current_balance), 0) FROM bank_accounts WHERE is_deleted = false AND status = 'active' AND account_type IN ('cash', 'petty_cash') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS cash_balance,
+					(SELECT coalesce(sum(current_balance), 0) FROM bank_accounts WHERE is_deleted = false AND status = 'active' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS total_bank_and_cash,
+					(SELECT coalesce(sum(CASE WHEN type IN ('in', 'credit') THEN amount WHEN type IN ('out', 'debit') THEN -amount ELSE 0 END), 0) FROM transactions WHERE 1=1 ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS net_cash_transactions,
+					(SELECT coalesce(sum(total_amount), 0) FROM orders WHERE status != 'cancelled' AND created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS monthly_revenue,
+					(
+						SELECT coalesce(
+							(SELECT coalesce(sum(amount), 0) FROM expenses WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						) + coalesce(
+							(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('out', 'debit') AND category IN ('expense', 'petty_cash', 'logistics') AND (reference_type IS NULL OR reference_type != 'expense') AND created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						)
+					) AS total_expenses,
+					(
+						SELECT coalesce(
+							(SELECT coalesce(sum(total_amount), 0) FROM purchases WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						) + coalesce(
+							(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('out', 'debit') AND category = 'purchase' AND created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						)
+					) AS monthly_purchases,
+					(
+						SELECT coalesce(
+							(SELECT coalesce(sum(credit_used), 0) FROM customers), 0
+						) + coalesce(
+							(SELECT coalesce(sum(total_amount - coalesce(driver_collected_amount, 0)), 0) FROM orders WHERE status NOT IN ('cancelled') AND (driver_collected_amount IS NULL OR driver_collected_amount < total_amount) ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						)
+					) AS receivables,
 					(SELECT coalesce(sum(outstanding_balance), 0) FROM suppliers) AS payables,
-					(SELECT coalesce(count(*), 0)::int FROM orders WHERE status = 'pending' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS unpaid_invoices_count,
-					(SELECT coalesce(sum(CASE WHEN created_at < NOW() - INTERVAL '30 days' THEN total_amount ELSE 0 END), 0) FROM orders WHERE status = 'pending' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS overdue_receivables,
+					(SELECT coalesce(count(*), 0)::int FROM orders WHERE status NOT IN ('cancelled') AND (finance_verified_amount IS NULL OR finance_verified_amount < total_amount) ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS unpaid_invoices_count,
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE status IN ('pending', 'pending_finance', 'pending_approval') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS pending_purchases_count,
+					(
+						SELECT coalesce(sum(total_amount - coalesce(driver_collected_amount, 0)), 0)
+						FROM orders
+						WHERE status NOT IN ('cancelled')
+						  AND created_at < NOW() - INTERVAL '30 days'
+						  AND (driver_collected_amount IS NULL OR driver_collected_amount < total_amount)
+						  ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+					) AS overdue_receivables,
+					(
+						SELECT coalesce(sum(total_amount - coalesce(amount_paid, 0)), 0)
+						FROM purchases
+						WHERE payment_status != 'paid'
+						  AND (
+						    (expected_delivery_date IS NOT NULL AND expected_delivery_date < NOW())
+						    OR (expected_delivery_date IS NULL AND created_at < NOW() - INTERVAL '30 days')
+						  )
+						  ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+					) AS overdue_payables,
+					(
+						SELECT coalesce(sum(coalesce(cgst_amount, 0) + coalesce(sgst_amount, 0) + coalesce(igst_amount, 0)), 0)
+						FROM orders
+						WHERE status NOT IN ('cancelled')
+						  AND created_at >= ${firstDayOfMonthStr}::timestamp
+						  ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+					) AS output_gst,
+					(
+						SELECT coalesce(sum(coalesce(cgst_amount, 0) + coalesce(sgst_amount, 0) + coalesce(igst_amount, 0)), 0)
+						FROM purchases
+						WHERE created_at >= ${firstDayOfMonthStr}::timestamp
+						  ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+					) AS input_gst,
 					(
 						SELECT coalesce(json_agg(t), '[]'::json)
 						FROM (
@@ -405,10 +485,13 @@ export const financeRouter = router({
 					(
 						SELECT coalesce(json_agg(t), '[]'::json)
 						FROM (
-							SELECT expense_category as category, COALESCE(SUM(amount), 0)::numeric as amount
-							FROM expenses
-							${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
-							GROUP BY expense_category
+							SELECT coalesce(category, 'General') as category, sum(amt)::numeric as amount
+							FROM (
+								SELECT expense_category as category, amount as amt FROM expenses ${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
+								UNION ALL
+								SELECT category as category, amount as amt FROM transactions WHERE type IN ('out', 'debit') AND category IN ('expense', 'petty_cash', 'logistics') AND (reference_type IS NULL OR reference_type != 'expense') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+							) exp_combined
+							GROUP BY category
 						) t
 					) AS expense_breakdown,
 					(
@@ -458,18 +541,31 @@ export const financeRouter = router({
 			const scalarRes = Array.isArray(rawRes) ? rawRes[0] : rawRes?.rows?.[0];
 
 			const todaysCash = Number(scalarRes?.todays_cash || 0);
+			const dbCashBalance = Number(scalarRes?.cash_balance || 0);
+			const netCashTransactions = Number(scalarRes?.net_cash_transactions || 0);
+			const totalBankAndCash = Number(scalarRes?.total_bank_and_cash || 0);
+			const cashBalance = dbCashBalance > 0 ? dbCashBalance : (totalBankAndCash > 0 ? totalBankAndCash : (netCashTransactions > 0 ? netCashTransactions : todaysCash));
+
 			const monthlyRevenue = Number(scalarRes?.monthly_revenue || 0);
 			const totalExpenses = Number(scalarRes?.total_expenses || 0);
-			const netProfit = monthlyRevenue - totalExpenses;
-			const grossProfit = monthlyRevenue; // Simplified assuming COGS is not fully tracked
-			const gstLiability = monthlyRevenue * 0.18;
+			const monthlyPurchases = Number(scalarRes?.monthly_purchases || 0);
+			const grossProfit = monthlyRevenue - monthlyPurchases;
+			const netProfit = grossProfit - totalExpenses;
+
+			const outputGst = Number(scalarRes?.output_gst || 0);
+			const inputGst = Number(scalarRes?.input_gst || 0);
+			const gstLiability = Math.max(0, outputGst - inputGst);
+
 			const totalReceivables = Number(scalarRes?.receivables || 0);
 			const totalPayables = Number(scalarRes?.payables || 0);
 			const cashFlow = todaysCash - totalExpenses;
 
 			const unpaidInvoicesCount = Number(scalarRes?.unpaid_invoices_count || 0);
+			const pendingPurchasesCount = Number(
+				scalarRes?.pending_purchases_count || 0,
+			);
 			const overdueReceivables = Number(scalarRes?.overdue_receivables || 0);
-			const overduePayables = totalPayables * 0.2; // Mocked portion since due date not explicit in schema
+			const overduePayables = Number(scalarRes?.overdue_payables || 0);
 
 			const recentTx = (scalarRes?.recent_transactions || []) as Array<{
 				id: number;
@@ -493,7 +589,8 @@ export const financeRouter = router({
 				month: string;
 				revenue: number | string;
 			}>;
-			const expenseBreakdownRes = (scalarRes?.expense_breakdown || []) as Array<{
+			const expenseBreakdownRes = (scalarRes?.expense_breakdown ||
+				[]) as Array<{
 				category: string | null;
 				amount: number | string;
 			}>;
@@ -549,8 +646,11 @@ export const financeRouter = router({
 
 			return {
 				todaysCash,
+				cashBalance,
+				totalBankAndCash,
 				monthlyRevenue,
 				totalExpenses,
+				monthlyPurchases,
 				grossProfit,
 				netProfit,
 				gstLiability,
@@ -558,6 +658,7 @@ export const financeRouter = router({
 				totalPayables,
 				cashFlow,
 				unpaidInvoicesCount,
+				pendingPurchasesCount,
 				overdueReceivables,
 				overduePayables,
 				profitChart,
@@ -568,8 +669,8 @@ export const financeRouter = router({
 				cashFlowData,
 				bankBalances,
 				gstSummary: {
-					inputTax: 0,
-					outputTax: gstLiability,
+					inputTax: inputGst,
+					outputTax: outputGst,
 					netLiability: gstLiability,
 				},
 				outstandingPayments,
@@ -582,23 +683,77 @@ export const financeRouter = router({
 		"manager",
 		"auditor",
 		"finance",
-	]).query(async ({ ctx }) => {
-		const collections = await ctx.db.query.tripCollections?.findMany({
-			orderBy: [desc(tripCollections.collected_at)],
-			limit: 100,
-			with: {
-				trip: {
-					with: {
-						driver: true,
-						stops: {
-							with: {
-								customer: true,
+	])
+		.input(
+			z
+				.object({
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const conditions: any[] = [];
+			if (input?.startDate) {
+				conditions.push(
+					or(
+						gte(
+							tripCollections.collected_at,
+							new Date(`${input.startDate}T00:00:00`),
+						),
+						and(
+							isNull(tripCollections.collected_at),
+							gte(
+								tripCollections.created_at,
+								new Date(`${input.startDate}T00:00:00`),
+							),
+						),
+					),
+				);
+			}
+			if (input?.endDate) {
+				conditions.push(
+					or(
+						lte(
+							tripCollections.collected_at,
+							new Date(`${input.endDate}T23:59:59`),
+						),
+						and(
+							isNull(tripCollections.collected_at),
+							lte(
+								tripCollections.created_at,
+								new Date(`${input.endDate}T23:59:59`),
+							),
+						),
+					),
+				);
+			}
+
+			let collections: any[] = [];
+			try {
+				if (ctx.db?.query?.tripCollections) {
+					collections = await ctx.db.query.tripCollections.findMany({
+						where: conditions.length > 0 ? and(...conditions) : undefined,
+						orderBy: [desc(tripCollections.collected_at)],
+						limit: 200,
+						with: {
+							trip: {
+								with: {
+									driver: true,
+									stops: {
+										with: {
+											customer: true,
+										},
+									},
+								},
 							},
 						},
-					},
-				},
-			},
-		});
+					});
+				}
+			} catch (e) {
+				console.warn("[getDriverCollections] DB query fallback:", e);
+				return [];
+			}
 
 		if (!collections || collections.length === 0) return [];
 
@@ -616,6 +771,7 @@ export const financeRouter = router({
 		if (allCustomerIds.length > 0) {
 			dbOrders = await ctx.db.query.orders.findMany({
 				where: inArray(orders.customer_id, allCustomerIds),
+				orderBy: [desc(orders.created_at)],
 				with: {
 					customer: true,
 					orderItems: {
@@ -627,25 +783,139 @@ export const financeRouter = router({
 			});
 		}
 
+		// Fetch proof of deliveries for notes/returns
+		const allStopIds = Array.from(
+			new Set(
+				collections
+					.map((col: any) => {
+						if (col.reference_number?.startsWith("STOP-")) {
+							return Number(col.reference_number.replace("STOP-", ""));
+						}
+						return null;
+					})
+					.filter(Boolean) as number[],
+			),
+		);
+
+		let podList: any[] = [];
+		if (allStopIds.length > 0) {
+			try {
+				podList = await ctx.db.query.proofOfDeliveries.findMany({
+					where: inArray(proofOfDeliveries.trip_stop_id, allStopIds),
+				});
+			} catch (e) {
+				console.warn("[getDriverCollections] POD fetch fallback:", e);
+			}
+		}
+
 		return collections.map((col: any) => {
 			const stops = col.trip?.stops || [];
-			const stopCustomer = stops[0]?.customer || null;
-			const linkedOrders = dbOrders.filter((o: any) =>
-				stops.some((s: any) => s.customer_id === o.customer_id),
+			let targetStopId: number | null = null;
+			if (col.reference_number?.startsWith("STOP-")) {
+				targetStopId = Number(col.reference_number.replace("STOP-", ""));
+			}
+
+			const matchedStop =
+				stops.find((s: any) => s.id === targetStopId) || stops[0] || null;
+			const stopCustomer = matchedStop?.customer || stops[0]?.customer || null;
+			const linkedOrders = dbOrders.filter(
+				(o: any) =>
+					o.customer_id === (stopCustomer?.id || matchedStop?.customer_id),
 			);
+
+			const pod = podList.find(
+				(p: any) => p.trip_stop_id === (targetStopId || matchedStop?.id),
+			);
+
+			let parsedDeliveryNotes = matchedStop?.comments || "";
+			let returnedItems: any[] = [];
+
+			if (pod?.notes) {
+				try {
+					const parsed = JSON.parse(pod.notes);
+					if (parsed.deliveryNotes) parsedDeliveryNotes = parsed.deliveryNotes;
+					if (Array.isArray(parsed.returns) && parsed.returns.length > 0) {
+						returnedItems = parsed.returns;
+					}
+				} catch {
+					parsedDeliveryNotes = pod.notes;
+				}
+			}
+
+			// Also parse returned items from comments string if present
+			if (
+				returnedItems.length === 0 &&
+				matchedStop?.comments &&
+				matchedStop.comments.includes("Returned/Rejected:")
+			) {
+				const parts = matchedStop.comments.split("Returned/Rejected:");
+				if (parts[1]) {
+					parsedDeliveryNotes = parts[0].replace(" | ", "").trim();
+					const itemStrs = parts[1].split(",");
+					returnedItems = itemStrs.map((str: string, idx: number) => {
+						const trimmed = str.trim();
+						return {
+							id: idx + 1,
+							name: trimmed,
+							qty: 1,
+							reason: "Reported at Doorstep",
+						};
+					});
+				}
+			}
+
+			const colAmt = Number(col.amount || 0);
+			let totalColCost = 0;
+			let totalColSelling = 0;
+
+			if (linkedOrders.length > 0) {
+				for (const o of linkedOrders) {
+					for (const it of o.orderItems || []) {
+						const qty = Number(it.quantity || 1);
+						const unitSelling = Number(it.price || it.unit_price || 0);
+						const unitCost = it.product
+							? Number(
+									it.product.base_procurement_price ||
+										Number(it.product.price || unitSelling) * 0.8,
+								)
+							: unitSelling * 0.8;
+						totalColCost += qty * unitCost;
+						totalColSelling += qty * unitSelling;
+					}
+				}
+			}
+
+			if (totalColSelling === 0 && colAmt > 0) {
+				totalColSelling = colAmt;
+				totalColCost = colAmt * 0.8;
+			}
+			const totalColProfit = totalColSelling - totalColCost;
+			const totalColMargin =
+				totalColSelling > 0 ? (totalColProfit / totalColSelling) * 100 : 0;
 
 			return {
 				id: col.id,
 				tripId: col.trip_id,
+				tripName: `Trip #${col.trip_id}`,
+				stopId: targetStopId || matchedStop?.id || null,
+				customerId: stopCustomer?.id || null,
 				paymentMethod: col.payment_method || "Cash",
 				amount: Number(col.amount || 0),
+				costPrice: Number(totalColCost.toFixed(2)),
+				sellingPrice: Number(totalColSelling.toFixed(2)),
+				netProfit: Number(totalColProfit.toFixed(2)),
+				marginPercent: Number(totalColMargin.toFixed(1)),
 				transactionId: col.transaction_id || `COL-${col.id}`,
 				referenceNumber: col.reference_number || `REF-${col.id}`,
 				collectedAt: col.collected_at
 					? new Date(col.collected_at).toLocaleString("en-IN")
 					: new Date().toLocaleString("en-IN"),
+				rawCollectedAt: col.collected_at
+					? new Date(col.collected_at).toISOString()
+					: new Date().toISOString(),
 				driverName: col.trip?.driver?.name || "Driver Staff",
 				driverEmail: col.trip?.driver?.email || "driver@evaluna.com",
+				driverPhone: col.trip?.driver?.phone || "N/A",
 				status: "Verified",
 				customerName:
 					stopCustomer?.name || (linkedOrders[0]?.customer?.name ?? "Customer"),
@@ -655,24 +925,381 @@ export const financeRouter = router({
 					stopCustomer?.address ||
 					linkedOrders[0]?.customer?.address ||
 					"On-Route Delivery Address",
-				orders: linkedOrders.map((o: any) => ({
-					id: o.id,
-					totalAmount: Number(o.total_amount || 0),
-					status: o.status || "completed",
-					financeStatus: o.finance_status || "driver_collected",
-					createdAt: o.created_at
-						? new Date(o.created_at).toLocaleString("en-IN")
-						: "N/A",
-					items: (o.orderItems || []).map((it: any) => ({
-						id: it.id,
-						productName: it.product?.name || `Item #${it.product_id || it.id}`,
-						category: it.product?.category || "General",
-						quantity: Number(it.quantity || 1),
-						unitPrice: Number(it.unit_price || 0),
-						totalPrice: Number(it.unit_price || 0) * Number(it.quantity || 1),
-					})),
-				})),
+				deliveryNotes: parsedDeliveryNotes,
+				returnedItems: returnedItems,
+				proofOfDelivery: pod
+					? {
+							id: pod.id,
+							status: pod.delivery_status,
+							deliveredAt: pod.delivered_at
+								? new Date(pod.delivered_at).toLocaleString("en-IN")
+								: null,
+						}
+					: null,
+				orders: linkedOrders.map((o: any) => {
+					let orderCost = 0;
+					let orderSelling = 0;
+
+					const items = (o.orderItems || []).map((it: any) => {
+						const qty = Number(it.quantity || 1);
+						const unitSelling = Number(it.price || it.unit_price || 0);
+						const unitCost = it.product
+							? Number(
+									it.product.base_procurement_price ||
+										Number(it.product.price || unitSelling) * 0.8,
+								)
+							: unitSelling * 0.8;
+						const totalItemSelling = unitSelling * qty;
+						const totalItemCost = unitCost * qty;
+						const itemProfit = totalItemSelling - totalItemCost;
+
+						orderCost += totalItemCost;
+						orderSelling += totalItemSelling;
+
+						return {
+							id: it.id,
+							productId: it.product_id,
+							productName: it.product?.name || `Item #${it.product_id || it.id}`,
+							category: it.product?.category || "General",
+							unit: it.product?.unit || "pcs",
+							sku: it.product?.sku || "—",
+							quantity: qty,
+							unitPrice: unitSelling,
+							costPrice: Number(unitCost.toFixed(2)),
+							totalPrice: Number(totalItemSelling.toFixed(2)),
+							totalCost: Number(totalItemCost.toFixed(2)),
+							profit: Number(itemProfit.toFixed(2)),
+						};
+					});
+
+					const totalAmount = Number(o.total_amount || orderSelling);
+					const netSelling = totalAmount > 0 ? totalAmount : orderSelling;
+					const netProfit = netSelling - orderCost;
+					const marginPercent =
+						netSelling > 0 ? (netProfit / netSelling) * 100 : 0;
+
+					return {
+						id: o.id,
+						orderRef: `ORD-${o.id}`,
+						totalAmount,
+						costPrice: Number(orderCost.toFixed(2)),
+						sellingPrice: Number(netSelling.toFixed(2)),
+						netProfit: Number(netProfit.toFixed(2)),
+						marginPercent: Number(marginPercent.toFixed(1)),
+						discountAmount: Number(o.discount_amount || 0),
+						discountReason: o.discount_reason || null,
+						otherCharges: Number(o.other_charges || 0),
+						otherChargesReason: o.other_charges_reason || null,
+						status: o.status || "completed",
+						financeStatus: o.finance_status || "driver_collected",
+						createdAt: o.created_at
+							? new Date(o.created_at).toLocaleString("en-IN")
+							: "N/A",
+						items,
+					};
+				}),
 			};
 		});
 	}),
+
+	// ───────────────────────────────────────────────────────────────────────────
+	// PURCHASE ORDER VERIFICATION & APPROVAL (FINANCE)
+	// ───────────────────────────────────────────────────────────────────────────
+
+	listPurchases: roleProcedure(["admin", "manager", "auditor", "finance"])
+		.input(
+			z
+				.object({
+					status: z.string().optional(),
+					search: z.string().optional(),
+					limit: z.number().min(1).max(100).default(50),
+					page: z.number().default(1),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const branchId = ctx.user.branchId ?? null;
+			const { status = "pending", search, limit = 50, page = 1 } = input || {};
+
+			const filters: any[] = [];
+			if (branchId != null) {
+				filters.push(
+					or(
+						eq(purchases.branch_id, branchId),
+						sql`${purchases.branch_id} IS NULL`,
+					),
+				);
+			}
+
+			if (status && status !== "all") {
+				if (status === "pending" || status === "pending_finance") {
+					filters.push(
+						inArray(purchases.status, [
+							"pending",
+							"pending_finance",
+							"pending_approval",
+						]),
+					);
+				} else {
+					filters.push(eq(purchases.status, status));
+				}
+			}
+
+			if (search) {
+				filters.push(
+					or(
+						ilike(purchases.po_number, `%${search}%`),
+						ilike(purchases.grn_number, `%${search}%`),
+						ilike(suppliers.name, `%${search}%`),
+					),
+				);
+			}
+
+			const whereClause = filters.length > 0 ? and(...filters) : undefined;
+
+			// Get summary counts
+			const baseBranchFilter =
+				branchId != null ? sql`AND branch_id = ${branchId}` : sql``;
+
+			const statsRes: any = await ctx.db.execute(sql`
+				SELECT
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE status IN ('pending', 'pending_finance', 'pending_approval') ${baseBranchFilter}) as pending_count,
+					(SELECT coalesce(sum(total_amount), 0)::numeric FROM purchases WHERE status IN ('pending', 'pending_finance', 'pending_approval') ${baseBranchFilter}) as pending_amount,
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE status = 'issued' ${baseBranchFilter}) as issued_count,
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE status = 'rejected' ${baseBranchFilter}) as rejected_count,
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE 1=1 ${baseBranchFilter}) as total_count
+			`);
+			const statsRow = Array.isArray(statsRes)
+				? statsRes[0]
+				: statsRes?.rows?.[0];
+
+			const countRes = await ctx.db
+				.select({ count: count(purchases.id) })
+				.from(purchases)
+				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+				.where(whereClause);
+			const total = Number(countRes[0]?.count || 0);
+
+			const rows = await ctx.db
+				.select({
+					id: purchases.id,
+					po_number: purchases.po_number,
+					grn_number: purchases.grn_number,
+					purchase_request_id: purchases.purchase_request_id,
+					supplier_id: purchases.supplier_id,
+					supplier_name: suppliers.name,
+					supplier_phone: suppliers.phone,
+					supplier_email: suppliers.email,
+					status: purchases.status,
+					receiving_status: purchases.receiving_status,
+					payment_status: purchases.payment_status,
+					total_amount: purchases.total_amount,
+					cgst_amount: purchases.cgst_amount,
+					sgst_amount: purchases.sgst_amount,
+					igst_amount: purchases.igst_amount,
+					amount_paid: purchases.amount_paid,
+					expected_delivery_date: purchases.expected_delivery_date,
+					notes: purchases.notes,
+					created_at: purchases.created_at,
+					item_count: count(purchaseItems.id),
+					total_quantity: sum(purchaseItems.quantity),
+				})
+				.from(purchases)
+				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+				.leftJoin(purchaseItems, eq(purchases.id, purchaseItems.purchase_id))
+				.where(whereClause)
+				.groupBy(
+					purchases.id,
+					suppliers.id,
+					suppliers.name,
+					suppliers.phone,
+					suppliers.email,
+				)
+				.orderBy(desc(purchases.created_at))
+				.limit(limit)
+				.offset((page - 1) * limit);
+
+			return {
+				items: rows.map((r) => ({
+					...r,
+					total_amount: Number(r.total_amount || 0),
+					cgst_amount: Number(r.cgst_amount || 0),
+					sgst_amount: Number(r.sgst_amount || 0),
+					igst_amount: Number(r.igst_amount || 0),
+					amount_paid: Number(r.amount_paid || 0),
+					item_count: Number(r.item_count || 0),
+					total_quantity: Number(r.total_quantity || 0),
+				})),
+				total,
+				pages: Math.ceil(total / limit),
+				stats: {
+					pendingCount: Number(statsRow?.pending_count || 0),
+					pendingAmount: Number(statsRow?.pending_amount || 0),
+					issuedCount: Number(statsRow?.issued_count || 0),
+					rejectedCount: Number(statsRow?.rejected_count || 0),
+					totalCount: Number(statsRow?.total_count || 0),
+				},
+			};
+		}),
+
+	getPurchaseDetails: roleProcedure(["admin", "manager", "auditor", "finance"])
+		.input(z.object({ id: z.number() }))
+		.query(async ({ ctx, input }) => {
+			const [po] = await ctx.db
+				.select({
+					id: purchases.id,
+					po_number: purchases.po_number,
+					grn_number: purchases.grn_number,
+					purchase_request_id: purchases.purchase_request_id,
+					branch_id: purchases.branch_id,
+					supplier_id: purchases.supplier_id,
+					supplier_name: suppliers.name,
+					supplier_phone: suppliers.phone,
+					supplier_email: suppliers.email,
+					supplier_address: suppliers.address,
+					total_amount: purchases.total_amount,
+					cgst_amount: purchases.cgst_amount,
+					sgst_amount: purchases.sgst_amount,
+					igst_amount: purchases.igst_amount,
+					status: purchases.status,
+					receiving_status: purchases.receiving_status,
+					payment_status: purchases.payment_status,
+					amount_paid: purchases.amount_paid,
+					expected_delivery_date: purchases.expected_delivery_date,
+					notes: purchases.notes,
+					terms_and_conditions: purchases.terms_and_conditions,
+					created_at: purchases.created_at,
+				})
+				.from(purchases)
+				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+				.where(eq(purchases.id, input.id))
+				.limit(1);
+
+			if (!po) throw new Error("Purchase order not found");
+
+			const items = await ctx.db
+				.select({
+					id: purchaseItems.id,
+					purchase_id: purchaseItems.purchase_id,
+					product_id: purchaseItems.product_id,
+					product_name: products.name,
+					product_sku: products.sku,
+					quantity: purchaseItems.quantity,
+					price: purchaseItems.price,
+					cgst_rate: purchaseItems.cgst_rate,
+					sgst_rate: purchaseItems.sgst_rate,
+					igst_rate: purchaseItems.igst_rate,
+					cgst_amount: purchaseItems.cgst_amount,
+					sgst_amount: purchaseItems.sgst_amount,
+					igst_amount: purchaseItems.igst_amount,
+				})
+				.from(purchaseItems)
+				.leftJoin(products, eq(purchaseItems.product_id, products.id))
+				.where(eq(purchaseItems.purchase_id, input.id));
+
+			return {
+				...po,
+				total_amount: Number(po.total_amount || 0),
+				cgst_amount: Number(po.cgst_amount || 0),
+				sgst_amount: Number(po.sgst_amount || 0),
+				igst_amount: Number(po.igst_amount || 0),
+				items: items.map((it) => ({
+					...it,
+					product_name: it.product_name || `Product #${it.product_id}`,
+					product_sku: it.product_sku || "—",
+					quantity: Number(it.quantity || 0),
+					price: Number(it.price || 0),
+					cgst_rate: Number(it.cgst_rate || 0),
+					sgst_rate: Number(it.sgst_rate || 0),
+					igst_rate: Number(it.igst_rate || 0),
+					cgst_amount: Number(it.cgst_amount || 0),
+					sgst_amount: Number(it.sgst_amount || 0),
+					igst_amount: Number(it.igst_amount || 0),
+					total:
+						Number(it.quantity || 0) * Number(it.price || 0) +
+						Number(it.cgst_amount || 0) +
+						Number(it.sgst_amount || 0) +
+						Number(it.igst_amount || 0),
+				})),
+			};
+		}),
+
+	approvePO: roleProcedure(["admin", "manager", "auditor", "finance"])
+		.input(
+			z.object({
+				purchaseId: z.number(),
+				notes: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const [existing] = await ctx.db
+				.select()
+				.from(purchases)
+				.where(eq(purchases.id, input.purchaseId))
+				.limit(1);
+
+			if (!existing) throw new Error("Purchase order not found");
+			if (
+				existing.status !== "pending_finance" &&
+				existing.status !== "pending" &&
+				existing.status !== "pending_approval"
+			) {
+				throw new Error(
+					`Cannot verify and issue a PO with status '${existing.status}'`,
+				);
+			}
+
+			const approverName = ctx.user.name || ctx.user.email || "Finance";
+			const noteText = input.notes
+				? `\n[Finance Verified & Issued by ${approverName} on ${new Date().toLocaleString("en-IN")}]: ${input.notes}`
+				: `\n[Finance Verified & Issued by ${approverName} on ${new Date().toLocaleString("en-IN")}]`;
+
+			const [updated] = await ctx.db
+				.update(purchases)
+				.set({
+					status: "issued",
+					notes: sql`COALESCE(${purchases.notes}, '') || ${noteText}`,
+				})
+				.where(eq(purchases.id, input.purchaseId))
+				.returning();
+
+			return updated;
+		}),
+
+	rejectPO: roleProcedure(["admin", "manager", "auditor", "finance"])
+		.input(
+			z.object({
+				purchaseId: z.number(),
+				reason: z.string().min(1, "Reason is mandatory to reject this order"),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const [existing] = await ctx.db
+				.select()
+				.from(purchases)
+				.where(eq(purchases.id, input.purchaseId))
+				.limit(1);
+
+			if (!existing) throw new Error("Purchase order not found");
+			if (
+				existing.receiving_status === "received" ||
+				existing.status === "completed"
+			) {
+				throw new Error("Cannot reject an already received or completed order");
+			}
+
+			const rejectorName = ctx.user.name || ctx.user.email || "Finance";
+			const noteText = `\n[Finance Rejected by ${rejectorName} on ${new Date().toLocaleString("en-IN")}]: ${input.reason}`;
+
+			const [updated] = await ctx.db
+				.update(purchases)
+				.set({
+					status: "rejected",
+					notes: sql`COALESCE(${purchases.notes}, '') || ${noteText}`,
+				})
+				.where(eq(purchases.id, input.purchaseId))
+				.returning();
+
+			return updated;
+		}),
 });

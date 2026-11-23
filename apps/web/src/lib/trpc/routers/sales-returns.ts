@@ -9,16 +9,18 @@ import {
 	salesReturns,
 	transactions,
 } from "@evaluna/db/schema";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { roleProcedure, router } from "../init";
 
 const salesReturnItemSchema = z.object({
 	productId: z.number(),
-	quantity: z.number().int().positive(),
+	quantity: z.number().positive(),
 	price: z.number(),
 	refundAmount: z.number(),
+	condition: z.string().optional(),
+	reason: z.string().optional(),
 });
 
 export const salesReturnsRouter = router({
@@ -31,17 +33,51 @@ export const salesReturnsRouter = router({
 				summary: "List all sales returns",
 			},
 		})
-		.input(z.void())
+		.input(
+			z
+				.object({
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+					branchId: z.number().optional(),
+				})
+				.optional(),
+		)
 		.output(z.any())
-		.query(async ({ ctx }) => {
+		.query(async ({ ctx, input }) => {
+			const conditions: any[] = [];
+			const branchId = input?.branchId || ctx.user.branchId;
+			if (branchId && ctx.user.role === "sales_person") {
+				conditions.push(eq(salesReturns.branch_id, branchId));
+			} else if (input?.branchId) {
+				conditions.push(eq(salesReturns.branch_id, input.branchId));
+			}
+
+			if (input?.startDate) {
+				conditions.push(
+					gte(salesReturns.created_at, new Date(`${input.startDate}T00:00:00`)),
+				);
+			}
+			if (input?.endDate) {
+				conditions.push(
+					lte(salesReturns.created_at, new Date(`${input.endDate}T23:59:59`)),
+				);
+			}
+
 			const returns = await db.query.salesReturns.findMany({
-				where: eq(salesReturns.user_uid, ctx.user.id),
+				where: conditions.length > 0 ? and(...conditions) : undefined,
 				with: {
 					customer: {
-						columns: { name: true },
+						columns: { id: true, name: true, phone: true },
 					},
 					order: {
-						columns: { id: true, total_amount: true },
+						columns: { id: true, total_amount: true, bill_number: true },
+					},
+					returnItems: {
+						with: {
+							product: {
+								columns: { id: true, name: true, sku: true, unit: true },
+							},
+						},
 					},
 				},
 				orderBy: [desc(salesReturns.created_at)],
@@ -60,18 +96,19 @@ export const salesReturnsRouter = router({
 		})
 		.input(z.object({ id: z.number() }))
 		.output(z.any())
-		.query(async ({ ctx, input }) => {
+		.query(async ({ input }) => {
 			const returnData = await db.query.salesReturns.findFirst({
-				where: and(
-					eq(salesReturns.id, input.id),
-					eq(salesReturns.user_uid, ctx.user.id),
-				),
+				where: eq(salesReturns.id, input.id),
 				with: {
-					customer: { columns: { name: true } },
-					order: { columns: { id: true, total_amount: true } },
+					customer: { columns: { id: true, name: true, phone: true } },
+					order: {
+						columns: { id: true, total_amount: true, bill_number: true },
+					},
 					returnItems: {
 						with: {
-							product: { columns: { name: true, sku: true } },
+							product: {
+								columns: { id: true, name: true, sku: true, unit: true },
+							},
 						},
 					},
 				},
@@ -97,6 +134,8 @@ export const salesReturnsRouter = router({
 				cgstAmount: z.number().default(0),
 				sgstAmount: z.number().default(0),
 				igstAmount: z.number().default(0),
+				reason: z.string().optional(),
+				notes: z.string().optional(),
 			}),
 		)
 		.output(z.any())
@@ -113,6 +152,8 @@ export const salesReturnsRouter = router({
 						sgst_amount: input.sgstAmount.toString(),
 						igst_amount: input.igstAmount.toString(),
 						status: "pending",
+						reason: input.reason || null,
+						notes: input.notes || null,
 						user_uid: ctx.user.id,
 						branch_id: ctx.user.branchId || 1, // Assuming branch context is available or default to 1
 					})
@@ -123,9 +164,11 @@ export const salesReturnsRouter = router({
 					input.items.map((item: any) => ({
 						return_id: newReturn.id,
 						product_id: item.productId,
-						quantity: item.quantity,
+						quantity: item.quantity.toString(),
 						price: item.price.toString(),
 						refund_amount: item.refundAmount.toString(),
+						condition: item.condition || "good",
+						reason: item.reason || input.reason || null,
 					})),
 				);
 
@@ -142,7 +185,7 @@ export const salesReturnsRouter = router({
 			});
 		}),
 
-	process: roleProcedure(["admin", "manager"])
+	process: roleProcedure(["admin", "manager", "sales_person"])
 		.meta({
 			openapi: {
 				method: "POST",
@@ -187,17 +230,21 @@ export const salesReturnsRouter = router({
 						),
 					});
 
+					const currentStock = Number(inventory?.in_stock || 0);
+					const returnQty = Number(item.quantity || 0);
+					const nextStock = (currentStock + returnQty).toFixed(3);
+
 					if (inventory) {
 						await tx
 							.update(branchInventory)
-							.set({ in_stock: inventory.in_stock + item.quantity })
+							.set({ in_stock: nextStock.toString() })
 							.where(eq(branchInventory.id, inventory.id));
 					} else {
 						await tx.insert(branchInventory).values({
 							branch_id: branchId,
 							product_id: item.product_id,
-							in_stock: item.quantity,
-							reorder_level: 10,
+							in_stock: nextStock.toString(),
+							reorder_level: "10",
 						});
 					}
 				}
@@ -210,7 +257,8 @@ export const salesReturnsRouter = router({
 					amount: returnData.total_amount,
 					description: `Refund for Sales Return #${updatedReturn.id}`,
 					user_uid: ctx.user.id,
-					// You would ideally link this to the appropriate payment method used for the refund
+					reference_id: updatedReturn.id,
+					reference_type: "sales_return",
 				});
 
 				// 5. Adjust original order total
@@ -234,6 +282,53 @@ export const salesReturnsRouter = router({
 					entity_id: updatedReturn.id,
 					action: "PROCESS_SALES_RETURN",
 					changes: JSON.stringify({ status: "processed" }),
+					user_uid: ctx.user.id,
+				});
+
+				return updatedReturn;
+			});
+		}),
+
+	reject: roleProcedure(["admin", "manager", "sales_person"])
+		.meta({
+			openapi: {
+				method: "POST",
+				path: "/sales-returns/{id}/reject",
+				tags: ["Sales Returns"],
+				summary: "Reject a pending sales return",
+			},
+		})
+		.input(z.object({ id: z.number(), reason: z.string().optional() }))
+		.output(z.any())
+		.mutation(async ({ ctx, input }) => {
+			return db.transaction(async (tx: any) => {
+				const returnData = await tx.query.salesReturns.findFirst({
+					where: eq(salesReturns.id, input.id),
+				});
+
+				if (!returnData) {
+					throw new Error("Sales Return not found");
+				}
+				if (returnData.status !== "pending") {
+					throw new Error("Only pending returns can be rejected");
+				}
+
+				const [updatedReturn] = await tx
+					.update(salesReturns)
+					.set({
+						status: "rejected",
+						notes: input.reason
+							? `${returnData.notes ? returnData.notes + " | Rejection: " : "Rejection: "}${input.reason}`
+							: returnData.notes,
+					})
+					.where(eq(salesReturns.id, input.id))
+					.returning();
+
+				await tx.insert(auditLogs).values({
+					entity_type: "sales_returns",
+					entity_id: updatedReturn.id,
+					action: "REJECT_SALES_RETURN",
+					changes: JSON.stringify({ status: "rejected", reason: input.reason }),
 					user_uid: ctx.user.id,
 				});
 

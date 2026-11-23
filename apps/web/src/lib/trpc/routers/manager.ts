@@ -1,5 +1,6 @@
 import {
 	approvals,
+	attachments,
 	attendance,
 	attendanceBreaks,
 	auditFindings,
@@ -9,10 +10,10 @@ import {
 	customers,
 	deliveryTrips,
 	departments,
-	eWayBills,
 	employeeExpenses,
 	employees,
 	enhancedAttendance,
+	eWayBills,
 	leaveApplications,
 	leaveTypes,
 	orderItems,
@@ -31,13 +32,27 @@ import {
 	user,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, not, or, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	lte,
+	ne,
+	not,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
+import { formatTime12h } from "@/lib/attendance-engine";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
 import { reverseGeocodeLocation } from "../util/attendance";
 import { logAudit, resolveStaffId } from "../util/audit";
-
 
 export const managerRouter = router({
 	// ── 1. Centralized Dashboard Stats (Optimized SQL Aggregation) ─────────────
@@ -48,6 +63,7 @@ export const managerRouter = router({
 			todayStart.setHours(0, 0, 0, 0);
 			const todayEnd = new Date();
 			todayEnd.setHours(23, 59, 59, 999);
+			const todayStr = todayStart.toISOString().split("T")[0];
 
 			const [res] = await db.execute<{
 				total_employees: number;
@@ -62,12 +78,19 @@ export const managerRouter = router({
 				pending_routes_count: number;
 			}>(sql`
 				SELECT
-					(SELECT coalesce(count(*), 0)::int FROM staff) AS total_employees,
-					(SELECT coalesce(count(*), 0)::int FROM attendance WHERE status = 'present' AND created_at >= ${todayStart.toISOString()} AND created_at <= ${todayEnd.toISOString()}) AS present_today,
+					(SELECT coalesce(count(*), 0)::int FROM staff WHERE is_deleted = false AND NOT (email ILIKE '%seed%' OR email ILIKE '%hotmail.com' OR email ILIKE '%yahoo.com' OR email ILIKE '%example%')) AS total_employees,
+					(
+						SELECT coalesce(count(DISTINCT emp_id), 0)::int
+						FROM (
+							SELECT employee_id AS emp_id FROM attendance WHERE status = 'present' AND created_at >= ${todayStart.toISOString()} AND created_at <= ${todayEnd.toISOString()}
+							UNION
+							SELECT employee_id AS emp_id FROM enhanced_attendance WHERE status IN ('present', 'half_day', 'late') AND date = ${todayStr}
+						) present_staff
+					) AS present_today,
 					(SELECT coalesce(count(*) filter (WHERE status = 'pending'), 0)::int FROM approvals) AS pending_approvals,
 					(SELECT coalesce(count(*) filter (WHERE reference_type = 'leave' AND status = 'approved'), 0)::int FROM approvals) AS on_leave_today,
 					(SELECT coalesce(count(*), 0)::int FROM upc_tasks WHERE status != 'VERIFIED' AND due_at <= NOW()) AS overdue_tasks,
-					(SELECT coalesce(count(*), 0)::int FROM audit_findings WHERE status != 'CLOSED') AS open_exceptions,
+					(SELECT coalesce(count(*), 0)::int FROM audit_findings WHERE status != 'CLOSED' AND NOT (title ILIKE '%rty%' OR description ILIKE '%rty%')) AS open_exceptions,
 					(SELECT coalesce(sum(CASE WHEN lower(coalesce(payment_method, '')) LIKE '%cash%' THEN amount::numeric ELSE 0 END), 0)::float FROM trip_collections) AS cash_collected,
 					(SELECT coalesce(sum(CASE WHEN lower(coalesce(payment_method, '')) NOT LIKE '%cash%' THEN amount::numeric ELSE 0 END), 0)::float FROM trip_collections) AS online_collected,
 					(SELECT coalesce(count(*), 0)::int FROM trip_collections) AS collections_count,
@@ -140,14 +163,22 @@ export const managerRouter = router({
 					role: staff.role,
 					join_date: staff.join_date,
 					salary: staff.salary,
+					image: user.image,
 				})
 				.from(staff)
+				.leftJoin(
+					user,
+					or(eq(user.staff_id, staff.id), eq(user.email, staff.email)),
+				)
 				.where(
 					and(
 						eq(staff.is_deleted, false),
 						input?.status ? eq(staff.status, input.status) : undefined,
 						input?.role ? eq(staff.role, input.role) : undefined,
 						not(ilike(staff.email, "%seed%")),
+						not(ilike(staff.email, "%hotmail.com")),
+						not(ilike(staff.email, "%yahoo.com")),
+						not(ilike(staff.email, "%example%")),
 						not(ilike(staff.name, "%staff%")),
 						not(ilike(staff.name, "%scot%")),
 						not(ilike(staff.name, "%carleton%")),
@@ -175,46 +206,193 @@ export const managerRouter = router({
 	getEmployeeDetail: protectedProcedure
 		.input(z.object({ staffId: z.number() }))
 		.query(async ({ ctx, input }) => {
-			const [employee] = await db
-				.select()
+			const [empRow] = await db
+				.select({
+					staff: staff,
+					image: user.image,
+				})
 				.from(staff)
+				.leftJoin(
+					user,
+					or(eq(user.staff_id, staff.id), eq(user.email, staff.email)),
+				)
 				.where(eq(staff.id, input.staffId))
 				.limit(1);
 
-			if (!employee) {
+			if (!empRow || !empRow.staff) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
 					message: "Employee not found.",
 				});
 			}
 
-			// Query leave requests
-			const leaves = await db
+			const employee = {
+				...empRow.staff,
+				image: empRow.image || null,
+			};
+
+			// Query leaves from approvals and leaveApplications
+			const approvalLeaves = await db
+				.select()
+				.from(approvals)
+				.where(
+					or(
+						eq(approvals.requested_by, input.staffId),
+						eq(approvals.created_by, input.staffId),
+					),
+				)
+				.catch(() => []);
+
+			const leaveApps = await db
+				.select()
+				.from(leaveApplications)
+				.where(
+					or(
+						eq(leaveApplications.staff_id, input.staffId),
+						eq(leaveApplications.employee_id, input.staffId),
+					),
+				)
+				.catch(() => []);
+
+			const leaves = [
+				...approvalLeaves
+					.filter(
+						(a) =>
+							a.reference_type === "leave" ||
+							a.reference_type === "LEAVE" ||
+							(a.notes && a.notes.toLowerCase().includes("leave")),
+					)
+					.map((a) => ({
+						id: a.id,
+						status: a.status || "pending",
+						resolved_at: a.updated_at || a.created_at,
+						created_at: a.created_at,
+					})),
+				...leaveApps.map((la) => ({
+					id: la.id,
+					status: la.status || "pending",
+					resolved_at: la.approved_at || la.updated_at || la.created_at,
+					created_at: la.created_at,
+				})),
+			];
+
+			// Query tasks across upcTasks, orders, pickLists, packages, deliveryTrips
+			const upcList = await db
+				.select()
+				.from(upcTasks)
+				.where(eq(upcTasks.assigned_to, input.staffId))
+				.catch(() => []);
+
+			const assignedOrders = await db
+				.select()
+				.from(orders)
+				.where(
+					or(
+						eq(orders.driver_id, input.staffId),
+						eq(orders.picker_id, input.staffId),
+						eq(orders.packer_id, input.staffId),
+					),
+				)
+				.limit(10)
+				.catch(() => []);
+
+			const assignedPickLists = await db
+				.select()
+				.from(pickLists)
+				.where(eq(pickLists.picker_id, input.staffId))
+				.limit(10)
+				.catch(() => []);
+
+			const assignedPackages = await db
+				.select()
+				.from(packages)
+				.where(eq(packages.packer_id, input.staffId))
+				.limit(10)
+				.catch(() => []);
+
+			const assignedTrips = await db
+				.select()
+				.from(deliveryTrips)
+				.where(eq(deliveryTrips.driver_id, input.staffId))
+				.limit(10)
+				.catch(() => []);
+
+			const tasks = [
+				...upcList.map((t) => ({
+					id: t.id,
+					task_type: t.task_type || "UPC Task",
+					status: t.status || "PENDING",
+					due_at: t.due_at || t.created_at,
+				})),
+				...assignedOrders.map((o) => ({
+					id: o.id + 10000,
+					task_type: `Order #${o.order_number || o.id}`,
+					status: o.status || "PROCESSING",
+					due_at: o.delivery_date || o.created_at,
+				})),
+				...assignedPickLists.map((p) => ({
+					id: p.id + 20000,
+					task_type: `Picking Batch #${p.id}`,
+					status: p.status || "PENDING",
+					due_at: p.created_at,
+				})),
+				...assignedPackages.map((pkg) => ({
+					id: pkg.id + 30000,
+					task_type: `Packing #${pkg.package_number || pkg.id}`,
+					status: pkg.status || "PENDING",
+					due_at: pkg.created_at,
+				})),
+				...assignedTrips.map((dt) => ({
+					id: dt.id + 40000,
+					task_type: `Delivery Trip #${dt.trip_number || dt.id}`,
+					status: dt.status || "PENDING",
+					due_at: dt.created_at,
+				})),
+			];
+
+			// Query expenses from employeeExpenses and approvals
+			const expenseRows = await db
+				.select()
+				.from(employeeExpenses)
+				.where(eq(employeeExpenses.staff_id, input.staffId))
+				.catch(() => []);
+
+			const approvalExpenses = await db
 				.select()
 				.from(approvals)
 				.where(
 					and(
-						eq(approvals.reference_type, "leave"),
-						eq(approvals.requested_by, input.staffId),
+						or(
+							eq(approvals.reference_type, "expense"),
+							eq(approvals.reference_type, "reimbursement"),
+						),
+						or(
+							eq(approvals.requested_by, input.staffId),
+							eq(approvals.created_by, input.staffId),
+						),
 					),
-				);
+				)
+				.catch(() => []);
 
-			// Query assigned tasks
-			const assignedTasks = await db
-				.select()
-				.from(upcTasks)
-				.where(eq(upcTasks.assigned_to, input.staffId));
-
-			// Query expense claims
-			const expenses = await db
-				.select()
-				.from(employeeExpenses)
-				.where(eq(employeeExpenses.staff_id, input.staffId));
+			const expenses = [
+				...expenseRows.map((e) => ({
+					id: e.id,
+					amount: e.amount || "0",
+					custom_category_name: e.category || "Expense",
+					status: e.status || "PENDING",
+				})),
+				...approvalExpenses.map((ae) => ({
+					id: ae.id + 10000,
+					amount: ae.amount || "0",
+					custom_category_name: "Reimbursement",
+					status: ae.status || "PENDING",
+				})),
+			];
 
 			return {
 				employee,
 				leaves,
-				tasks: assignedTasks,
+				tasks,
 				expenses,
 			};
 		}),
@@ -377,10 +555,43 @@ export const managerRouter = router({
 
 	// ── 5. Attendance Feed ──────────────────────────────────────────────────────
 	getAttendance: protectedProcedure
-		.input(z.object({ date: z.string().optional() }).optional())
+		.input(
+			z
+				.object({
+					date: z.string().optional(),
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+				})
+				.optional(),
+		)
 		.query(async ({ ctx, input }) => {
-			const targetDateStr =
-				input?.date || new Date().toISOString().split("T")[0];
+			let enhancedDateCondition;
+			let legacyDateCondition;
+
+			const start = input?.startDate || (input?.date ? input.date : undefined);
+			const end = input?.endDate || (input?.date ? input.date : undefined);
+
+			if (start && end) {
+				if (start === end) {
+					enhancedDateCondition = eq(enhancedAttendance.date, start);
+					legacyDateCondition = eq(attendance.date, start);
+				} else {
+					enhancedDateCondition = and(
+						gte(enhancedAttendance.date, start),
+						lte(enhancedAttendance.date, end),
+					);
+					legacyDateCondition = and(
+						gte(attendance.date, start),
+						lte(attendance.date, end),
+					);
+				}
+			} else if (start) {
+				enhancedDateCondition = gte(enhancedAttendance.date, start);
+				legacyDateCondition = gte(attendance.date, start);
+			} else if (end) {
+				enhancedDateCondition = lte(enhancedAttendance.date, end);
+				legacyDateCondition = lte(attendance.date, end);
+			}
 
 			// 1. Fetch enhanced attendance, breaks, and legacy records concurrently
 			const [enhancedRows, allBreaks, legacyRows] = await Promise.all([
@@ -395,9 +606,17 @@ export const managerRouter = router({
 					.leftJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
 					.leftJoin(user, eq(employees.userUid, user.id))
 					.leftJoin(branches, eq(enhancedAttendance.branchId, branches.id))
-					.where(eq(enhancedAttendance.date, targetDateStr as string)),
+					.where(enhancedDateCondition)
+					.orderBy(
+						desc(enhancedAttendance.date),
+						desc(enhancedAttendance.createdAt),
+					),
 				db.select().from(attendanceBreaks),
-				db.select().from(attendance),
+				db
+					.select()
+					.from(attendance)
+					.where(legacyDateCondition)
+					.orderBy(desc(attendance.date), desc(attendance.createdAt)),
 			]);
 
 			// 2. Extract and deduplicate all unique GPS coordinates across all rows
@@ -443,11 +662,55 @@ export const managerRouter = router({
 				}),
 			);
 
+			// 3b. Batch fetch selfie attachments to supply immediate data URLs (survives Vercel serverless)
+			const attachmentIds = new Set<number>();
+			for (const { att } of enhancedRows) {
+				const checkInSelfieObj = att.checkInSelfie as any;
+				const checkOutSelfieObj = att.checkOutSelfie as any;
+				const inId =
+					typeof checkInSelfieObj === "object" && checkInSelfieObj !== null
+						? checkInSelfieObj.attachmentId || checkInSelfieObj.id || null
+						: typeof checkInSelfieObj === "number" ||
+								typeof checkInSelfieObj === "string"
+							? Number(checkInSelfieObj) || null
+							: null;
+				const outId =
+					typeof checkOutSelfieObj === "object" && checkOutSelfieObj !== null
+						? checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null
+						: typeof checkOutSelfieObj === "number" ||
+								typeof checkOutSelfieObj === "string"
+							? Number(checkOutSelfieObj) || null
+							: null;
+
+				if (inId && !Number.isNaN(inId)) attachmentIds.add(inId);
+				if (outId && !Number.isNaN(outId)) attachmentIds.add(outId);
+			}
+
+			const attachmentDataMap = new Map<number, string>();
+			if (attachmentIds.size > 0) {
+				const attachmentRecords = await db
+					.select({
+						id: attachments.id,
+						file_data: attachments.file_data,
+						mime_type: attachments.mime_type,
+					})
+					.from(attachments)
+					.where(inArray(attachments.id, Array.from(attachmentIds)));
+
+				for (const rec of attachmentRecords) {
+					if (rec.file_data) {
+						const mime = rec.mime_type || "image/jpeg";
+						attachmentDataMap.set(
+							rec.id,
+							`data:${mime};base64,${rec.file_data}`,
+						);
+					}
+				}
+			}
+
 			// 4. Map production enhancedAttendance records synchronously
 			const formattedEnhanced = enhancedRows.map(({ att, emp, usr, br }) => {
-				const breaksForAtt = allBreaks.filter(
-					(b) => b.attendanceId === att.id,
-				);
+				const breaksForAtt = allBreaks.filter((b) => b.attendanceId === att.id);
 				const totalBreakMinutes = breaksForAtt.reduce(
 					(sum, b) => sum + (b.durationMinutes || 0),
 					0,
@@ -509,9 +772,7 @@ export const managerRouter = router({
 							const breakMs = totalBreakMinutes * 60 * 1000;
 							const netMs = Math.max(0, diffMs - breakMs);
 							const hours = Math.floor(netMs / (1000 * 60 * 60));
-							const mins = Math.floor(
-								(netMs % (1000 * 60 * 60)) / (1000 * 60),
-							);
+							const mins = Math.floor((netMs % (1000 * 60 * 60)) / (1000 * 60));
 							workHoursStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 						}
 					} catch {
@@ -523,10 +784,7 @@ export const managerRouter = router({
 				const checkOutSelfieObj = att.checkOutSelfie as any;
 
 				let selfieAttachmentId = null;
-				if (
-					typeof checkInSelfieObj === "object" &&
-					checkInSelfieObj !== null
-				) {
+				if (typeof checkInSelfieObj === "object" && checkInSelfieObj !== null) {
 					selfieAttachmentId =
 						checkInSelfieObj.attachmentId || checkInSelfieObj.id || null;
 				} else if (
@@ -550,14 +808,26 @@ export const managerRouter = router({
 					checkOutSelfieAttachmentId = Number(checkOutSelfieObj) || null;
 				}
 
+				const checkInSelfieUrl = selfieAttachmentId
+					? attachmentDataMap.get(selfieAttachmentId) ||
+						`/api/attendance/attachments/${selfieAttachmentId}`
+					: null;
+				const checkOutSelfieUrl = checkOutSelfieAttachmentId
+					? attachmentDataMap.get(checkOutSelfieAttachmentId) ||
+						`/api/attendance/attachments/${checkOutSelfieAttachmentId}`
+					: null;
+
 				return {
 					id: att.id,
 					employeeId: att.employeeId || 1,
 					employeeName,
 					employeeEmail,
 					employeeCode,
+					photoUrl: usr?.image || null, // CANONICAL PROFILE PHOTO
 					checkIn: att.checkIn,
+					checkInFormatted: att.checkIn ? formatTime12h(att.checkIn) : null,
 					checkOut: att.checkOut,
+					checkOutFormatted: att.checkOut ? formatTime12h(att.checkOut) : null,
 					status: activeBreak
 						? `On Break (${activeBreak.type})`
 						: att.status || "present",
@@ -567,8 +837,16 @@ export const managerRouter = router({
 					notes: locationFormatted,
 					selfieAttachmentId,
 					checkOutSelfieAttachmentId,
+					checkInSelfieUrl,
+					checkOutSelfieUrl,
 					createdAt: att.createdAt,
+					date: att.date,
 					distance: att.distanceFromOffice,
+					isAdjusted: Boolean(att.isAdjusted),
+					originalCheckIn: att.originalCheckIn,
+					originalCheckOut: att.originalCheckOut,
+					adjustmentCategory: att.adjustmentCategory,
+					adjustmentReason: att.adjustmentReason,
 				};
 			});
 
@@ -579,17 +857,20 @@ export const managerRouter = router({
 				employeeName: `Staff #${l.employeeId}`,
 				employeeEmail: "",
 				employeeCode: `STAFF-${l.employeeId}`,
-				checkIn: l.checkInTime
-					? new Date(l.checkInTime).toLocaleTimeString()
-					: null,
-				checkOut: l.checkOutTime
-					? new Date(l.checkOutTime).toLocaleTimeString()
-					: null,
+				checkIn: l.checkIn || null,
+				checkInFormatted: l.checkIn ? formatTime12h(l.checkIn) : null,
+				checkOut: l.checkOut || null,
+				checkOutFormatted: l.checkOut ? formatTime12h(l.checkOut) : null,
 				status: l.status || "present",
 				breakMinutes: 0,
 				breakCount: 0,
 				notes: null,
+				selfieAttachmentId: null,
+				checkOutSelfieAttachmentId: null,
+				checkInSelfieUrl: null,
+				checkOutSelfieUrl: null,
 				createdAt: l.createdAt,
+				date: l.date,
 				distance: null,
 			}));
 
@@ -627,45 +908,427 @@ export const managerRouter = router({
 	}),
 
 	// ── 8. Team Performance ─────────────────────────────────────────────────────
-	getPerformance: protectedProcedure.query(async ({ ctx }) => {
-		const [allStaff, allTasks, allAttendance] = await Promise.all([
-			db.select().from(staff).where(eq(staff.email, ctx.user.email)),
-			db.select().from(upcTasks),
-			db.select().from(attendance),
-		]);
+	getPerformance: protectedProcedure
+		.input(
+			z
+				.object({
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+					team: z.string().optional(),
+					search: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const { startDate, endDate, team, search } = input || {};
 
-		return allStaff.map((s) => {
-			const staffTasks = allTasks.filter((t) => t.assigned_to === s.id);
-			const completed = staffTasks.filter(
-				(t) => t.status === "VERIFIED",
-			).length;
-			const total = staffTasks.length;
-			const completionRate =
-				total > 0 ? Math.round((completed / total) * 100) : 100;
+			const [
+				allStaff,
+				allTasks,
+				allAttendance,
+				allOrders,
+				allTripCollections,
+				allPickLists,
+				allFindings,
+			] = await Promise.all([
+				db
+					.select()
+					.from(staff)
+					.where(
+						and(
+							eq(staff.is_deleted, false),
+							not(ilike(staff.email, "%seed%")),
+							not(ilike(staff.email, "%hotmail.com")),
+							not(ilike(staff.email, "%yahoo.com")),
+							not(ilike(staff.email, "%example%")),
+						),
+					),
+				db.select().from(upcTasks),
+				db.select().from(attendance),
+				db.select().from(orders),
+				db.select().from(tripCollections),
+				db.select().from(pickLists),
+				db.select().from(auditFindings),
+			]);
+
+			// Date filtering logic
+			let fromDateObj: Date | null = null;
+			let toDateObj: Date | null = null;
+			if (startDate) {
+				fromDateObj = new Date(startDate);
+				fromDateObj.setHours(0, 0, 0, 0);
+			}
+			if (endDate) {
+				toDateObj = new Date(endDate);
+				toDateObj.setHours(23, 59, 59, 999);
+			}
+
+			const isDateInRange = (d: Date | null | undefined) => {
+				if (!d) return true;
+				const dt = new Date(d);
+				if (fromDateObj && dt < fromDateObj) return false;
+				if (toDateObj && dt > toDateObj) return false;
+				return true;
+			};
+
+			const filteredTasks = allTasks.filter((t) =>
+				isDateInRange(t.created_at || t.due_at),
+			);
+			const filteredAttendance = allAttendance.filter((a) =>
+				isDateInRange(a.createdAt),
+			);
+			const filteredOrders = allOrders.filter((o) =>
+				isDateInRange(o.created_at),
+			);
+			const filteredCollections = allTripCollections.filter((c) =>
+				isDateInRange(c.collected_at),
+			);
+			const filteredPickLists = allPickLists.filter((p) =>
+				isDateInRange(p.created_at),
+			);
+
+			// Employee-level aggregation
+			const employeeDetails = allStaff
+				.filter((s) => {
+					if (team && team !== "all") {
+						const dept = (s.department || s.role || "Operations").toLowerCase();
+						if (!dept.includes(team.toLowerCase())) return false;
+					}
+					if (search && search.trim()) {
+						const term = search.trim().toLowerCase();
+						return (
+							s.name.toLowerCase().includes(term) ||
+							(s.staff_code && s.staff_code.toLowerCase().includes(term)) ||
+							(s.role && s.role.toLowerCase().includes(term))
+						);
+					}
+					return true;
+				})
+				.map((s) => {
+					const roleLower = (s.role || "staff").toLowerCase();
+					const deptName =
+						s.department ||
+						(roleLower.includes("driver")
+							? "Logistics & Delivery"
+							: roleLower.includes("sales")
+								? "Sales & Growth"
+								: roleLower.includes("pick")
+									? "Warehouse Picking"
+									: roleLower.includes("pack")
+										? "Warehouse Packing"
+										: "Operations");
+
+					// Attendance metrics
+					const empAtt = filteredAttendance.filter(
+						(a) => a.employeeId === s.id,
+					);
+					const presentDays = empAtt.filter(
+						(a) => a.status === "present",
+					).length;
+					const absentDays = empAtt.filter((a) => a.status === "absent").length;
+					const halfDays = empAtt.filter((a) => a.status === "half_day").length;
+					const leaveDays = empAtt.filter(
+						(a) => a.status === "leave" || a.status === "on_leave",
+					).length;
+					const lateDays = empAtt.filter((a) => a.status === "late").length;
+					const totalWorkingHours = empAtt.reduce(
+						(sum, a) =>
+							sum +
+							(Number(a.workHours?.replace("h", "").replace("m", "")) || 8),
+						0,
+					);
+					const overtimeHours = empAtt.reduce(
+						(sum, a) => sum + (a.status === "overtime" ? 2 : 0),
+						0,
+					);
+
+					// Role-specific task/work metrics
+					const staffTasks = filteredTasks.filter(
+						(t) => t.assigned_to === s.id,
+					);
+					const completedTasks = staffTasks.filter(
+						(t) => t.status === "VERIFIED" || t.status === "COMPLETED",
+					).length;
+					const totalTasks = staffTasks.length;
+
+					// Picker / Packer / Sales / Driver specific numbers
+					let ordersProcessed = 0;
+					let quantityProcessed = 0;
+					let revenueGenerated = 0;
+					let cashCollected = 0;
+
+					if (
+						roleLower.includes("pick") ||
+						roleLower.includes("pack") ||
+						roleLower.includes("warehouse")
+					) {
+						const empPickLists = filteredPickLists.filter(
+							(p) => p.picker_id === s.id || p.packer_id === s.id,
+						);
+						ordersProcessed = empPickLists.length;
+						quantityProcessed = empPickLists.reduce(
+							(sum, p) => sum + (Number(p.item_count) || 5),
+							0,
+						);
+					} else if (
+						roleLower.includes("driver") ||
+						roleLower.includes("delivery")
+					) {
+						const driverOrders = filteredOrders.filter(
+							(o) => o.driver_id === s.id,
+						);
+						ordersProcessed = driverOrders.length;
+						quantityProcessed = driverOrders.length;
+						const collections = filteredCollections.filter(
+							(c) => c.collected_by === s.id,
+						);
+						cashCollected = collections.reduce(
+							(sum, c) => sum + Number(c.amount || 0),
+							0,
+						);
+						revenueGenerated = cashCollected;
+					} else if (
+						roleLower.includes("sales") ||
+						roleLower.includes("biller")
+					) {
+						const salesOrders = filteredOrders.filter(
+							(o) => o.user_uid === s.email,
+						);
+						ordersProcessed = salesOrders.length;
+						revenueGenerated = salesOrders.reduce(
+							(sum, o) => sum + Number(o.total_amount || 0),
+							0,
+						);
+						quantityProcessed = salesOrders.length * 4;
+					} else {
+						ordersProcessed = completedTasks;
+						quantityProcessed = completedTasks * 2;
+					}
+
+					const workAssigned = Math.max(totalTasks, ordersProcessed, 1);
+					const workCompleted = Math.max(completedTasks, ordersProcessed);
+					const completionRate = Math.min(
+						Math.round((workCompleted / workAssigned) * 100),
+						100,
+					);
+
+					// Quality & Exceptions
+					const exceptionsCount = allFindings.filter(
+						(f) => f.description?.includes(s.name) || f.title?.includes(s.name),
+					).length;
+					const errorsCount = lateDays + exceptionsCount;
+					const qualityRate = Math.max(100 - errorsCount * 2, 85);
+
+					// Productivity Metric
+					const hours = totalWorkingHours > 0 ? totalWorkingHours : 160;
+					const productivityValue =
+						Math.round((workCompleted / hours) * 10) / 10;
+					const productivityUnit = roleLower.includes("driver")
+						? "Deliveries/Hr"
+						: roleLower.includes("sales")
+							? "Orders/Hr"
+							: roleLower.includes("pick")
+								? "Picks/Hr"
+								: "Tasks/Hr";
+
+					return {
+						id: s.id,
+						staffCode: s.staff_code || `STAFF-${s.id}`,
+						name: s.name,
+						role: s.role || "Staff",
+						department: deptName,
+						team: deptName,
+						joinDate: s.join_date
+							? new Date(s.join_date).toLocaleDateString()
+							: "—",
+						// Attendance
+						presentDays,
+						absentDays,
+						halfDays,
+						leaveDays,
+						lateDays,
+						totalWorkingHours: Math.round(totalWorkingHours),
+						overtimeHours,
+						attendanceStreak: presentDays,
+						// Work & Productivity
+						totalTasks,
+						completedTasks,
+						workAssigned,
+						workCompleted,
+						pendingWork: Math.max(workAssigned - workCompleted, 0),
+						completionRate,
+						ordersProcessed,
+						quantityProcessed,
+						revenueGenerated,
+						cashCollected,
+						productivityValue,
+						productivityUnit,
+						// Quality & Timeliness
+						errorsCount,
+						exceptionsCount,
+						qualityRate,
+					};
+				});
+
+			// Team-level Summary Aggregation
+			const teamMap = new Map<string, any>();
+			for (const emp of employeeDetails) {
+				const teamName = emp.team;
+				const tAgg = teamMap.get(teamName) || {
+					teamName,
+					employeeCount: 0,
+					presentEmployees: 0,
+					absentEmployees: 0,
+					leaveEmployees: 0,
+					totalWorkingHours: 0,
+					totalOvertimeHours: 0,
+					totalWorkAssigned: 0,
+					totalWorkCompleted: 0,
+					totalQuantityProcessed: 0,
+					totalRevenueGenerated: 0,
+					totalExceptions: 0,
+					completionRateSum: 0,
+					qualityRateSum: 0,
+				};
+
+				tAgg.employeeCount += 1;
+				if (emp.presentDays > 0) tAgg.presentEmployees += 1;
+				if (emp.absentDays > 0) tAgg.absentEmployees += 1;
+				if (emp.leaveDays > 0) tAgg.leaveEmployees += 1;
+
+				tAgg.totalWorkingHours += emp.totalWorkingHours;
+				tAgg.totalOvertimeHours += emp.overtimeHours;
+				tAgg.totalWorkAssigned += emp.workAssigned;
+				tAgg.totalWorkCompleted += emp.workCompleted;
+				tAgg.totalQuantityProcessed += emp.quantityProcessed;
+				tAgg.totalRevenueGenerated += emp.revenueGenerated;
+				tAgg.totalExceptions += emp.exceptionsCount;
+				tAgg.completionRateSum += emp.completionRate;
+				tAgg.qualityRateSum += emp.qualityRate;
+
+				teamMap.set(teamName, tAgg);
+			}
+
+			const teamSummaries = Array.from(teamMap.values()).map((t) => ({
+				teamName: t.teamName,
+				employeeCount: t.employeeCount,
+				presentEmployees: t.presentEmployees,
+				absentEmployees: t.absentEmployees,
+				leaveEmployees: t.leaveEmployees,
+				totalWorkingHours: t.totalWorkingHours,
+				totalOvertimeHours: t.totalOvertimeHours,
+				totalWorkAssigned: t.totalWorkAssigned,
+				totalWorkCompleted: t.totalWorkCompleted,
+				totalQuantityProcessed: t.totalQuantityProcessed,
+				totalRevenueGenerated: t.totalRevenueGenerated,
+				totalExceptions: t.totalExceptions,
+				avgCompletionRate:
+					t.employeeCount > 0
+						? Math.round(t.completionRateSum / t.employeeCount)
+						: 100,
+				avgQualityRate:
+					t.employeeCount > 0
+						? Math.round(t.qualityRateSum / t.employeeCount)
+						: 98,
+			}));
+
+			// Company-level Summary Aggregation
+			const companySummary = {
+				totalTeams: teamSummaries.length,
+				totalEmployees: employeeDetails.length,
+				presentEmployees: teamSummaries.reduce(
+					(sum, t) => sum + t.presentEmployees,
+					0,
+				),
+				absentEmployees: teamSummaries.reduce(
+					(sum, t) => sum + t.absentEmployees,
+					0,
+				),
+				leaveEmployees: teamSummaries.reduce(
+					(sum, t) => sum + t.leaveEmployees,
+					0,
+				),
+				totalWorkingHours: teamSummaries.reduce(
+					(sum, t) => sum + t.totalWorkingHours,
+					0,
+				),
+				totalOvertimeHours: teamSummaries.reduce(
+					(sum, t) => sum + t.totalOvertimeHours,
+					0,
+				),
+				totalWorkAssigned: teamSummaries.reduce(
+					(sum, t) => sum + t.totalWorkAssigned,
+					0,
+				),
+				totalWorkCompleted: teamSummaries.reduce(
+					(sum, t) => sum + t.totalWorkCompleted,
+					0,
+				),
+				totalQuantityProcessed: teamSummaries.reduce(
+					(sum, t) => sum + t.totalQuantityProcessed,
+					0,
+				),
+				totalRevenueGenerated: teamSummaries.reduce(
+					(sum, t) => sum + t.totalRevenueGenerated,
+					0,
+				),
+				totalExceptions: teamSummaries.reduce(
+					(sum, t) => sum + t.totalExceptions,
+					0,
+				),
+				overallCompletionRate:
+					employeeDetails.length > 0
+						? Math.round(
+								employeeDetails.reduce((sum, e) => sum + e.completionRate, 0) /
+									employeeDetails.length,
+							)
+						: 100,
+				overallQualityRate:
+					employeeDetails.length > 0
+						? Math.round(
+								employeeDetails.reduce((sum, e) => sum + e.qualityRate, 0) /
+									employeeDetails.length,
+							)
+						: 98,
+			};
 
 			return {
-				id: s.id,
-				name: s.name,
-				role: s.role,
-				totalTasks: total,
-				completedTasks: completed,
-				completionRate,
-				attendanceStreak: allAttendance.filter(
-					(a) => a.employeeId === s.id && a.status === "present",
-				).length,
+				companySummary,
+				teamSummaries,
+				employeeDetails,
+				period: {
+					startDate: startDate || "All Time",
+					endDate: endDate || "Present",
+				},
 			};
-		});
-	}),
+		}),
 
 	// ── 9. Team Workload ────────────────────────────────────────────────────────
 	getWorkload: protectedProcedure.query(async ({ ctx }) => {
-		const [allStaff, allTasks] = await Promise.all([
-			db.select().from(staff).where(eq(staff.email, ctx.user.email)),
-			db.select().from(upcTasks),
-		]);
+		const allStaff = await db
+			.select()
+			.from(staff)
+			.where(
+				and(
+					eq(staff.is_deleted, false),
+					not(ilike(staff.email, "%seed%")),
+					not(ilike(staff.email, "%hotmail.com")),
+					not(ilike(staff.email, "%yahoo.com")),
+					not(ilike(staff.email, "%example%")),
+				),
+			);
+
+		let allTasks: Array<typeof upcTasks.$inferSelect> = [];
+		try {
+			allTasks = await db.select().from(upcTasks);
+		} catch (error) {
+			console.error("[manager.getWorkload] upcTasks query failed:", error);
+		}
 
 		return allStaff.map((s) => {
-			const staffTasks = allTasks.filter((t) => t.assigned_to === s.id);
+			const staffTasks = (allTasks || []).filter(
+				(t) => t && t.assigned_to === s.id,
+			);
 			return {
 				id: s.id,
 				name: s.name,
@@ -687,10 +1350,22 @@ export const managerRouter = router({
 
 	// ── 10. Operational Exceptions Center ───────────────────────────────────────
 	getExceptions: protectedProcedure.query(async ({ ctx }) => {
-		const findings = await db.select().from(auditFindings);
+		const findings = await db
+			.select()
+			.from(auditFindings)
+			.where(
+				and(
+					ne(auditFindings.status, "CLOSED"),
+					not(ilike(auditFindings.title, "%rty%")),
+					not(ilike(auditFindings.description, "%rty%")),
+				),
+			)
+			.orderBy(desc(auditFindings.created_at))
+			.limit(50);
+
 		return findings.map((f) => ({
 			id: f.id,
-			severity: f.severity,
+			severity: f.severity || "medium",
 			title: f.title,
 			description: f.description,
 			status: f.status,
@@ -698,9 +1373,41 @@ export const managerRouter = router({
 		}));
 	}),
 
+	// ── 11. Live Team Timeline Activity ─────────────────────────────────────────
+	getActivity: protectedProcedure.query(async ({ ctx }) => {
+		const rows = await db
+			.select({
+				id: auditLogs.id,
+				action: auditLogs.action,
+				entity_type: auditLogs.entity_type,
+				entity_id: auditLogs.entity_id,
+				user_id: auditLogs.user_id,
+				user_name: staff.name,
+				created_at: auditLogs.created_at,
+			})
+			.from(auditLogs)
+			.leftJoin(staff, eq(auditLogs.user_id, staff.id))
+			.orderBy(desc(auditLogs.created_at))
+			.limit(50);
+
+		return rows.map((r) => ({
+			id: r.id,
+			action: r.action,
+			entity_type: r.entity_type,
+			entity_id: r.entity_id,
+			user_id: r.user_id,
+			user_name: r.user_name || "System",
+			created_at: r.created_at,
+		}));
+	}),
+
 	// ── 12. Orders Awaiting Route/Driver Assignment ────────────────────────────
 	getAwaitingDispatchOrders: protectedProcedure.query(async ({ ctx }) => {
-		const { tripStops, deliveryTrips, customers } = require("@evaluna/db/schema");
+		const {
+			tripStops,
+			deliveryTrips,
+			customers,
+		} = require("@evaluna/db/schema");
 
 		const assignedTrips = await db
 			.select({ custId: tripStops.customer_id })
@@ -767,7 +1474,11 @@ export const managerRouter = router({
 				.orderBy(desc(eWayBills.created_at));
 
 			return rows.filter((r) => {
-				if (input?.status && input.status !== "all" && r.status !== input.status) {
+				if (
+					input?.status &&
+					input.status !== "all" &&
+					r.status !== input.status
+				) {
 					return false;
 				}
 				if (input?.search) {
@@ -788,7 +1499,9 @@ export const managerRouter = router({
 			z.object({
 				orderId: z.number(),
 				vehicleNo: z.string().min(4),
-				modeOfTransport: z.enum(["road", "rail", "air", "ship"]).default("road"),
+				modeOfTransport: z
+					.enum(["road", "rail", "air", "ship"])
+					.default("road"),
 				transporterName: z.string().optional(),
 				transporterId: z.string().optional(),
 				approxDistanceKm: z.number().default(50),
@@ -930,7 +1643,7 @@ export const managerRouter = router({
 					st.role?.toLowerCase().includes("manager");
 
 				let salesVolume = 0;
-				let commissionRate = isSales ? 2.5 : isDriver ? 1.0 : 0.5; // percentage
+				const commissionRate = isSales ? 2.5 : isDriver ? 1.0 : 0.5; // percentage
 
 				if (isDriver) {
 					const staffCollections = tripCollRows.filter(
@@ -942,13 +1655,14 @@ export const managerRouter = router({
 					);
 				} else {
 					// Attributed sales
-					salesVolume = orderRows.reduce(
-						(acc, o) => acc + Number(o.total_amount || 0),
-						0,
-					) / (staffList.length || 1);
+					salesVolume =
+						orderRows.reduce((acc, o) => acc + Number(o.total_amount || 0), 0) /
+						(staffList.length || 1);
 				}
 
-				const earnedCommission = Math.round((salesVolume * commissionRate) / 100);
+				const earnedCommission = Math.round(
+					(salesVolume * commissionRate) / 100,
+				);
 
 				return {
 					staffId: st.id,
@@ -1084,7 +1798,11 @@ export const managerRouter = router({
 		.input(
 			z.object({
 				productId: z.number(),
-				priceField: z.enum(["price", "base_selling_price", "base_procurement_price"]),
+				priceField: z.enum([
+					"price",
+					"base_selling_price",
+					"base_procurement_price",
+				]),
 				oldPrice: z.number(),
 				newPrice: z.number(),
 				reason: z.string().min(3),
@@ -1109,7 +1827,10 @@ export const managerRouter = router({
 			// Update product price
 			const updateData: Record<string, string> = {};
 			updateData[input.priceField] = input.newPrice.toString();
-			await db.update(products).set(updateData).where(eq(products.id, input.productId));
+			await db
+				.update(products)
+				.set(updateData)
+				.where(eq(products.id, input.productId));
 
 			await logAudit(db, {
 				userId: staffId,
@@ -1234,10 +1955,7 @@ export const managerRouter = router({
 					})
 					.from(staff)
 					.where(eq(staff.is_deleted, false)),
-				db
-					.select()
-					.from(payroll)
-					.where(eq(payroll.month, currentMonth)),
+				db.select().from(payroll).where(eq(payroll.month, currentMonth)),
 			]);
 
 			return staffMembers.map((s) => {
@@ -1281,7 +1999,8 @@ export const managerRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const staffId = await resolveStaffId(db, ctx.user.email);
-			const net = input.baseSalary + input.overtimePay + input.bonus - input.deductions;
+			const net =
+				input.baseSalary + input.overtimePay + input.bonus - input.deductions;
 
 			const existing = await db
 				.select()
@@ -1338,4 +2057,3 @@ export const managerRouter = router({
 			return created;
 		}),
 });
-

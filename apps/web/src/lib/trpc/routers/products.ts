@@ -3,10 +3,23 @@ import {
 	priceChangeHistory,
 	products,
 } from "@evaluna/db/schema";
-import { and, asc, count, eq, ilike, inArray, isNotNull, or, sql, sum } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import {
+	and,
+	asc,
+	count,
+	eq,
+	ilike,
+	inArray,
+	isNotNull,
+	or,
+	sql,
+	sum,
+} from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "@/lib/trpc/init";
+import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import { logAudit, resolveStaffId } from "../util/audit";
 import { permProcedure } from "../util/auditor-procedures";
 
@@ -34,7 +47,10 @@ export const productsRouter = router({
 							totalStock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)`,
 						})
 						.from(products)
-						.leftJoin(branchInventory, eq(products.id, branchInventory.product_id))
+						.leftJoin(
+							branchInventory,
+							eq(products.id, branchInventory.product_id),
+						)
 						.where(eq(products.is_deleted, false))
 						.groupBy(products.id)
 						.having(sql`coalesce(sum(${branchInventory.in_stock}), 0) <= 10`)
@@ -106,7 +122,9 @@ export const productsRouter = router({
 					baseSellingPrice: products.base_selling_price,
 					visibilityLevel: products.visibility_level,
 					isHidden: products.is_hidden,
-					stock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::int`,
+					imageUrl: products.image_url,
+					imageStoragePath: products.image_storage_path,
+					stock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
 				})
 				.from(products)
 				.leftJoin(branchInventory, inventoryJoinCondition)
@@ -120,6 +138,8 @@ export const productsRouter = router({
 					products.base_selling_price,
 					products.visibility_level,
 					products.is_hidden,
+					products.image_url,
+					products.image_storage_path,
 				)
 				.orderBy(asc(products.name));
 
@@ -145,6 +165,8 @@ export const productsRouter = router({
 					margin: bp && sp ? Math.round(((sp - bp) / sp) * 100) : 0,
 					visibilityLevel: p.visibilityLevel || "global",
 					status: p.isHidden ? "inactive" : "active",
+					imageUrl: p.imageUrl || null,
+					imageStoragePath: p.imageStoragePath || null,
 					stock: Number(p.stock) || 0,
 				};
 			});
@@ -156,6 +178,8 @@ export const productsRouter = router({
 				name: z.string().min(1),
 				description: z.string().optional(),
 				price: z.number(),
+				cost_price: z.number().optional(),
+				base_procurement_price: z.number().optional(),
 				category: z.string().optional(),
 				barcode: z.string().optional(),
 				sku: z.string().optional(),
@@ -167,12 +191,47 @@ export const productsRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
+			const trimmedName = toBilingualProductName(input.name.trim());
+			const trimmedSku = input.sku?.trim() || "";
+			const trimmedBarcode = input.barcode?.trim() || "";
+
+			// Check if active product already exists with identical name or sku/barcode
+			const duplicate = await db
+				.select({ id: products.id, name: products.name, sku: products.sku })
+				.from(products)
+				.where(
+					and(
+						eq(products.is_deleted, false),
+						or(
+							sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedName}))`,
+							trimmedSku.length > 0
+								? sql`LOWER(TRIM(${products.sku})) = LOWER(TRIM(${trimmedSku}))`
+								: sql`FALSE`,
+							trimmedBarcode.length > 0
+								? sql`LOWER(TRIM(${products.barcode})) = LOWER(TRIM(${trimmedBarcode}))`
+								: sql`FALSE`,
+						),
+					),
+				)
+				.limit(1);
+
+			if (duplicate.length > 0) {
+				throw new TRPCError({
+					code: "CONFLICT",
+					message: `Product "${duplicate[0].name}" already exists (ID: #${duplicate[0].id}). Duplicate creation is blocked.`,
+				});
+			}
+
+			const costPriceVal =
+				input.cost_price ?? input.base_procurement_price ?? input.price;
 			const [product] = await db
 				.insert(products)
 				.values({
-					name: input.name,
+					name: trimmedName,
 					description: input.description,
 					price: input.price.toString(),
+					base_selling_price: input.price.toString(),
+					base_procurement_price: costPriceVal.toString(),
 					user_uid: ctx.user.id,
 					category: input.category,
 					barcode: input.barcode,
@@ -266,12 +325,21 @@ export const productsRouter = router({
 		}),
 
 	delete: protectedProcedure
-		.input(z.object({ id: z.number() }))
-		.mutation(async ({ input }) => {
+		.input(z.object({ id: z.number(), reason: z.string().optional() }))
+		.mutation(async ({ input, ctx }) => {
 			await db
 				.update(products)
 				.set({ is_deleted: true })
 				.where(eq(products.id, input.id));
+
+			const staffId = await resolveStaffId(db, ctx.user?.email || "");
+			await logAudit(db, {
+				userId: staffId,
+				action: "PRODUCT_DELETED",
+				entityType: "products",
+				entityId: input.id,
+				newValues: { reason: input.reason || "Deleted by manager" },
+			});
 			return { success: true };
 		}),
 
@@ -304,16 +372,19 @@ export const productsRouter = router({
 			if (input.products.length === 0) return { success: true, count: 0 };
 			// Batch insert all products in a single query
 			await db.insert(products).values(
-				input.products.map((p) => ({
-					name: p.name,
-					sku: p.sku,
-					description: p.name,
-					base_procurement_price: p.base_procurement_price.toString(),
-					base_selling_price: p.base_selling_price.toString(),
-					price: p.base_selling_price.toString(),
-					category: p.category,
-					user_uid: ctx.user.id,
-				})),
+				input.products.map((p) => {
+					const bilingual = toBilingualProductName(p.name);
+					return {
+						name: bilingual,
+						sku: p.sku,
+						description: bilingual,
+						base_procurement_price: p.base_procurement_price.toString(),
+						base_selling_price: p.base_selling_price.toString(),
+						price: p.base_selling_price.toString(),
+						category: p.category,
+						user_uid: ctx.user.id,
+					};
+				}),
 			);
 			return { success: true, count: input.products.length };
 		}),

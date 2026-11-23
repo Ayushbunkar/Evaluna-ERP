@@ -50,8 +50,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { logout } from "@/app/(auth)/login/actions";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { CustomerCartHeaderButton } from "@/components/layout/CustomerCartHeaderButton";
+import { LogoutModal } from "@/components/shared/logout-modal";
+import { ProfileModal } from "@/components/shared/profile-modal";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/hooks/use-session";
 import { BranchProvider, useBranch } from "@/lib/branch-context";
@@ -77,6 +82,16 @@ const ROLE_CONFIG: Record<
 		label: "Manager",
 		color: "text-blue-700 dark:text-blue-300",
 		bg: "bg-blue-100 dark:bg-blue-900/40",
+	},
+	warehouse: {
+		label: "Warehouse Manager",
+		color: "text-amber-700 dark:text-amber-300",
+		bg: "bg-amber-100 dark:bg-amber-900/40",
+	},
+	warehouse_manager: {
+		label: "Warehouse Manager",
+		color: "text-amber-700 dark:text-amber-300",
+		bg: "bg-amber-100 dark:bg-amber-900/40",
 	},
 	sales: {
 		label: "Salesperson",
@@ -108,6 +123,11 @@ const ROLE_CONFIG: Record<
 		color: "text-blue-700 dark:text-blue-300",
 		bg: "bg-blue-100 dark:bg-blue-900/40",
 	},
+	driver: {
+		label: "Driver",
+		color: "text-emerald-700 dark:text-emerald-300",
+		bg: "bg-emerald-100 dark:bg-emerald-900/40",
+	},
 	customer: {
 		label: "Customer",
 		color: "text-emerald-700 dark:text-emerald-300",
@@ -122,6 +142,41 @@ const ROLE_CONFIG: Record<
 		label: "Procurement",
 		color: "text-indigo-700 dark:text-indigo-300",
 		bg: "bg-indigo-100 dark:bg-indigo-900/40",
+	},
+	finance: {
+		label: "Finance",
+		color: "text-emerald-700 dark:text-emerald-300",
+		bg: "bg-emerald-100 dark:bg-emerald-900/40",
+	},
+	hr: {
+		label: "HR",
+		color: "text-violet-700 dark:text-violet-300",
+		bg: "bg-violet-100 dark:bg-violet-900/40",
+	},
+	inventory: {
+		label: "Inventory",
+		color: "text-sky-700 dark:text-sky-300",
+		bg: "bg-sky-100 dark:bg-sky-900/40",
+	},
+	"route-manager": {
+		label: "Route Manager",
+		color: "text-indigo-700 dark:text-indigo-300",
+		bg: "bg-indigo-100 dark:bg-indigo-900/40",
+	},
+	route_manager: {
+		label: "Route Manager",
+		color: "text-indigo-700 dark:text-indigo-300",
+		bg: "bg-indigo-100 dark:bg-indigo-900/40",
+	},
+	superadmin: {
+		label: "Super Admin",
+		color: "text-purple-700 dark:text-purple-300",
+		bg: "bg-purple-100 dark:bg-purple-900/40",
+	},
+	supplier: {
+		label: "Supplier",
+		color: "text-orange-700 dark:text-orange-300",
+		bg: "bg-orange-100 dark:bg-orange-900/40",
 	},
 };
 
@@ -237,7 +292,6 @@ function NotificationBell({ role }: { role?: string }) {
 		</TooltipProvider>
 	);
 }
-
 export function AppLayout({
 	children,
 	navItems,
@@ -255,8 +309,20 @@ export function AppLayout({
 	const [isOffline, setIsOffline] = useState(false);
 	const [isSyncing, setIsSyncing] = useState(false);
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+	const [isProfileOpen, setIsProfileOpen] = useState(false);
+	const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 	const { session } = useSession();
-	const t = useTranslations(namespace);
+
+	let t: unknown;
+	try {
+		t = useTranslations(namespace);
+	} catch (_e) {
+		t = undefined;
+	}
+
+	const { data: userProfile } = trpc.users.getMyProfile.useQuery(undefined, {
+		refetchOnWindowFocus: false,
+	});
 
 	const { data: statusData } = trpc.attendance.myStatus.useQuery();
 	const activeShift = statusData?.activeShift;
@@ -299,8 +365,13 @@ export function AppLayout({
 
 	const formatNavLabel = (key: string) => {
 		try {
-			if (t && typeof (t as any).has === "function" && (t as any).has(key)) {
-				const translated = t(key as any);
+			const translator = t as any;
+			if (
+				translator &&
+				typeof translator === "function" &&
+				(typeof translator.has !== "function" || translator.has(key))
+			) {
+				const translated = translator(key);
 				if (
 					translated &&
 					typeof translated === "string" &&
@@ -312,10 +383,66 @@ export function AppLayout({
 		} catch (_e) {}
 		if (key === "productsPlaceOrder") return "Products / Place Order";
 		if (key === "customerProfile") return "Customer Profile";
+		if (key.includes(" ")) return key;
 		return key
 			.replace(/([A-Z])/g, " $1")
 			.replace(/^./, (str) => str.toUpperCase())
 			.trim();
+	};
+
+	const formatShortNavLabel = (key: string) => {
+		const full = formatNavLabel(key);
+		if (key === "vanStockPicking" || full === "Van Stock Picking")
+			return "Van Stock";
+		if (key === "pendingPicks" || full === "Pending Picks") return "Pending";
+		if (key === "activePicks" || full === "Active Picks") return "Active";
+		if (key === "completedPicks" || full === "Completed Picks")
+			return "Completed";
+		if (key === "productsPlaceOrder" || full === "Products / Place Order")
+			return "Products";
+		if (key === "customerProfile" || full === "Customer Profile")
+			return "Profile";
+		if (key === "warehouseStock" || full === "Warehouse Stock")
+			return "Stock";
+		if (key === "pointOfSale" || full === "Point Of Sale") return "POS";
+		if (key === "vanStockPlanning" || full === "Van Stock Planning")
+			return "Van Stock";
+		if (key === "vanVerification" || full.includes("Verification"))
+			return "Verify";
+		if (key === "dispatchApproval" || full.includes("Dispatch"))
+			return "Dispatch";
+		if (key === "routeNavigation" || full === "Route Navigation")
+			return "Route";
+		if (key === "liveDelivery" || full.includes("Delivery"))
+			return "Delivery";
+		if (key === "scanPackage" || full.includes("Scan"))
+			return "Scanner";
+		if (key === "purchaseOrders" || full === "Purchase Orders")
+			return "Orders";
+		if (key === "purchaseRequests" || full === "Purchase Requests")
+			return "Requests";
+		if (key === "receivingQueue" || full.includes("Receiving"))
+			return "Receiving";
+		if (key === "putAwayTasks" || full.includes("Put-Away") || full.includes("Put Away"))
+			return "Put-Away";
+		if (full.length > 11) {
+			return full.slice(0, 10) + "…";
+		}
+		return full;
+	};
+
+	const isNavItemActive = (itemHref: string) => {
+		if (pathname === itemHref) return true;
+		if (itemHref === "/") return false;
+		if (!pathname.startsWith(`${itemHref}/`)) return false;
+		// If another more specific nav item matches this pathname, don't mark the parent root active
+		const hasMoreSpecificItem = navItems.some(
+			(other) =>
+				other.href !== itemHref &&
+				other.href.startsWith(`${itemHref}/`) &&
+				(pathname === other.href || pathname.startsWith(`${other.href}/`)),
+		);
+		return !hasMoreSpecificItem;
 	};
 
 	const pageNames: Record<string, string> = Object.fromEntries(
@@ -323,29 +450,23 @@ export function AppLayout({
 	);
 
 	return (
-		<div className="prevent-overflow flex h-screen w-full flex-col overflow-hidden bg-background selection:bg-primary/20">
+		<div className="prevent-overflow flex h-screen h-[100dvh] w-full flex-col overflow-hidden bg-background selection:bg-primary/20">
 			<NetworkStatusBanner />
 
 			{/* Top Navbar */}
-			<header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-border/40 border-b bg-background/80 px-2 backdrop-blur-xl transition-all sm:px-4">
-				<Button
-					variant="ghost"
-					size="icon"
-					className="h-9 w-9 shrink-0 rounded-full transition-colors hover:bg-accent/50 md:hidden"
-					onClick={() => setMobileMenuOpen(true)}
+			<header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-border/40 border-b bg-background/80 px-2.5 backdrop-blur-xl transition-all sm:px-4">
+				<Link
+					href="/"
+					className="group flex shrink-0 items-center gap-2.5 md:w-[240px] transition-opacity hover:opacity-90 cursor-pointer"
+					title="Go to Home"
 				>
-					<MenuIcon className="h-5 w-5" />
-					<span className="sr-only">Open Menu</span>
-				</Button>
-
-				<div className="flex shrink-0 items-center gap-2 md:w-[240px]">
 					<img
 						src="/logo.jpg"
-						alt="Evaluna ERP"
-						className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+						alt="Evaluna"
+						className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 					/>
 					<span className="hidden bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-base text-transparent tracking-tight sm:text-lg md:inline-block">
-						Evaluna ERP
+						Evaluna
 					</span>
 					{role && ROLE_CONFIG[role] && (
 						<span
@@ -354,7 +475,7 @@ export function AppLayout({
 							{ROLE_CONFIG[role].label}
 						</span>
 					)}
-				</div>
+				</Link>
 
 				<div className="hidden items-center gap-1 font-medium text-muted-foreground text-xs sm:text-sm md:flex">
 					<span>/</span>
@@ -394,6 +515,8 @@ export function AppLayout({
 
 					<NotificationBell role={role} />
 
+					{role === "customer" && <CustomerCartHeaderButton />}
+
 					{role !== "customer" && (
 						<Link href="/staff">
 							<Button
@@ -411,6 +534,8 @@ export function AppLayout({
 						<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
 					)}
 
+					<ThemeToggle />
+
 					<div className="hidden md:block">
 						<LocaleSwitcher />
 					</div>
@@ -422,25 +547,54 @@ export function AppLayout({
 								size="icon"
 								className="h-9 w-9 overflow-hidden rounded-full shadow-sm ring-1 ring-border/50 transition-all hover:ring-2 hover:ring-primary/20"
 							>
-								<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-									<UserIcon className="h-5 w-5" />
-								</div>
+								{userProfile?.image || session?.user?.image ? (
+									<img
+										src={userProfile?.image || session?.user?.image || ""}
+										alt={
+											userProfile?.name || session?.user?.name || "User Profile"
+										}
+										className="h-full w-full rounded-full object-cover"
+									/>
+								) : (
+									<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+										<UserIcon className="h-5 w-5" />
+									</div>
+								)}
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="end"
 							className="w-56 rounded-xl border-border/50 shadow-xl"
 						>
-							<DropdownMenuLabel className="font-normal">
-								<div className="flex flex-col space-y-1">
-									<p className="font-medium text-sm leading-none">
-										{session?.user?.name || "My Account"}
-									</p>
-									<p className="text-muted-foreground text-xs leading-none">
-										{session?.user?.email || ""}
-									</p>
+							<DropdownMenuLabel
+								onClick={() => setIsProfileOpen(true)}
+								className="cursor-pointer rounded-lg p-2 font-normal transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70"
+							>
+								<div className="flex items-center justify-between gap-2">
+									<div className="flex flex-col space-y-1">
+										<p className="font-semibold text-slate-900 text-sm leading-none dark:text-slate-100">
+											{userProfile?.name || session?.user?.name || "My Account"}
+										</p>
+										<p className="text-muted-foreground text-xs leading-none">
+											{userProfile?.email || session?.user?.email || ""}
+										</p>
+									</div>
+									<Badge
+										variant="outline"
+										className="border-blue-200 font-semibold text-[10px] text-blue-600 dark:border-blue-800 dark:text-blue-400"
+									>
+										View
+									</Badge>
 								</div>
 							</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onClick={() => setIsProfileOpen(true)}
+								className="flex cursor-pointer items-center gap-2 rounded-md font-medium text-blue-600 focus:bg-blue-50 dark:text-blue-400 dark:focus:bg-blue-950/50"
+							>
+								<UserIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+								My Profile & Edit
+							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							{session?.user?.isSuperadmin || role === "admin" ? (
 								<>
@@ -509,15 +663,17 @@ export function AppLayout({
 								</>
 							)}
 							<DropdownMenuItem
-								onClick={() => {
-									window.location.href = "/api/logout";
-								}}
+								onClick={() => setIsLogoutOpen(true)}
 								className="cursor-pointer rounded-md text-destructive focus:bg-destructive/10 focus:text-destructive"
 							>
 								Logout
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
+
+					{/* Modals */}
+					<ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
+					<LogoutModal open={isLogoutOpen} onOpenChange={setIsLogoutOpen} />
 				</div>
 			</header>
 
@@ -545,24 +701,29 @@ export function AppLayout({
 							className="relative z-10 flex h-full w-[280px] max-w-[85vw] flex-col gap-2 overflow-y-auto border-border/40 border-r bg-background p-4 shadow-2xl"
 						>
 							<div className="mb-6 flex items-center justify-between px-2">
-								<div className="flex items-center gap-3">
+								<Link
+									href="/"
+									onClick={() => setMobileMenuOpen(false)}
+									className="group flex items-center gap-3 transition-opacity hover:opacity-90"
+									title="Go to Home"
+								>
 									<img
 										src="/logo.jpg"
-										alt="Evaluna ERP"
-										className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+										alt="Evaluna"
+										className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 									/>
 									<span className="font-bold text-lg tracking-tight">
-										Evaluna ERP
+										Evaluna
 									</span>
 									<Badge
 										variant="secondary"
-										className="bg-emerald-100 font-bold text-emerald-800 text-[10px] uppercase tracking-wider hover:bg-emerald-100/80"
+										className="bg-emerald-100 font-bold text-[10px] text-emerald-800 uppercase tracking-wider hover:bg-emerald-100/80"
 									>
 										{role
 											? role.replace("_", " ")
 											: session?.user?.role?.replace("_", " ") || "Salesperson"}
 									</Badge>
-								</div>
+								</Link>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -575,8 +736,7 @@ export function AppLayout({
 							<div className="flex-1 space-y-1">
 								{navItems.map((item, i) => {
 									const { href, labelKey, icon: Icon, badge } = item;
-									const isActive =
-										pathname === href || pathname.startsWith(`${href}/`);
+									const isActive = isNavItemActive(href);
 									return (
 										<motion.div
 											key={href}
@@ -590,7 +750,7 @@ export function AppLayout({
 													setMobileMenuOpen(false);
 													router.push(href);
 												}}
-												className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all cursor-pointer select-none active:scale-[0.98] ${
+												className={`group flex cursor-pointer select-none items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all active:scale-[0.98] ${
 													isActive
 														? "bg-primary/10 font-medium text-primary"
 														: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -644,8 +804,7 @@ export function AppLayout({
 						<div className="no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3 py-4">
 							{navItems.map((item) => {
 								const { href, labelKey, icon: Icon, badge } = item;
-								const isActive =
-									pathname === href || pathname.startsWith(`${href}/`);
+								const isActive = isNavItemActive(href);
 
 								const NavLink = (
 									<Link
@@ -712,7 +871,15 @@ export function AppLayout({
 				</motion.aside>
 
 				{/* Main Content Area */}
-				<main className="prevent-overflow relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20">
+				<main
+					className="prevent-overflow relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-muted/20 pb-32 sm:pb-36 lg:pb-8"
+					style={{
+						paddingBottom:
+							navItems && navItems.length > 0
+								? "calc(max(5.5rem, 4.5rem + env(safe-area-inset-bottom, 0px)) + 2.5rem)"
+								: undefined,
+					}}
+				>
 					<motion.div
 						key={pathname}
 						initial={{ opacity: 0, y: 15 }}
@@ -724,14 +891,84 @@ export function AppLayout({
 							damping: 40,
 							mass: 0.8,
 						}}
-						className="mx-auto h-full w-full max-w-7xl p-2 sm:p-4 md:p-6"
+						className="mx-auto min-h-full w-full min-w-0 max-w-7xl p-2 pb-12 sm:p-4 sm:pb-16 md:p-6 md:pb-8"
 					>
 						{children}
 					</motion.div>
 				</main>
 			</div>
 
-			<ChatWidget />
+			{/* Mobile Bottom Navigation Bar (Phone-First Ergonomics & Smooth Animations) */}
+			{navItems && navItems.length > 0 && (
+				<nav
+					aria-label="Mobile Navigation"
+					className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-md shadow-lg lg:hidden"
+					style={{
+						paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))",
+					}}
+				>
+					<div className="flex w-full items-center justify-around px-1 py-1 sm:px-2 sm:py-1.5">
+						{navItems.slice(0, navItems.length > 4 ? 4 : 5).map((item) => {
+							const { href, labelKey, icon: Icon, badge } = item;
+							const isActive = isNavItemActive(href);
+							return (
+								<Link
+									key={href}
+									href={href}
+									className={`relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center rounded-xl py-1 px-0.5 text-[10px] sm:text-[11px] font-medium transition-all active:scale-95 ${
+										isActive
+											? "text-primary font-bold"
+											: "text-muted-foreground hover:text-foreground"
+									}`}
+								>
+									{isActive && (
+										<motion.div
+											layoutId="mobile-bottom-nav-pill"
+											className="absolute inset-x-1 inset-y-0.5 -z-10 rounded-xl bg-primary/10 dark:bg-primary/20"
+											transition={{
+												type: "spring",
+												stiffness: 500,
+												damping: 35,
+											}}
+										/>
+									)}
+									<div className="relative">
+										<Icon
+											className={`h-5 w-5 transition-transform ${isActive ? "scale-110" : ""}`}
+										/>
+										{badge !== undefined && badge !== null && badge !== 0 && (
+											<span className="absolute -top-1 -right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
+												{badge}
+											</span>
+										)}
+									</div>
+									<span className="mt-0.5 w-full truncate text-center leading-tight tracking-tight">
+										{formatShortNavLabel(labelKey)}
+									</span>
+								</Link>
+							);
+						})}
+
+						{/* Menu trigger button if more than 4 items */}
+						{navItems.length > 4 && (
+							<button
+								type="button"
+								onClick={() => setMobileMenuOpen(true)}
+								className="relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center rounded-xl py-1 px-0.5 text-[10px] sm:text-[11px] font-medium text-muted-foreground transition-all hover:text-foreground active:scale-95"
+							>
+								<MenuIcon className="h-5 w-5" />
+								<span className="mt-0.5 truncate text-center leading-tight tracking-tight">
+									More
+								</span>
+							</button>
+						)}
+					</div>
+				</nav>
+			)}
+
+			{(pathname?.startsWith("/customer") || role === "customer") && (
+				<ChatWidget />
+			)}
 		</div>
 	);
 }

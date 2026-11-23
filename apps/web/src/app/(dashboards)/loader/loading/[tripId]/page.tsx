@@ -31,8 +31,8 @@ import {
 	UserIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { use } from "react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { use, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -44,6 +44,7 @@ export default function TripLoadingDetailsPage({
 }) {
 	const { tripId } = use(params);
 	const numericTripId = Number.parseInt(tripId, 10);
+	const router = useRouter();
 	const trpc = useTRPC();
 
 	const {
@@ -70,9 +71,9 @@ export default function TripLoadingDetailsPage({
 
 	const completeLoadingMutation = trpc.loader.completeTripLoading.useMutation({
 		onSuccess: () => {
-			toast.success(`Trip #${numericTripId} loading completed successfully!`);
+			toast.success(`✓ Trip #${numericTripId} loading completed successfully! Navigating to dashboard...`);
 			setIsCompleteModalOpen(false);
-			refetch();
+			router.push("/loader");
 		},
 		onError: (err) => toast.error(err.message || "Failed to complete trip loading"),
 	});
@@ -175,7 +176,7 @@ export default function TripLoadingDetailsPage({
 					</div>
 				</div>
 
-				{trip.status === "ready_for_loading" || trip.status === "pending" ? (
+				{trip.status === "ready_for_loading" ? (
 					<Button
 						onClick={handleStartLoading}
 						disabled={startLoadingMutation.isPending}
@@ -312,7 +313,7 @@ export default function TripLoadingDetailsPage({
 												</div>
 												<div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
 													<span>
-														<strong>{order.itemsCount}</strong> Items
+														<strong>{Math.round(Number(order.itemsCount) || 0)}</strong> Items
 													</span>
 													<span>•</span>
 													<span>
@@ -323,18 +324,6 @@ export default function TripLoadingDetailsPage({
 														₹{Number(order.totalAmount || 0).toLocaleString()}
 													</span>
 												</div>
-												{order.items && order.items.length > 0 && (
-													<div className="mt-2 flex flex-wrap gap-1">
-														{order.items.map((i: any, iIdx: number) => (
-															<span
-																key={iIdx}
-																className="inline-flex items-center rounded border bg-background px-2 py-0.5 text-[11px] text-muted-foreground"
-															>
-																{i.productName || "Item"} ({i.quantity})
-															</span>
-														))}
-													</div>
-												)}
 											</div>
 										</div>
 

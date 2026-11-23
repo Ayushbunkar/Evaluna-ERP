@@ -57,6 +57,7 @@ type Line = {
 	unit: string | null;
 	quantity: number;
 	price: number;
+	stock?: number;
 };
 
 export default function CustomerOrderReviewPage() {
@@ -83,7 +84,31 @@ export default function CustomerOrderReviewPage() {
 	const [addProductId, setAddProductId] = useState<string>("");
 	const [productSearch, setProductSearch] = useState<string>("");
 	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [isConfirmingLocal, setIsConfirmingLocal] = useState(false);
+	const [isSavingDraftLocal, setIsSavingDraftLocal] = useState(false);
+	const confirmingRef = useRef(false);
+	const savingDraftRef = useRef(false);
 	const seeded = useRef(false);
+
+	const stockMap = useMemo(() => {
+		const map = new Map<number, number>();
+		(catalog ?? []).forEach((p) => {
+			map.set(p.id, Number(p.stock ?? 0));
+		});
+		(order?.items ?? []).forEach((it: any) => {
+			if (!map.has(it.productId) && it.stock !== undefined) {
+				map.set(it.productId, Number(it.stock));
+			}
+		});
+		return map;
+	}, [catalog, order]);
+
+	const shortageLines = useMemo(() => {
+		return lines.filter((l) => {
+			const s = stockMap.get(l.productId) ?? l.stock ?? 0;
+			return s <= 0 || s < l.quantity;
+		});
+	}, [lines, stockMap]);
 
 	const filteredCatalog = useMemo(() => {
 		const list = (catalog ?? []).filter((p) => p.status === "active");
@@ -105,11 +130,12 @@ export default function CustomerOrderReviewPage() {
 					productId: it.productId as number,
 					name: it.name || it.productName || it.product?.name || "Product",
 					unit: it.unit,
-					quantity: it.quantity,
+					quantity: Number(it.quantity),
 					price:
 						Number(it.price) > 0
 							? Number(it.price)
 							: Number(it.suggestedPrice ?? it.catalogPrice ?? 0),
+					stock: Number(it.stock ?? 0),
 				})),
 			);
 			setDiscount(Number(order.discountAmount ?? 0));
@@ -148,9 +174,10 @@ export default function CustomerOrderReviewPage() {
 			{
 				productId: pid,
 				name: prod.name,
-				unit: null,
+				unit: prod.unit ?? null,
 				quantity: 1,
 				price: prod.baseSellingPrice ?? 0,
+				stock: Number(prod.stock ?? 0),
 			},
 		]);
 		setAddProductId("");
@@ -158,12 +185,21 @@ export default function CustomerOrderReviewPage() {
 
 	const saveDraft = trpc.orders.updateReviewItems.useMutation({
 		onSuccess: () => {
+			savingDraftRef.current = false;
+			setIsSavingDraftLocal(false);
 			toast.success("Order draft updated successfully.");
 			utils.orders.getForReview.invalidate({ id });
 			utils.orders.listPendingReview.invalidate();
 			utils.orders.getPendingCount.invalidate();
+			utils.customer.getMyOrders.invalidate();
+			utils.customer.getMyOrder.invalidate({ id });
+			utils.customer.getPortalStats.invalidate();
 		},
-		onError: (e) => toast.error(e.message),
+		onError: (e) => {
+			savingDraftRef.current = false;
+			setIsSavingDraftLocal(false);
+			toast.error(e.message);
+		},
 	});
 
 	const assignRouteMutation = trpc.orders.assignRoute.useMutation({
@@ -177,7 +213,7 @@ export default function CustomerOrderReviewPage() {
 
 	const handleRouteChange = (newRouteId: string) => {
 		setSelectedRouteId(newRouteId);
-		if (newRouteId) {
+		if (newRouteId && newRouteId !== "none") {
 			assignRouteMutation.mutate({
 				orderId: id,
 				routeId: Number(newRouteId),
@@ -202,6 +238,11 @@ export default function CustomerOrderReviewPage() {
 			utils.orders.getPendingCount.invalidate();
 			utils.orders.listCancelledOrders.invalidate();
 			utils.orders.list.invalidate();
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
+			utils.warehouse.invalidate();
 			setCancelDialogOpen(false);
 			router.push("/sales/orders/review");
 		},
@@ -230,6 +271,8 @@ export default function CustomerOrderReviewPage() {
 
 	const confirm = trpc.orders.confirmOrder.useMutation({
 		onSuccess: (res) => {
+			confirmingRef.current = false;
+			setIsConfirmingLocal(false);
 			toast.success("Order confirmed! Bill generated successfully.");
 			utils.orders.list.invalidate();
 			utils.orders.listPendingReview.invalidate();
@@ -241,6 +284,9 @@ export default function CustomerOrderReviewPage() {
 			utils.picker.getPending.invalidate();
 			utils.picker.getDashboardStats.invalidate();
 			utils.warehouse.getPickingQueue.invalidate();
+			utils.customer.getMyOrders.invalidate();
+			utils.customer.getMyOrder.invalidate({ id });
+			utils.customer.getPortalStats.invalidate();
 			setConfirmOpen(false);
 
 			// Populate CompletedOrder for the bill invoice screen
@@ -255,22 +301,31 @@ export default function CustomerOrderReviewPage() {
 				address: order?.customer?.address || "",
 				subtotal: sub,
 				discount: discount,
+				discountReason:
+					(order as any)?.discount_reason ||
+					(order as any)?.discountReason ||
+					undefined,
 				total: tot,
 				items: lines.map((l: any) => ({
 					id: l.productId,
 					name: l.name || l.productName || "Product",
 					productName: l.name || l.productName || "Product",
-					qty: l.quantity,
+					qty: Number(l.quantity) || 0,
 					price: l.price.toString(),
 				})),
 				payments: [{ methodId: 1, amount: tot.toString() }],
 			});
 		},
 		onError: (e) => {
+			confirmingRef.current = false;
+			setIsConfirmingLocal(false);
 			setConfirmOpen(false);
 			toast.error(e.message);
 		},
 	});
+
+	const isConfirming = isConfirmingLocal || confirm.isPending;
+	const isSavingDraft = isSavingDraftLocal || saveDraft.isPending;
 
 	if (completedOrder) {
 		return (
@@ -307,10 +362,26 @@ export default function CustomerOrderReviewPage() {
 		);
 
 	const unpricedCount = lines.filter((l) => l.price <= 0).length;
-	const canConfirm = !locked && lines.length > 0 && unpricedCount === 0;
+	const canConfirm =
+		!locked &&
+		lines.length > 0 &&
+		unpricedCount === 0 &&
+		!isConfirming &&
+		!isSavingDraft;
 
 	const handleSave = () => {
-		if (saveDraft.isPending || confirm.isPending) return;
+		if (
+			savingDraftRef.current ||
+			confirmingRef.current ||
+			isSavingDraft ||
+			isConfirming ||
+			lines.length === 0
+		)
+			return;
+
+		savingDraftRef.current = true;
+		setIsSavingDraftLocal(true);
+
 		saveDraft.mutate({
 			id,
 			items: lines.map((l) => ({
@@ -323,7 +394,18 @@ export default function CustomerOrderReviewPage() {
 	};
 
 	const handleConfirm = () => {
-		if (confirm.isPending || saveDraft.isPending) return;
+		if (
+			confirmingRef.current ||
+			savingDraftRef.current ||
+			isConfirming ||
+			isSavingDraft ||
+			!canConfirm
+		)
+			return;
+
+		confirmingRef.current = true;
+		setIsConfirmingLocal(true);
+
 		confirm.mutate({
 			id,
 			items: lines.map((l) => ({
@@ -341,6 +423,19 @@ export default function CustomerOrderReviewPage() {
 
 	return (
 		<div className="space-y-6">
+			{order.reviewedBy && (
+				<div className="rounded-lg border border-purple-200 bg-purple-50 p-4 text-purple-900 shadow-sm dark:border-purple-900/50 dark:bg-purple-950/40 dark:text-purple-200 flex items-center gap-3">
+					<span className="text-xl">🔒</span>
+					<div>
+						<p className="font-semibold text-sm">
+							Equipped / Being Reviewed by: {order.reviewedBy}
+						</p>
+						<p className="text-xs text-purple-700 dark:text-purple-300">
+							Another sales team member opened this order first. Be mindful when editing or making changes.
+						</p>
+					</div>
+				</div>
+			)}
 			{/* Back Link & Header */}
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
@@ -365,7 +460,9 @@ export default function CustomerOrderReviewPage() {
 									variant="outline"
 									className="border-emerald-500/30 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
 								>
-									<Link href={`/sales/pos?completedOrderId=${order.id}`}>
+									<Link
+										href={`/sales/pos?completedOrderId=${order.id}&returnUrl=/sales/orders`}
+									>
 										View Bill in POS / Print Invoice
 									</Link>
 								</Button>
@@ -510,13 +607,42 @@ export default function CustomerOrderReviewPage() {
 				</div>
 			)}
 
+			{/* Stock Shortage Alert & Call Resolution Banner */}
+			{!locked && shortageLines.length > 0 && (
+				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-red-300 bg-red-50 p-4 text-red-900 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+					<div className="flex items-start gap-3">
+						<AlertTriangleIcon className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
+						<div>
+							<p className="font-bold text-sm">
+								Stock Shortage Alert ({shortageLines.length} item{shortageLines.length > 1 ? "s" : ""} out of stock or low in warehouse)
+							</p>
+							<p className="text-xs text-red-700 dark:text-red-300 mt-0.5">
+								Call the customer immediately to inform them about stock availability. Adjust quantities or remove items before confirming the bill.
+							</p>
+						</div>
+					</div>
+					{order.customer?.phone && (
+						<Button
+							asChild
+							size="sm"
+							className="shrink-0 gap-1.5 bg-red-600 font-semibold text-white shadow-sm hover:bg-red-700"
+						>
+							<a href={`tel:${order.customer.phone}`}>
+								<PhoneIcon className="h-4 w-4" />
+								Call Customer ({order.customer.phone})
+							</a>
+						</Button>
+					)}
+				</div>
+			)}
+
 			{/* Line Items Table Card */}
 			<Card className="border-border/50">
 				<CardHeader>
 					<CardTitle className="text-base">Line Items & Pricing</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<div className="hidden rounded-lg bg-muted/50 px-4 py-2 font-medium text-muted-foreground text-xs sm:grid sm:grid-cols-[1fr_100px_140px_120px_40px] sm:gap-4">
+					<div className="hidden rounded-lg bg-muted/50 px-4 py-2 font-medium text-muted-foreground text-xs sm:grid sm:grid-cols-[1fr_110px_140px_120px_40px] sm:gap-4">
 						<span>Product</span>
 						<span>Quantity</span>
 						<span>Unit Price (MRP)</span>
@@ -524,86 +650,137 @@ export default function CustomerOrderReviewPage() {
 						<span className="sr-only">Actions</span>
 					</div>
 
-					{lines.map((l) => (
-						<div
-							key={l.productId}
-							className="flex flex-col gap-3 rounded-lg border border-border/40 p-3 last:border-0 sm:grid sm:grid-cols-[1fr_100px_140px_120px_40px] sm:items-center sm:gap-4 sm:border-0 sm:border-b sm:p-0 sm:pb-3"
-						>
-							<div className="min-w-0">
-								<p className="font-medium text-foreground text-sm">{l.name}</p>
-								<div className="flex flex-wrap items-center gap-2 pt-1">
-									<span className="inline-flex items-center rounded-md border border-border/40 bg-muted/85 px-2 py-0.5 font-bold font-mono text-[10px] text-muted-foreground shadow-sm">
-										ID: {l.productId}
-									</span>
-									{l.unit && (
-										<span className="font-medium text-muted-foreground text-xs">
-											Unit: {l.unit}
+					{lines.map((l) => {
+						const availableStock = stockMap.get(l.productId) ?? l.stock ?? 0;
+						const isOutOfStock = availableStock <= 0;
+						const isLowStock = availableStock > 0 && availableStock < l.quantity;
+
+						return (
+							<div
+								key={l.productId}
+								className={`flex flex-col gap-3 rounded-lg border p-3 last:border-0 sm:grid sm:grid-cols-[1fr_110px_140px_120px_40px] sm:items-center sm:gap-4 sm:border-0 sm:border-b sm:p-2 sm:pb-3 transition-colors ${
+									isOutOfStock
+										? "border-red-400/60 bg-red-500/10 dark:border-red-900/60 dark:bg-red-950/20"
+										: isLowStock
+											? "border-amber-400/60 bg-amber-500/10 dark:border-amber-900/60 dark:bg-amber-950/20"
+											: "border-border/40 hover:bg-muted/20"
+								}`}
+							>
+								<div className="min-w-0 space-y-1">
+									<p className="font-medium text-foreground text-sm">{l.name}</p>
+									<div className="flex flex-wrap items-center gap-2 pt-0.5">
+										<span className="inline-flex items-center rounded-md border border-border/40 bg-muted/85 px-2 py-0.5 font-bold font-mono text-[10px] text-muted-foreground shadow-sm">
+											ID: {l.productId}
 										</span>
+										{l.unit && (
+											<span className="font-medium text-muted-foreground text-xs">
+												Unit: {l.unit}
+											</span>
+										)}
+										{/* Real-Time Warehouse Stock Indicator */}
+										{isOutOfStock ? (
+											<span className="inline-flex items-center gap-1 rounded-md border border-red-500/40 bg-red-500/20 px-2 py-0.5 font-bold font-mono text-[11px] text-red-700 dark:text-red-400 shadow-sm animate-pulse">
+												<XCircleIcon className="h-3 w-3 shrink-0 text-red-600" />
+												Out of Stock (0 available)
+											</span>
+										) : isLowStock ? (
+											<span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/20 px-2 py-0.5 font-bold font-mono text-[11px] text-amber-700 dark:text-amber-400 shadow-sm">
+												<AlertTriangleIcon className="h-3 w-3 shrink-0 text-amber-600" />
+												Shortage: Only {availableStock} {l.unit ?? "pcs"} in stock
+											</span>
+										) : (
+											<span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 font-semibold font-mono text-[11px] text-emerald-700 dark:text-emerald-400 shadow-sm">
+												<CheckCircle2Icon className="h-3 w-3 shrink-0 text-emerald-600" />
+												Stock: {availableStock} {l.unit ?? "pcs"}
+											</span>
+										)}
+									</div>
+									{isOutOfStock && !locked && (
+										<p className="flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+											<span>⚠️ Stock is empty. Call customer to confirm removal or replace item.</span>
+										</p>
 									)}
 								</div>
-							</div>
 
-							<div>
-								<Label className="text-xs sm:sr-only">Quantity</Label>
-								<Input
-									type="number"
-									min={1}
-									value={l.quantity}
-									disabled={locked}
-									onChange={(e) =>
-										setLine(l.productId, {
-											quantity: Math.max(1, Number(e.target.value) || 1),
-										})
-									}
-									className="h-9"
-								/>
-							</div>
+								<div>
+									<Label className="text-xs sm:sr-only">Quantity</Label>
+									<Input
+										type="number"
+										min="0.001"
+										step="any"
+										value={l.quantity}
+										disabled={locked}
+										onChange={(e) => {
+											const val = parseFloat(e.target.value);
+											setLine(l.productId, {
+												quantity: isNaN(val) || val <= 0 ? 0.001 : Number(val.toFixed(3)),
+											});
+										}}
+										className={`h-9 ${isOutOfStock ? "border-red-500 focus-visible:ring-red-500 font-semibold text-red-700" : isLowStock ? "border-amber-500 focus-visible:ring-amber-500 font-semibold" : ""}`}
+									/>
+									<div className="mt-1">
+										{isOutOfStock ? (
+											<p className="font-bold text-[10px] text-red-600 dark:text-red-400">
+												0 in stock
+											</p>
+										) : isLowStock ? (
+											<p className="font-bold text-[10px] text-amber-600 dark:text-amber-400">
+												Max: {availableStock}
+											</p>
+										) : (
+											<p className="text-[10px] text-muted-foreground">
+												Avail: {availableStock}
+											</p>
+										)}
+									</div>
+								</div>
 
-							<div>
-								<Label className="text-xs sm:sr-only">Unit Price (₹)</Label>
-								<div
-									className={`flex h-9 items-center justify-between gap-1.5 rounded-md border border-border/50 bg-muted/30 px-3 text-sm ${l.price <= 0 ? "border-amber-400 bg-amber-50/50 text-amber-800 dark:bg-amber-950/20 dark:text-amber-200" : "text-foreground"}`}
-									title="MRP is locked and managed exclusively by Warehouse Manager"
-								>
-									<span className="font-medium">
+								<div>
+									<Label className="text-xs sm:sr-only">Unit Price (₹)</Label>
+									<div
+										className={`flex h-9 items-center justify-between gap-1.5 rounded-md border border-border/50 bg-muted/30 px-3 text-sm ${l.price <= 0 ? "border-amber-400 bg-amber-50/50 text-amber-800 dark:bg-amber-950/20 dark:text-amber-200" : "text-foreground"}`}
+										title="MRP is locked and managed exclusively by Warehouse Manager"
+									>
+										<span className="font-medium">
+											₹
+											{Number(l.price).toLocaleString("en-IN", {
+												minimumFractionDigits: 2,
+												maximumFractionDigits: 2,
+											})}
+										</span>
+										<span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+											<LockIcon className="h-2.5 w-2.5" />
+											MRP
+										</span>
+									</div>
+								</div>
+
+								<div className="flex items-center justify-between sm:justify-end">
+									<span className="text-muted-foreground text-xs sm:hidden">
+										Line Total:
+									</span>
+									<span className="font-semibold text-foreground text-sm">
 										₹
-										{Number(l.price).toLocaleString("en-IN", {
+										{(l.price * l.quantity).toLocaleString("en-IN", {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
 									</span>
-									<span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
-										<LockIcon className="h-2.5 w-2.5" />
-										MRP
-									</span>
 								</div>
-							</div>
 
-							<div className="flex items-center justify-between sm:justify-end">
-								<span className="text-muted-foreground text-xs sm:hidden">
-									Line Total:
-								</span>
-								<span className="font-semibold text-foreground text-sm">
-									₹
-									{(l.price * l.quantity).toLocaleString("en-IN", {
-										minimumFractionDigits: 2,
-										maximumFractionDigits: 2,
-									})}
-								</span>
+								{!locked && (
+									<button
+										type="button"
+										onClick={() => removeLine(l.productId)}
+										className="self-end text-muted-foreground transition-colors hover:text-destructive sm:self-center"
+										title="Remove item"
+									>
+										<Trash2Icon className="h-4 w-4" />
+									</button>
+								)}
 							</div>
-
-							{!locked && (
-								<button
-									type="button"
-									onClick={() => removeLine(l.productId)}
-									className="self-end text-muted-foreground transition-colors hover:text-destructive sm:self-center"
-									title="Remove item"
-								>
-									<Trash2Icon className="h-4 w-4" />
-								</button>
-							)}
-						</div>
-					))}
+						);
+					})}
 
 					{/* Add Extra Item Row */}
 					{!locked && (
@@ -758,16 +935,25 @@ export default function CustomerOrderReviewPage() {
 						<Button
 							variant="outline"
 							onClick={handleSave}
-							disabled={saveDraft.isPending || lines.length === 0}
+							disabled={isSavingDraft || isConfirming || lines.length === 0}
 							className="gap-2"
 						>
-							<SaveIcon className="h-4 w-4" />
-							{saveDraft.isPending ? "Saving Draft…" : "Save Draft"}
+							{isSavingDraft ? (
+								<>
+									<Loader2Icon className="h-4 w-4 animate-spin" />
+									Saving Draft…
+								</>
+							) : (
+								<>
+									<SaveIcon className="h-4 w-4" />
+									Save Draft
+								</>
+							)}
 						</Button>
 
 						<Button
 							onClick={() => setConfirmOpen(true)}
-							disabled={!canConfirm}
+							disabled={!canConfirm || isConfirming || isSavingDraft}
 							className="gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
 						>
 							<CheckCircle2Icon className="h-4 w-4" />
@@ -987,15 +1173,28 @@ export default function CustomerOrderReviewPage() {
 						</p>
 					</div>
 					<DialogFooter className="gap-2 sm:gap-0">
-						<Button variant="outline" onClick={() => setConfirmOpen(false)}>
+						<Button
+							variant="outline"
+							onClick={() => setConfirmOpen(false)}
+							disabled={isConfirming}
+						>
 							Cancel
 						</Button>
 						<Button
 							onClick={handleConfirm}
-							disabled={confirm.isPending}
-							className="bg-emerald-600 text-white hover:bg-emerald-700"
+							disabled={isConfirming || confirm.isPending}
+							className={`bg-emerald-600 text-white hover:bg-emerald-700 ${
+								isConfirming ? "pointer-events-none opacity-80" : ""
+							}`}
 						>
-							{confirm.isPending ? "Confirming & Billing…" : "Confirm Order"}
+							{isConfirming ? (
+								<>
+									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+									Confirming & Billing…
+								</>
+							) : (
+								"Confirm Order"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

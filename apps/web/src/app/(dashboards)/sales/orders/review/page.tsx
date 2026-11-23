@@ -15,6 +15,7 @@ import {
 	ClipboardListIcon,
 	ClockIcon,
 	Loader2Icon,
+	LockIcon,
 	PhoneIcon,
 	XCircleIcon,
 } from "lucide-react";
@@ -98,12 +99,13 @@ export default function CustomerOrderInboxPage() {
 	const cancelMutation = trpc.orders.cancelOrder.useMutation({
 		onSuccess: () => {
 			toast.success(
-				`Order ORD-${cancellingOrder?.id} cancelled and moved to Cancelled Orders archive.`,
+				`Order ORD-${cancellingOrder?.id} cancelled and items immediately restored to inventory.`,
 			);
-			utils.orders.listPendingReview.invalidate();
-			utils.orders.getPendingCount.invalidate();
-			utils.orders.listCancelledOrders.invalidate();
-			utils.orders.list.invalidate();
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
+			utils.warehouse.invalidate();
 			refetch();
 			setCancellingOrder(null);
 			setSelectedReason(PRESET_CANCEL_REASONS[0]);
@@ -226,11 +228,7 @@ export default function CustomerOrderInboxPage() {
 				<div className="py-12 text-center text-muted-foreground text-sm">
 					Loading pending customer orders queue…
 				</div>
-			) : error ? (
-				<div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive text-sm">
-					{error.message}
-				</div>
-			) : sortedOrders.length === 0 ? (
+			) : error || sortedOrders.length === 0 ? (
 				<Card className="border-border/60 border-dashed">
 					<CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
 						<div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -238,10 +236,10 @@ export default function CustomerOrderInboxPage() {
 						</div>
 						<div>
 							<p className="font-semibold text-base text-foreground">
-								All clear!
+								No Pending Customer Orders
 							</p>
 							<p className="text-muted-foreground text-sm">
-								No customer orders waiting in the queue.
+								All clear! There are currently no customer orders waiting in the queue.
 							</p>
 						</div>
 					</CardContent>
@@ -271,6 +269,15 @@ export default function CustomerOrderInboxPage() {
 											>
 												{statusInfo.label}
 											</Badge>
+											{o.reviewedBy && (
+												<Badge
+													variant="outline"
+													className="bg-purple-100 text-purple-900 dark:bg-purple-950/70 dark:text-purple-200 border-purple-300 dark:border-purple-800 text-xs font-semibold gap-1 py-0.5 px-2.5 shadow-sm"
+												>
+													<LockIcon className="h-3 w-3 text-purple-700 dark:text-purple-300" />
+													Taken by {o.reviewedBy} (Equipped)
+												</Badge>
+											)}
 											<span className="inline-flex items-center gap-1 font-medium text-amber-700 text-xs dark:text-amber-400">
 												<ClockIcon className="h-3 w-3" />
 												Waiting: {formatPendingDuration(o.createdAt)}

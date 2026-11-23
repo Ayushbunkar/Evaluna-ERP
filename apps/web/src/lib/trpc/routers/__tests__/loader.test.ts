@@ -141,6 +141,26 @@ describe("loaderRouter", () => {
 		expect(found?.driverName).toBe("Rahul Driver");
 	});
 
+	it("does not include unreleased pending trips in loader queue until manager releases them", async () => {
+		// Insert an unreleased pending trip
+		const [pendingTrip] = await db
+			.insert(schema.deliveryTrips)
+			.values({
+				route_id: 1,
+				driver_id: "drv-101",
+				status: "pending",
+			})
+			.returning();
+
+		const queue = await callerAsLoader.getLoadingQueue({ status: "ready_for_loading" });
+		const found = queue.find((q) => q.tripId === pendingTrip.id);
+		expect(found).toBeUndefined();
+
+		const allQueue = await callerAsLoader.getLoadingQueue({ status: "all" });
+		const foundAll = allQueue.find((q) => q.tripId === pendingTrip.id);
+		expect(foundAll).toBeUndefined();
+	});
+
 	it("transitions trip status to loading when startLoadingTrip is called", async () => {
 		const res = await callerAsLoader.startLoadingTrip({ tripId: testTripId });
 		expect(res.success).toBe(true);
@@ -169,6 +189,32 @@ describe("loaderRouter", () => {
 		expect(details.summary.loadedOrders).toBe(1);
 	});
 
+	it("does not leak newly created orders for customer into an existing trip", async () => {
+		// Create a brand new order for the same customer with status 'confirmed' (as created in POS/sales)
+		// created after the trip was created
+		const futureDate = new Date(Date.now() + 1_000_000);
+		const [newBill] = await db
+			.insert(schema.orders)
+			.values({
+				customer_id: testCustomerId,
+				total_amount: "999.00",
+				status: "confirmed",
+				user_uid: "sales-1",
+				created_at: futureDate,
+			})
+			.returning();
+
+		// Check getTripLoadingDetails for testTripId does NOT include newBill
+		const details = await callerAsLoader.getTripLoadingDetails({ tripId: testTripId });
+		const orderIdsInDetails = details.stops.flatMap((s: any) => s.orders.map((o: any) => o.orderId));
+		expect(orderIdsInDetails).not.toContain(newBill.id);
+
+		// Also check that queue does not count the new bill for this trip
+		const queue = await callerAsLoader.getLoadingQueue({ status: "all" });
+		const tripInQueue = queue.find((q: any) => q.tripId === testTripId);
+		expect(tripInQueue?.ordersCount).toBe(1);
+	});
+
 	it("completes trip loading when all orders are loaded", async () => {
 		const completeRes = await callerAsLoader.completeTripLoading({
 			tripId: testTripId,
@@ -179,5 +225,88 @@ describe("loaderRouter", () => {
 		const history = await callerAsLoader.getLoadingHistory({});
 		const foundHist = history.find((h) => h.tripId === testTripId);
 		expect(foundHist).toBeDefined();
+	});
+
+	it("returns direct packed orders queue before trip creation and allows marking loaded", async () => {
+		// Create a customer without any trip assigned
+		const [c2] = await db
+			.insert(schema.customers)
+			.values({
+				name: "Untripped Customer",
+				address: "Village B",
+				user_uid: "test-user-uid-2",
+			})
+			.returning();
+
+		// Create a direct packed order not assigned to any trip
+		const [packedOrder] = await db
+			.insert(schema.orders)
+			.values({
+				customer_id: c2.id,
+				total_amount: "1500.00",
+				status: "packed",
+				user_uid: "packer-1",
+			})
+			.returning();
+
+		await db.insert(schema.packages).values({
+			order_id: packedOrder.id,
+			package_number: `PKG-${packedOrder.id}-1`,
+			package_type: "box",
+			status: "packed",
+			weight: "5.0",
+		});
+
+		// 1. While status is "packed", loader does not see it (it awaits manager verification)
+		const unverifiedQueue = await callerAsLoader.getPackedOrdersQueue({ status: "all" });
+		const notYetInQueue = unverifiedQueue.find((o: any) => o.orderId === packedOrder.id);
+		expect(notYetInQueue).toBeUndefined();
+
+		// Manager verifies & approves order for loading -> status becomes "ready_for_loading"
+		await db
+			.update(schema.orders)
+			.set({ status: "ready_for_loading" })
+			.where(eq(schema.orders.id, packedOrder.id));
+
+		// 2. Once manager verified, loader sees it in queue
+		const packedQueue = await callerAsLoader.getPackedOrdersQueue({ status: "all" });
+		const foundInQueue = packedQueue.find((o: any) => o.orderId === packedOrder.id);
+		expect(foundInQueue).toBeDefined();
+		expect(foundInQueue?.status).toBe("ready_for_loading");
+		expect(foundInQueue?.packageCount).toBe(1);
+		expect(foundInQueue?.tripId).toBeNull();
+
+		const readyQueue = await callerAsLoader.getPackedOrdersQueue({ status: "ready_for_loading" });
+		const foundInReadyQueue = readyQueue.find((o: any) => o.orderId === packedOrder.id);
+		expect(foundInReadyQueue).toBeDefined();
+
+		// 3. Loader marks the direct order as loaded
+		const markRes = await callerAsLoader.markDirectOrderLoaded({
+			orderId: packedOrder.id,
+			loaded: true,
+		});
+		expect(markRes.success).toBe(true);
+		expect(markRes.status).toBe("loaded");
+
+		// 4. Verify order & package statuses updated to loaded
+		const [updatedOrder] = await db
+			.select()
+			.from(schema.orders)
+			.where(eq(schema.orders.id, packedOrder.id));
+		expect(updatedOrder.status).toBe("loaded");
+
+		const [updatedPkg] = await db
+			.select()
+			.from(schema.packages)
+			.where(eq(schema.packages.order_id, packedOrder.id));
+		expect(updatedPkg.status).toBe("loaded");
+
+		// 5. Loader can unmark loaded if needed
+		const unmarkRes = await callerAsLoader.markDirectOrderLoaded({
+			orderId: packedOrder.id,
+			loaded: false,
+		});
+		expect(unmarkRes.success).toBe(true);
+		expect(unmarkRes.status).toBe("ready_for_loading");
 	});
 });

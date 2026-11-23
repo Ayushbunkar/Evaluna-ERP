@@ -57,6 +57,7 @@ import { placementRouter } from "./placement";
 import { posRouter } from "./pos";
 import { priceAuditRouter } from "./price-audit";
 import { productsRouter } from "./products";
+import { procurementRouter } from "./procurement";
 import { purchaseReturnsRouter } from "./purchase-returns";
 import { purchasesRouter } from "./purchases";
 import { putterRouter } from "./putter";
@@ -67,6 +68,7 @@ import { salaryRouter } from "./salary";
 import { salesReturnsRouter } from "./sales-returns";
 import { schemesRouter } from "./schemes";
 import { settingsRouter } from "./settings";
+import { slabPricingRouter } from "./slab-pricing";
 import { staffRouter } from "./staff";
 import { superadminRouter } from "./superadmin";
 import { supplierRouter } from "./supplier";
@@ -75,8 +77,10 @@ import { transactionsRouter } from "./transactions";
 import { transfersRouter } from "./transfers";
 import { upcRouter } from "./upc";
 import { usersRouter } from "./users";
+import { vanStockRouter } from "./van-stock";
 import { vehiclesRouter } from "./vehicles";
 import { warehouseRouter } from "./warehouse";
+import { whatsappSmsRouter } from "./whatsapp-sms";
 
 export const appRouter = router({
 	accounting: accountingRouter,
@@ -136,6 +140,7 @@ export const appRouter = router({
 	placement: placementRouter,
 	pos: posRouter,
 	priceAudit: priceAuditRouter,
+	procurement: procurementRouter,
 	products: productsRouter,
 	purchaseReturns: purchaseReturnsRouter,
 	purchases: purchasesRouter,
@@ -147,6 +152,7 @@ export const appRouter = router({
 	salesReturns: salesReturnsRouter,
 	schemes: schemesRouter,
 	settings: settingsRouter,
+	slabPricing: slabPricingRouter,
 	staff: staffRouter,
 	superadmin: superadminRouter,
 	supplier: supplierRouter,
@@ -157,6 +163,8 @@ export const appRouter = router({
 	vehicles: vehiclesRouter,
 	warehouse: warehouseRouter,
 	users: usersRouter,
+	vanStock: vanStockRouter,
+	whatsappSms: whatsappSmsRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -1,12 +1,31 @@
 import { Card, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
+import type { Metadata } from "next";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { Footer } from "@/components/public/footer";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Product Updates & Changelog — Evaluna ERP Releases",
+	description:
+		"Stay updated with new features, performance improvements, and release notes across Evaluna ERP modules.",
+	canonicalPath: "/resources/updates",
+});
 
 export default function UpdatesPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Resources", url: "/resources" },
+		{ name: "Updates", url: "/resources/updates" },
+	]);
+
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 text-slate-900">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			<Navbar />
 			<main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
 				<Link href="/resources" className="inline-flex items-center text-sm text-blue-600 hover:underline mb-6">

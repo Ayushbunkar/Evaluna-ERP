@@ -13,6 +13,7 @@ import {
 
 const packerNavItems: NavItem[] = [
 	{ href: "/packer", labelKey: "dashboard", icon: LayoutDashboardIcon },
+	{ href: "/packer/van-stock", labelKey: "vanStockPacking", icon: PackageIcon },
 	{ href: "/packer/pending", labelKey: "pendingPacking", icon: PackageIcon },
 	{ href: "/packer/history", labelKey: "packingHistory", icon: ArchiveIcon },
 	{ href: "/packer/reports", labelKey: "reports", icon: FileBarChartIcon },

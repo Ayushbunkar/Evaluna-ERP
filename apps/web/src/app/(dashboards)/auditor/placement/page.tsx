@@ -26,6 +26,13 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@evaluna/ui/components/select";
+import {
 	AlertTriangleIcon,
 	CheckCircle2Icon,
 	ClockIcon,
@@ -35,6 +42,7 @@ import {
 	PackageIcon,
 	PlusIcon,
 	SearchIcon,
+	ShieldAlertIcon,
 	UsersIcon,
 	XCircleIcon,
 } from "lucide-react";
@@ -215,21 +223,38 @@ export default function AuditorPlacementPage() {
 								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 									Audit Result
 								</label>
-								<select
-									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+								<Select
 									value={auditStatus}
-									onChange={(e) => setAuditStatus(e.target.value as any)}
+									onValueChange={(val: any) => setAuditStatus(val)}
 								>
-									<option value="VERIFIED">
-										✅ Verified (Correct Location & Quantity)
-									</option>
-									<option value="DISCREPANCY">
-										⚠️ Discrepancy (Wrong Rack/Bin - Auto Raises Finding)
-									</option>
-									<option value="PLACEMENT_EXCEPTION">
-										🚨 Placement Exception (Item Missing / Damaged)
-									</option>
-								</select>
+									<SelectTrigger className="w-full border-input bg-background text-sm shadow-sm">
+										<SelectValue placeholder="Select Audit Result" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="VERIFIED">
+											<div className="flex items-center gap-2">
+												<CheckCircle2Icon className="h-4 w-4 text-emerald-500 shrink-0" />
+												<span>Verified (Correct Location & Quantity)</span>
+											</div>
+										</SelectItem>
+										<SelectItem value="DISCREPANCY">
+											<div className="flex items-center gap-2">
+												<AlertTriangleIcon className="h-4 w-4 text-amber-500 shrink-0" />
+												<span>
+													Discrepancy (Wrong Rack/Bin - Auto Raises Finding)
+												</span>
+											</div>
+										</SelectItem>
+										<SelectItem value="PLACEMENT_EXCEPTION">
+											<div className="flex items-center gap-2">
+												<ShieldAlertIcon className="h-4 w-4 text-rose-500 shrink-0" />
+												<span>
+													Placement Exception (Item Missing / Damaged)
+												</span>
+											</div>
+										</SelectItem>
+									</SelectContent>
+								</Select>
 							</div>
 
 							{/* Notes */}

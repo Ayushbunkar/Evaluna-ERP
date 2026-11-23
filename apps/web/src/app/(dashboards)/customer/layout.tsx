@@ -5,6 +5,7 @@ import {
 	LayoutDashboardIcon,
 	PackageIcon,
 	ShoppingBagIcon,
+	ShoppingCartIcon,
 	UserIcon,
 } from "lucide-react";
 import {
@@ -19,6 +20,7 @@ const customerNavItems: NavItem[] = [
 		labelKey: "productsPlaceOrder",
 		icon: PackageIcon,
 	},
+	{ href: "/customer/cart", labelKey: "cart", icon: ShoppingCartIcon },
 	{ href: "/customer/orders", labelKey: "orders", icon: ShoppingBagIcon },
 	{ href: "/customer/payments", labelKey: "payments", icon: CreditCardIcon },
 	{ href: "/customer/profile", labelKey: "customerProfile", icon: UserIcon },

@@ -186,11 +186,11 @@ export async function postPaymentTx(
 			amount: input.amount,
 			user_uid: actor.id,
 			type: direction,
-			category: input.customCategoryName || "payment",
+			category: input.customCategoryName || (direction === "out" ? "expense" : "payment"),
 			status: "completed",
 			description: input.description ?? paymentNumber,
 			payment_method_id: input.paymentMethodId ?? null,
-			reference_type: "payment",
+			reference_type: input.source || "payment",
 			reference_id: payment.id,
 		})
 		.returning();

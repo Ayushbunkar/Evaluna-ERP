@@ -19,8 +19,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
@@ -30,16 +31,25 @@ export default function FinanceTransactionsPage() {
 
 	const [page, setPage] = useState(1);
 	const [search, setSearch] = useState("");
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+	const [datePreset, setDatePreset] = useState("all");
 	const limit = 10;
 
 	const { data, isLoading, error } = trpc.finance.getTransactions.useQuery({
 		page,
 		limit,
-		search,
+		search: search || undefined,
+		date_from: startDate || undefined,
+		date_to: endDate || undefined,
 	});
 
 	const transactions = data?.items || [];
 	const totalPages = data?.pages || 1;
+
+	const totalTransactionAmount = useMemo(() => {
+		return transactions.reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
+	}, [transactions]);
 
 	return (
 		<PageTransition className="container mx-auto py-8">
@@ -61,15 +71,33 @@ export default function FinanceTransactionsPage() {
 				</div>
 			</div>
 
-			<div className="mb-4 flex max-w-sm items-center">
-				<Input
-					placeholder="Search description..."
-					value={search}
-					onChange={(e) => {
-						setSearch(e.target.value);
+			<div className="mb-4 flex flex-col gap-3">
+				<div className="flex max-w-sm items-center">
+					<Input
+						placeholder="Search description..."
+						value={search}
+						onChange={(e) => {
+							setSearch(e.target.value);
+							setPage(1);
+						}}
+						className="w-full"
+					/>
+				</div>
+
+				<DateFilterBar
+					startDate={startDate}
+					endDate={endDate}
+					datePreset={datePreset}
+					totalCount={data?.total}
+					countLabel="transactions"
+					totalAmount={totalTransactionAmount}
+					amountLabel="Total Amount:"
+					onDateChange={(start, end, preset) => {
+						setStartDate(start);
+						setEndDate(end);
+						setDatePreset(preset);
 						setPage(1);
 					}}
-					className="w-full"
 				/>
 			</div>
 

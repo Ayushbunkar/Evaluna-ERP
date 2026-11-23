@@ -217,6 +217,10 @@ export const deliveryTripsRelations = relations(
 			fields: [deliveryTrips.driver_id],
 			references: [user.id],
 		}),
+		loader: one(user, {
+			fields: [deliveryTrips.loader_id],
+			references: [user.id],
+		}),
 		vehicle: one(vehicles, {
 			fields: [deliveryTrips.vehicle_id],
 			references: [vehicles.id],

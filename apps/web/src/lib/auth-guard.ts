@@ -16,6 +16,11 @@ import {
 	getCachedSession,
 	setCachedSession,
 } from "./session-cache";
+import {
+	TRUSTED_DEVICE_COOKIE_NAME,
+	verify2FAToken,
+	verifyTrustedDeviceToken,
+} from "./trusted-device";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Type Definitions
@@ -155,6 +160,40 @@ export async function getAuthUser(
 			return null;
 		}
 
+		// Enforce 2FA barrier on cached sessions
+		const cachedEmail = (cached.email || "").toLowerCase().trim();
+		const isSeed =
+			cachedEmail.endsWith("@evaluna.dev") || cachedEmail.endsWith("@evaluna.com");
+
+		if (!isSeed) {
+			let is2FAVerified = false;
+			try {
+				const cookieStore = await cookies();
+				const twoFAToken = cookieStore.get("evaluna_2fa_verified")?.value;
+				const is2FAValid = verify2FAToken(twoFAToken, cached.userId);
+				const deviceToken = cookieStore.get(TRUSTED_DEVICE_COOKIE_NAME)?.value;
+				const isDeviceTrusted = verifyTrustedDeviceToken(deviceToken, cached.userId);
+				is2FAVerified = is2FAValid || isDeviceTrusted;
+			} catch {}
+
+			if (!is2FAVerified && req) {
+				const cookieHeader = req.headers.get("cookie") || "";
+				const twoFAMatch = cookieHeader.match(/evaluna_2fa_verified=([^;]+)/);
+				const is2FAValid = twoFAMatch?.[1]
+					? verify2FAToken(decodeURIComponent(twoFAMatch[1]), cached.userId)
+					: false;
+				const deviceMatch = cookieHeader.match(/evaluna_trusted_device=([^;]+)/);
+				const isDeviceTrusted = deviceMatch?.[1]
+					? verifyTrustedDeviceToken(decodeURIComponent(deviceMatch[1]), cached.userId)
+					: false;
+				is2FAVerified = is2FAValid || isDeviceTrusted;
+			}
+
+			if (!is2FAVerified) {
+				return null;
+			}
+		}
+
 		return cached;
 	}
 
@@ -264,6 +303,43 @@ export async function getAuthUser(
 			`[auth-guard] Login denied due to status: ${dbUser.status} / locked: ${dbUser.locked_until}`,
 		);
 		return null;
+	}
+
+	// 4.5. Enforce 2FA barrier: non-seed sessions must complete 2FA before accessing ERP context
+	const userEmail = (dbUser.email || "").toLowerCase().trim();
+	const isSeedAccount =
+		userEmail.endsWith("@evaluna.dev") || userEmail.endsWith("@evaluna.com");
+
+	if (!isSeedAccount) {
+		let is2FAVerified = false;
+		try {
+			const cookieStore = await cookies();
+			const twoFAToken = cookieStore.get("evaluna_2fa_verified")?.value;
+			const is2FAValid = verify2FAToken(twoFAToken, dbUser.id);
+			const deviceToken = cookieStore.get(TRUSTED_DEVICE_COOKIE_NAME)?.value;
+			const isDeviceTrusted = verifyTrustedDeviceToken(deviceToken, dbUser.id);
+			is2FAVerified = is2FAValid || isDeviceTrusted;
+		} catch {}
+
+		if (!is2FAVerified && req) {
+			const cookieHeader = req.headers.get("cookie") || "";
+			const twoFAMatch = cookieHeader.match(/evaluna_2fa_verified=([^;]+)/);
+			const is2FAValid = twoFAMatch?.[1]
+				? verify2FAToken(decodeURIComponent(twoFAMatch[1]), dbUser.id)
+				: false;
+			const deviceMatch = cookieHeader.match(/evaluna_trusted_device=([^;]+)/);
+			const isDeviceTrusted = deviceMatch?.[1]
+				? verifyTrustedDeviceToken(decodeURIComponent(deviceMatch[1]), dbUser.id)
+				: false;
+			is2FAVerified = is2FAValid || isDeviceTrusted;
+		}
+
+		if (!is2FAVerified) {
+			console.warn(
+				`[auth-guard] 2FA required but not verified for user ${userEmail}`,
+			);
+			return null;
+		}
 	}
 
 	// 5. Resolve Roles, Permissions, and Dashboard Route (Requirements 4, 5, 8)

@@ -12,6 +12,7 @@ import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+	ArrowLeft,
 	ArrowLeftRight,
 	CheckCircle2,
 	Copy,
@@ -20,6 +21,7 @@ import {
 	IndianRupee,
 	Mail,
 	MessageCircle,
+	Phone,
 	Printer,
 	RotateCcw,
 	ShoppingBag,
@@ -29,6 +31,7 @@ import {
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { trpc } from "@/lib/trpc/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CompletedOrder {
@@ -39,14 +42,14 @@ interface CompletedOrder {
 		name?: string;
 		productName?: string;
 		product?: { name?: string };
-		qty: number;
+		qty: number | string;
 		price: string;
 	}>;
-	total: number;
-	subtotal: number;
-	discount: number;
+	total: number | string;
+	subtotal: number | string;
+	discount: number | string;
 	discountReason?: string;
-	otherCharges?: number;
+	otherCharges?: number | string;
 	otherChargesReason?: string;
 	payments: Array<{ methodId: number; amount: string }>;
 	cashierName?: string;
@@ -55,8 +58,15 @@ interface CompletedOrder {
 	shopName?: string;
 	address?: string;
 	village?: string;
+	finance_status?: string;
 	couponCode?: string;
 }
+
+const formatQty = (qty: number | string | undefined | null): string => {
+	const num = Number(qty) || 0;
+	const rounded = Math.round(num * 1000) / 1000;
+	return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+};
 
 const getItemName = (item: any): string => {
 	return (
@@ -70,13 +80,15 @@ const getItemName = (item: any): string => {
 interface SaleCompletionScreenProps {
 	order: CompletedOrder;
 	onNewSale: () => void;
+	onClose?: () => void;
+	returnUrl?: string;
 }
 
 const STORE = {
 	name: "EVALUNA PVT LTD",
 	address: "Near Bank of India, Vidisha Road, Berasia",
 	city: "Bhopal, MP – 463106",
-	phone: "7000219747",
+	phone: "9630649277",
 };
 
 const PAYMENT_METHOD_LABELS: Record<number, string> = {
@@ -159,11 +171,15 @@ function numberToWords(num: number): string {
 }
 
 const getPaymentStatusBadge = (order: CompletedOrder) => {
-	const paid = order.payments.reduce(
-		(a, p) => a + Number.parseFloat(p.amount),
+	if (order.finance_status === "pending" || order.finance_status === "unpaid") {
+		return { label: "UNPAID", color: "bg-red-100 text-red-700 border-red-300" };
+	}
+	const paid = (order.payments || []).reduce(
+		(a, p) => a + Number.parseFloat(p.amount || "0"),
 		0,
 	);
-	if (paid >= order.total - 0.01)
+	const orderTotal = Number(order.total) || 0;
+	if (orderTotal > 0 && paid >= orderTotal - 0.01)
 		return {
 			label: "PAID",
 			color: "bg-green-100 text-green-700 border-green-300",
@@ -176,29 +192,88 @@ const getPaymentStatusBadge = (order: CompletedOrder) => {
 	return { label: "UNPAID", color: "bg-red-100 text-red-700 border-red-300" };
 };
 
+export function calculateBillTotals(order: Partial<CompletedOrder>) {
+	const orderDiscount = Number(order.discount) || 0;
+	const orderOtherCharges = Number(order.otherCharges) || 0;
+
+	// Calculate the actual gross items total from the items list
+	const itemsGrossTotal = (order.items || []).reduce(
+		(sum, it) =>
+			sum + (Number.parseFloat(it.price) || 0) * (Number(it.qty) || 0),
+		0,
+	);
+
+	const rawOrderSubtotal = Number(order.subtotal) || 0;
+	const rawOrderTotal = Number(order.total) || 0;
+
+	// Subtotal must always reflect the actual gross total of items before discounts & extra charges
+	const orderSubtotal =
+		itemsGrossTotal > 0
+			? itemsGrossTotal
+			: rawOrderSubtotal > 0 &&
+					(orderDiscount === 0 || rawOrderSubtotal > rawOrderTotal)
+				? rawOrderSubtotal
+				: Math.max(0, rawOrderTotal + orderDiscount - orderOtherCharges);
+
+	// Ensure net total is mathematically: Subtotal - Discount + OtherCharges
+	const calculatedNet = Math.max(
+		0,
+		orderSubtotal - orderDiscount + orderOtherCharges,
+	);
+	const orderTotal =
+		rawOrderTotal > 0 && Math.abs(rawOrderTotal - calculatedNet) < 0.01
+			? rawOrderTotal
+			: calculatedNet;
+
+	const totalPaid = (order.payments || []).reduce(
+		(a, p) => a + (Number.parseFloat(p.amount) || 0),
+		0,
+	);
+	const change = Math.max(0, totalPaid - orderTotal);
+	const balanceDue = Math.max(0, orderTotal - totalPaid);
+	const roundOff = Math.round(orderTotal) - orderTotal;
+	const grandTotal = Math.round(orderTotal);
+
+	return {
+		itemsGrossTotal,
+		orderSubtotal,
+		orderDiscount,
+		orderOtherCharges,
+		orderTotal,
+		totalPaid,
+		change,
+		balanceDue,
+		roundOff,
+		grandTotal,
+	};
+}
+
 export function SaleCompletionScreen({
 	order,
 	onNewSale,
+	onClose,
+	returnUrl,
 }: SaleCompletionScreenProps) {
 	const receiptRef = useRef<HTMLDivElement>(null);
 	const [pageSize, setPageSize] = useState<"80mm" | "A4">("80mm");
 
-	const totalPaid = order.payments.reduce(
-		(a, p) => a + Number.parseFloat(p.amount),
-		0,
-	);
-	const change = Math.max(0, totalPaid - order.total);
-	const balanceDue = Math.max(0, order.total - totalPaid);
-	const roundOff = Math.round(order.total) - order.total;
-	const grandTotal = Math.round(order.total);
+	const {
+		orderSubtotal,
+		orderDiscount,
+		orderOtherCharges,
+		orderTotal,
+		totalPaid,
+		change,
+		balanceDue,
+		roundOff,
+		grandTotal,
+	} = calculateBillTotals(order);
 	const status = getPaymentStatusBadge(order);
 
-	const formattedDate = new Date(order.createdAt).toLocaleString("en-IN", {
+	const formattedDate = new Date(order.createdAt).toLocaleDateString("en-IN", {
 		day: "2-digit",
 		month: "short",
 		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
 	});
 
 	const handlePrint = () => {
@@ -595,12 +670,23 @@ export function SaleCompletionScreen({
 								<Text style={styles.title}>{STORE.name}</Text>
 								<Text style={styles.subtitle}>{STORE.address}</Text>
 								<Text style={styles.subtitle}>{STORE.city}</Text>
-								<Text style={styles.subtitle}>Phone: {STORE.phone}</Text>
+								<Text
+									style={{
+										...styles.subtitle,
+										fontWeight: "bold",
+										color: "#1e40af",
+										marginTop: 2,
+									}}
+								>
+									PHONE: {STORE.phone}
+								</Text>
 							</View>
 						</View>
 						<View style={styles.invoiceMeta}>
-							<Text style={styles.metaTitle}>INVOICE</Text>
-							<Text style={styles.subtitle}>Invoice #: {order.id}</Text>
+							<Text style={styles.metaTitle}>TAX INVOICE / BILL</Text>
+							<Text style={styles.subtitle}>
+								Order / Bill / Inv #: {order.id}
+							</Text>
 							<Text style={styles.subtitle}>Date: {formattedDate}</Text>
 							<Text style={styles.subtitle}>
 								Cashier: {order.cashierName || "Counter 1"}
@@ -647,6 +733,12 @@ export function SaleCompletionScreen({
 							</View>
 							<View style={styles.card}>
 								<Text style={styles.cardTitle}>Payment Details</Text>
+								<View style={[styles.row, { marginBottom: 2 }]}>
+									<Text style={styles.subtitle}>Bill Total:</Text>
+									<Text style={[styles.bold, { fontSize: 10, color: "#000" }]}>
+										₹{grandTotal.toFixed(2)}
+									</Text>
+								</View>
 								<View style={styles.row}>
 									<Text style={styles.subtitle}>Status:</Text>
 									<Text
@@ -654,7 +746,12 @@ export function SaleCompletionScreen({
 											styles.bold,
 											{
 												fontSize: 10,
-												color: status.label === "PAID" ? "#16a34a" : "#ca8a04",
+												color:
+													status.label === "PAID"
+														? "#16a34a"
+														: status.label === "PARTIAL"
+															? "#ca8a04"
+															: "#dc2626",
 											},
 										]}
 									>
@@ -677,7 +774,7 @@ export function SaleCompletionScreen({
 						<>
 							<View style={styles.separator} />
 							<View style={styles.row}>
-								<Text>Invoice No:</Text>
+								<Text>Bill / Invoice No:</Text>
 								<Text>#{order.id}</Text>
 							</View>
 							<View style={styles.row}>
@@ -689,7 +786,10 @@ export function SaleCompletionScreen({
 								<Text>{order.cashierName || "Counter 1"}</Text>
 							</View>
 
-							{order.customerName || order.customerPhone || order.shopName ? (
+							{order.customerName ||
+							order.customerPhone ||
+							order.shopName ||
+							order.address ? (
 								<>
 									<View style={styles.separator} />
 									<Text style={[styles.bold, { marginBottom: 4 }]}>
@@ -754,11 +854,10 @@ export function SaleCompletionScreen({
 
 						{/* Table Items */}
 						{order.items.map((item, idx) => {
-							const rate = Number.parseFloat(item.price);
-							const lineTotal = rate * item.qty;
-							const qtyStr = Number.isInteger(item.qty)
-								? item.qty.toString()
-								: item.qty.toFixed(3);
+							const rate = Number.parseFloat(item.price) || 0;
+							const itemQty = Number(item.qty) || 0;
+							const lineTotal = rate * itemQty;
+							const qtyStr = formatQty(item.qty);
 							return (
 								<View key={idx} style={styles.tableRow}>
 									{isA4 ? (
@@ -831,26 +930,32 @@ export function SaleCompletionScreen({
 								<View style={styles.row}>
 									<Text style={styles.tdText}>Subtotal:</Text>
 									<Text style={styles.tdText}>
-										Rs.{order.subtotal.toFixed(2)}
+										Rs.{orderSubtotal.toFixed(2)}
 									</Text>
 								</View>
-								{order.discount > 0 ? (
-									<View style={styles.row}>
-										<Text style={styles.tdText}>
-											Discount{order.discountReason ? ` (${order.discountReason})` : ""}:
+								{orderDiscount > 0 ? (
+									<View style={[styles.row, { backgroundColor: "#f0fdf4", paddingVertical: 2, paddingHorizontal: 4, borderRadius: 2 }]}>
+										<Text style={[styles.tdText, styles.bold, { color: "#166534" }]}>
+											Discount
+											{order.discountReason ? ` (${order.discountReason})` : ""}
+											:
 										</Text>
-										<Text style={styles.tdText}>
-											-Rs.{order.discount.toFixed(2)}
+										<Text style={[styles.tdText, styles.bold, { color: "#166534" }]}>
+											-Rs.{orderDiscount.toFixed(2)}
 										</Text>
 									</View>
 								) : null}
-								{order.otherCharges && order.otherCharges > 0 ? (
+								{orderOtherCharges > 0 ? (
 									<View style={styles.row}>
 										<Text style={styles.tdText}>
-											Extra Charges{order.otherChargesReason ? ` (${order.otherChargesReason})` : ""}:
+											Extra Charges
+											{order.otherChargesReason
+												? ` (${order.otherChargesReason})`
+												: ""}
+											:
 										</Text>
 										<Text style={styles.tdText}>
-											+Rs.{Number(order.otherCharges).toFixed(2)}
+											+Rs.{orderOtherCharges.toFixed(2)}
 										</Text>
 									</View>
 								) : null}
@@ -892,14 +997,22 @@ export function SaleCompletionScreen({
 								<View style={styles.row}>
 									<Text style={styles.subtitle}>Subtotal:</Text>
 									<Text style={styles.subtitle}>
-										Rs.{order.subtotal.toFixed(2)}
+										Rs.{orderSubtotal.toFixed(2)}
 									</Text>
 								</View>
-								{order.discount > 0 ? (
+								{orderDiscount > 0 ? (
 									<View style={styles.row}>
 										<Text style={styles.subtitle}>Discount:</Text>
 										<Text style={styles.subtitle}>
-											-Rs.{order.discount.toFixed(2)}
+											-Rs.{orderDiscount.toFixed(2)}
+										</Text>
+									</View>
+								) : null}
+								{orderOtherCharges > 0 ? (
+									<View style={styles.row}>
+										<Text style={styles.subtitle}>Extra Charges:</Text>
+										<Text style={styles.subtitle}>
+											+Rs.{orderOtherCharges.toFixed(2)}
 										</Text>
 									</View>
 								) : null}
@@ -1086,7 +1199,7 @@ export function SaleCompletionScreen({
 	const handleEmail = () => {
 		const subject = encodeURIComponent(`Invoice #${order.id} - ${STORE.name}`);
 		const body = encodeURIComponent(
-			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: ₹${order.total.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${STORE.name}!`,
+			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: ₹${orderTotal.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${STORE.name}!`,
 		);
 		window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
 	};
@@ -1094,7 +1207,25 @@ export function SaleCompletionScreen({
 	const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 	const [managerPin, setManagerPin] = useState("");
 	const [cancelReason, setCancelReason] = useState("");
-	const [isCancelling, setIsCancelling] = useState(false);
+	const utils = trpc.useUtils();
+	const cancelMutation = trpc.orders.cancelOrder.useMutation({
+		onSuccess: () => {
+			toast.success(
+				`Invoice #${order.id} cancelled successfully! Stock restored to inventory.`,
+			);
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
+			utils.warehouse.invalidate();
+			setCancelDialogOpen(false);
+			(onClose || onNewSale)();
+		},
+		onError: (err) => {
+			toast.error(`Failed to cancel invoice: ${err.message}`);
+		},
+	});
+	const isCancelling = cancelMutation.isPending;
 
 	const handleDuplicate = () => {
 		toast.info("Duplicate invoice created.");
@@ -1113,28 +1244,16 @@ export function SaleCompletionScreen({
 	};
 
 	const executeCancelInvoice = async () => {
-		if (!managerPin || managerPin.length < 4) {
-			toast.error("Valid Manager PIN (4+ digits) is required!");
-			return;
-		}
 		if (!cancelReason.trim()) {
 			toast.error("Please enter a cancellation reason!");
 			return;
 		}
 
-		setIsCancelling(true);
-		try {
-			// In production, PIN validation connects to manager validation service
-			toast.success(
-				`Invoice #${order.id} cancelled successfully! Stock & ledger restored.`,
-			);
-			setCancelDialogOpen(false);
-			onNewSale();
-		} catch (err: any) {
-			toast.error("Failed to cancel invoice. Invalid Manager PIN.");
-		} finally {
-			setIsCancelling(false);
-		}
+		await cancelMutation.mutateAsync({
+			id: order.id,
+			reason: cancelReason.trim(),
+			notes: managerPin ? `Manager PIN: ${managerPin}. Reason: ${cancelReason}` : cancelReason,
+		});
 	};
 
 	return (
@@ -1232,8 +1351,12 @@ export function SaleCompletionScreen({
 								<div className="font-black text-base leading-none tracking-tight">
 									Billing Checkout
 								</div>
-								<div className="mt-1 text-blue-300 text-xs">
-									Invoice #{order.id} generated
+								<div className="mt-1 flex flex-wrap items-center gap-1.5 font-semibold text-blue-200 text-xs">
+									<span>Order #{order.id}</span>
+									<span>•</span>
+									<span>Bill #{order.id}</span>
+									<span>•</span>
+									<span>Invoice #{order.id}</span>
 								</div>
 							</div>
 						</div>
@@ -1288,7 +1411,8 @@ export function SaleCompletionScreen({
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 text-blue-200 hover:bg-blue-800 hover:text-white"
-								onClick={onNewSale}
+								onClick={onClose || onNewSale}
+								title={returnUrl ? "Back to Orders" : "Close"}
 							>
 								<X className="h-5 w-5" />
 							</Button>
@@ -1340,15 +1464,27 @@ export function SaleCompletionScreen({
 														<p className="text-slate-500 text-xs">
 															{STORE.city}
 														</p>
+														<div className="mt-1.5 flex items-center gap-1.5">
+															<span className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-bold text-blue-900 text-xs shadow-xs print:border-black print:bg-transparent print:text-black">
+																<Phone className="h-3 w-3 text-blue-600 print:text-black" />
+																<span>PHONE / HELPLINE:</span>
+																<span className="font-extrabold text-blue-700 tracking-wider print:text-black">
+																	{STORE.phone}
+																</span>
+															</span>
+														</div>
 													</div>
 												</div>
 												<div className="text-right">
 													<div className="mb-1 font-bold text-[10px] text-blue-800 uppercase tracking-widest">
-														Bill Invoice
+														Bill & Tax Invoice
 													</div>
 													<h2 className="font-black text-slate-900 text-xl">
 														#{order.id}
 													</h2>
+													<p className="mt-0.5 font-medium text-[11px] text-slate-500">
+														Order #{order.id}
+													</p>
 													<p className="mt-1 text-slate-500 text-xs">
 														{formattedDate}
 													</p>
@@ -1416,6 +1552,14 @@ export function SaleCompletionScreen({
 													<span className="font-bold text-blue-900 text-xs uppercase tracking-wider print:text-black">
 														Payment Status
 													</span>
+													<div className="my-1.5 flex flex-col items-end text-right">
+														<span className="font-semibold text-[10px] text-slate-500 uppercase tracking-wider print:text-slate-600">
+															Bill Total
+														</span>
+														<span className="font-black font-mono text-xl sm:text-2xl text-blue-950 tracking-tight print:text-black">
+															₹{grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+														</span>
+													</div>
 													<span
 														className={`inline-flex items-center rounded-full border px-3 py-1 font-bold text-xs ${
 															status.label === "PAID"
@@ -1460,8 +1604,9 @@ export function SaleCompletionScreen({
 													</thead>
 													<tbody className="divide-y divide-slate-100 print:divide-black/20">
 														{order.items.map((item, idx) => {
-															const rate = Number.parseFloat(item.price);
-															const lineTotal = rate * item.qty;
+															const rate = Number.parseFloat(item.price) || 0;
+															const itemQty = Number(item.qty) || 0;
+															const lineTotal = rate * itemQty;
 															return (
 																<tr
 																	key={idx}
@@ -1477,9 +1622,7 @@ export function SaleCompletionScreen({
 																		SKU-{item.id}
 																	</td>
 																	<td className="px-4 py-2.5 text-center font-semibold text-slate-700 print:text-black">
-																		{Number.isInteger(item.qty)
-																			? item.qty
-																			: item.qty.toFixed(3)}
+																		{formatQty(item.qty)}
 																	</td>
 																	<td className="px-4 py-2.5 text-right text-slate-600 print:text-black">
 																		₹{rate.toFixed(2)}
@@ -1510,22 +1653,27 @@ export function SaleCompletionScreen({
 												<div className="w-5/12 space-y-2 text-xs">
 													<div className="flex justify-between text-slate-500 print:text-black">
 														<span>Subtotal</span>
-														<span>₹{order.subtotal.toFixed(2)}</span>
+														<span>₹{orderSubtotal.toFixed(2)}</span>
 													</div>
-													{order.discount > 0 && (
-														<div className="flex justify-between font-medium text-green-600 print:text-black">
-															<span>
-																Discount{" "}
-																{order.discountReason
-																	? `(${order.discountReason})`
-																	: order.couponCode
-																		? `(${order.couponCode})`
-																		: ""}
+													{orderDiscount > 0 && (
+														<div className="flex justify-between items-center font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 rounded-md border border-emerald-300/80 dark:border-emerald-800 shadow-2xs print:bg-transparent print:border-none print:text-black print:px-0 text-xs sm:text-sm">
+															<span className="flex items-center gap-1.5 font-bold">
+																<span className="inline-block print:hidden">🏷️</span>
+																<span>
+																	Discount{" "}
+																	{order.discountReason
+																		? `(${order.discountReason})`
+																		: order.couponCode
+																			? `(${order.couponCode})`
+																			: ""}
+																</span>
 															</span>
-															<span>− ₹{order.discount.toFixed(2)}</span>
+															<span className="font-extrabold text-emerald-700 dark:text-emerald-300 font-mono text-sm sm:text-base print:text-black">
+																− ₹{orderDiscount.toFixed(2)}
+															</span>
 														</div>
 													)}
-													{order.otherCharges && order.otherCharges > 0 && (
+													{orderOtherCharges > 0 && (
 														<div className="flex justify-between font-medium text-blue-600 print:text-black">
 															<span>
 																Extra Charges{" "}
@@ -1533,7 +1681,7 @@ export function SaleCompletionScreen({
 																	? `(${order.otherChargesReason})`
 																	: ""}
 															</span>
-															<span>+ ₹{Number(order.otherCharges).toFixed(2)}</span>
+															<span>+ ₹{orderOtherCharges.toFixed(2)}</span>
 														</div>
 													)}
 													{roundOff !== 0 && (
@@ -1548,6 +1696,34 @@ export function SaleCompletionScreen({
 													<div className="flex justify-between font-black text-blue-900 text-sm print:text-black">
 														<span>Grand Total</span>
 														<span>₹{grandTotal.toFixed(2)}</span>
+													</div>
+
+													<div className="mt-2 space-y-1 border-slate-300 border-t border-dashed pt-2 font-medium text-xs print:border-black">
+														<div className="flex justify-between text-emerald-700 print:text-black">
+															<span>
+																Paid / Advance Received (
+																{order.payments
+																	.map(
+																		(p) =>
+																			PAYMENT_METHOD_LABELS[p.methodId] ||
+																			"Cash",
+																	)
+																	.join(", ") || "Unpaid"}
+																)
+															</span>
+															<span>₹{totalPaid.toFixed(2)}</span>
+														</div>
+														{balanceDue > 0 ? (
+															<div className="flex justify-between font-bold text-amber-700 print:text-black">
+																<span>Balance Due (Credit / Remaining)</span>
+																<span>₹{balanceDue.toFixed(2)}</span>
+															</div>
+														) : change > 0 ? (
+															<div className="flex justify-between font-semibold text-blue-700 print:text-black">
+																<span>Change Returned</span>
+																<span>₹{change.toFixed(2)}</span>
+															</div>
+														) : null}
 													</div>
 												</div>
 											</div>
@@ -1588,14 +1764,16 @@ export function SaleCompletionScreen({
 												</h2>
 												<p className="text-[10px]">{STORE.address}</p>
 												<p className="text-[10px]">{STORE.city}</p>
-												<p className="text-[10px]">PHONE: {STORE.phone}</p>
+												<div className="my-1 inline-block rounded border border-black px-2 py-0.5 font-bold text-[11px] tracking-wider">
+													PHONE: {STORE.phone}
+												</div>
 											</div>
 
 											<div className="my-2 border-slate-900 border-t border-dashed" />
 
 											{/* Meta Info */}
 											<div className="space-y-0.5 text-left">
-												<div>INVOICE: #{order.id}</div>
+												<div>ORDER / BILL / INVOICE: #{order.id}</div>
 												<div>DATE: {formattedDate}</div>
 												<div>CASHIER: {order.cashierName || "Counter 1"}</div>
 												<div className="font-bold">STATUS: {status.label}</div>
@@ -1636,8 +1814,9 @@ export function SaleCompletionScreen({
 												</thead>
 												<tbody>
 													{order.items.map((item, idx) => {
-														const rate = Number.parseFloat(item.price);
-														const lineTotal = rate * item.qty;
+														const rate = Number.parseFloat(item.price) || 0;
+														const itemQty = Number(item.qty) || 0;
+														const lineTotal = rate * itemQty;
 														return (
 															<tr
 																key={idx}
@@ -1648,16 +1827,11 @@ export function SaleCompletionScreen({
 																		{getItemName(item)}
 																	</div>
 																	<div className="mt-0.5 pl-1 text-[10px] text-slate-600">
-																		{Number.isInteger(item.qty)
-																			? item.qty
-																			: item.qty.toFixed(3)}{" "}
-																		x Rs.{rate.toFixed(2)}
+																		{formatQty(item.qty)} x Rs.{rate.toFixed(2)}
 																	</div>
 																</td>
 																<td className="py-2 text-center align-middle">
-																	{Number.isInteger(item.qty)
-																		? item.qty
-																		: item.qty.toFixed(3)}
+																	{formatQty(item.qty)}
 																</td>
 																<td className="py-2 text-right align-middle font-medium">
 																	Rs.{lineTotal.toFixed(2)}
@@ -1674,22 +1848,30 @@ export function SaleCompletionScreen({
 											<div className="space-y-1 text-left">
 												<div className="flex justify-between">
 													<span>SUBTOTAL:</span>
-													<span>Rs.{order.subtotal.toFixed(2)}</span>
+													<span>Rs.{orderSubtotal.toFixed(2)}</span>
 												</div>
-												{order.discount > 0 && (
-													<div className="flex justify-between">
-														<span>
-															DISCOUNT{order.discountReason ? ` (${order.discountReason})` : ""}:
+												{orderDiscount > 0 && (
+													<div className="flex justify-between font-bold text-emerald-950 bg-emerald-50 px-1.5 py-1 rounded border border-emerald-300">
+														<span className="font-bold">
+															🏷️ DISCOUNT
+															{order.discountReason
+																? ` (${order.discountReason})`
+																: ""}
+															:
 														</span>
-														<span>-Rs.{order.discount.toFixed(2)}</span>
+														<span className="font-extrabold font-mono text-emerald-800">-Rs.{orderDiscount.toFixed(2)}</span>
 													</div>
 												)}
-												{order.otherCharges && order.otherCharges > 0 && (
+												{orderOtherCharges > 0 && (
 													<div className="flex justify-between">
 														<span>
-															EXTRA CHG{order.otherChargesReason ? ` (${order.otherChargesReason})` : ""}:
+															EXTRA CHG
+															{order.otherChargesReason
+																? ` (${order.otherChargesReason})`
+																: ""}
+															:
 														</span>
-														<span>+Rs.{Number(order.otherCharges).toFixed(2)}</span>
+														<span>+Rs.{orderOtherCharges.toFixed(2)}</span>
 													</div>
 												)}
 												{roundOff !== 0 && (
@@ -1705,6 +1887,21 @@ export function SaleCompletionScreen({
 													<span>GRAND TOTAL:</span>
 													<span>Rs.{grandTotal.toFixed(2)}</span>
 												</div>
+												<div className="flex justify-between font-semibold text-[11px] text-emerald-800 print:text-black">
+													<span>PAID / ADVANCE:</span>
+													<span>Rs.{totalPaid.toFixed(2)}</span>
+												</div>
+												{balanceDue > 0 ? (
+													<div className="flex justify-between font-bold text-[11px] text-amber-800 print:text-black">
+														<span>BALANCE DUE:</span>
+														<span>Rs.{balanceDue.toFixed(2)}</span>
+													</div>
+												) : change > 0 ? (
+													<div className="flex justify-between text-[11px]">
+														<span>CHANGE RETURN:</span>
+														<span>Rs.{change.toFixed(2)}</span>
+													</div>
+												) : null}
 											</div>
 
 											<div className="my-2 border-slate-900 border-t border-dashed" />
@@ -1722,98 +1919,107 @@ export function SaleCompletionScreen({
 						</div>
 
 						{/* ── Right Actions Panel ── */}
-						<div className="flex w-full shrink-0 flex-col gap-3 border-slate-200 border-t bg-slate-50 p-4 md:w-64 md:overflow-y-auto md:border-t-0 md:border-l print:hidden">
-							<div className="mb-1 font-bold text-slate-400 text-xs uppercase tracking-wider">
+						<div className="flex w-full shrink-0 flex-col gap-3 border-slate-200 border-t bg-slate-50 p-4 md:w-64 md:overflow-y-auto md:border-t-0 md:border-l dark:border-slate-800 dark:bg-slate-900 print:hidden">
+							<div className="mb-1 font-bold text-slate-500 text-xs uppercase tracking-wider dark:text-slate-400">
 								Actions
 							</div>
 
 							<Button
 								size="lg"
-								className="h-12 w-full bg-blue-800 font-bold text-base text-white shadow-md hover:bg-blue-900"
-								onClick={onNewSale}
+								className="h-12 w-full bg-blue-600 font-bold text-base text-white shadow-md hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
+								onClick={onClose || onNewSale}
 							>
-								<ShoppingBag className="mr-2 h-5 w-5" />
-								New Sale
+								{returnUrl ? (
+									<>
+										<ArrowLeft className="mr-2 h-5 w-5" />
+										Back to Orders
+									</>
+								) : (
+									<>
+										<ShoppingBag className="mr-2 h-5 w-5" />
+										New Sale
+									</>
+								)}
 							</Button>
 
-							<hr className="my-1 border-slate-200" />
-							<div className="font-bold text-slate-400 text-xs uppercase tracking-wider">
+							<hr className="my-1 border-slate-200 dark:border-slate-800" />
+							<div className="font-bold text-slate-500 text-xs uppercase tracking-wider dark:text-slate-400">
 								Print &amp; Share
 							</div>
 
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handlePrint}
 							>
-								<Printer className="h-4 w-4 text-blue-800" />
+								<Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 								Print Receipt
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handlePrint}
 							>
-								<RotateCcw className="h-4 w-4 text-blue-800" />
+								<RotateCcw className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 								Reprint
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleDownloadPDF}
 							>
-								<Download className="h-4 w-4 text-blue-800" />
+								<Download className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 								Download PDF
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleWhatsApp}
 							>
-								<MessageCircle className="h-4 w-4 text-green-600" />
+								<MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
 								Send WhatsApp
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleEmail}
 							>
-								<Mail className="h-4 w-4 text-blue-500" />
+								<Mail className="h-4 w-4 text-blue-500 dark:text-blue-400" />
 								Send Email
 							</Button>
 
-							<hr className="my-1 border-slate-200" />
-							<div className="font-bold text-slate-400 text-xs uppercase tracking-wider">
+							<hr className="my-1 border-slate-200 dark:border-slate-800" />
+							<div className="font-bold text-slate-500 text-xs uppercase tracking-wider dark:text-slate-400">
 								Invoice Actions
 							</div>
 
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleDuplicate}
 							>
-								<Copy className="h-4 w-4 text-slate-500" />
+								<Copy className="h-4 w-4 text-slate-500 dark:text-slate-400" />
 								Duplicate Invoice
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleReturn}
 							>
-								<ArrowLeftRight className="h-4 w-4 text-orange-500" />
+								<ArrowLeftRight className="h-4 w-4 text-orange-500 dark:text-orange-400" />
 								Return Items
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleExchange}
 							>
-								<ArrowLeftRight className="h-4 w-4 text-purple-500" />
+								<ArrowLeftRight className="h-4 w-4 text-purple-500 dark:text-purple-400" />
 								Exchange Items
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-red-200 font-semibold text-red-600 text-xs hover:bg-red-50 hover:text-red-700"
+								className="w-full justify-start gap-2 border-red-200 bg-white font-semibold text-red-600 text-xs hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-950/40"
 								onClick={handleCancel}
 							>
 								<XCircle className="h-4 w-4" />
@@ -1823,7 +2029,7 @@ export function SaleCompletionScreen({
 					</div>
 
 					{/* ── Bottom Info Bar ── */}
-					<div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-slate-200 border-t bg-slate-50 px-4 py-2 text-[10px] text-slate-400 sm:px-6 sm:py-3 sm:text-xs print:hidden">
+					<div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-slate-200 border-t bg-slate-50 px-4 py-2 text-[10px] text-slate-500 sm:px-6 sm:py-3 sm:text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 print:hidden">
 						<span>
 							Invoice #{order.id} • {formattedDate}
 						</span>

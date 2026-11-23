@@ -6,6 +6,7 @@ config({ path: "d:/Evaluna ERP/.env" });
 import * as fs from "node:fs";
 import { products } from "@evaluna/db/schema";
 import { db } from "../src/lib/db";
+import { toBilingualProductName } from "../src/lib/utils/hindi-transliteration";
 
 const ocrText = fs.readFileSync(
 	"d:/Evaluna ERP/apps/web/scripts/ocr.txt",
@@ -83,9 +84,10 @@ async function run() {
 		const bp = Number.parseFloat(procPrice) || 0;
 		const sp = Number.parseFloat(sellPrice) || 0;
 
+		const bilingualName = toBilingualProductName(name);
 		await db.insert(products).values({
-			name: name,
-			description: name,
+			name: bilingualName,
+			description: bilingualName,
 			base_procurement_price: bp.toString(),
 			base_selling_price: sp.toString(),
 			price: sp.toString(),

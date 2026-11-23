@@ -239,6 +239,30 @@ describe("tenant isolation (IDOR — rule 4)", () => {
 			expect(row.customer_id).toBe(custAId);
 		}
 	});
+
+	it("supports decimal quantities (e.g. 0.5) with accurate totals and projections", async () => {
+		const key = crypto.randomUUID();
+		const res = await customerCaller("cust-a").submitOrder({
+			idempotencyKey: key,
+			items: [
+				{ productId: prod1, quantity: 0.5 },
+				{ productId: prod2, quantity: 1.5 },
+			],
+		});
+		expect(res.duplicate).toBe(false);
+
+		const detail = await customerCaller("cust-a").getMyOrder({ id: res.orderId });
+		expect(detail.items.length).toBe(2);
+		const p1 = detail.items.find((i) => i.productId === prod1);
+		expect(p1).toBeDefined();
+		expect(p1!.quantity).toBe(0.5);
+		expect(p1!.lineTotal).toBeCloseTo(p1!.price * 0.5, 2);
+
+		const p2 = detail.items.find((i) => i.productId === prod2);
+		expect(p2).toBeDefined();
+		expect(p2!.quantity).toBe(1.5);
+		expect(p2!.lineTotal).toBeCloseTo(p2!.price * 1.5, 2);
+	});
 });
 
 describe("full flow: submit → inbox → price → confirm → invoice", () => {

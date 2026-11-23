@@ -14,6 +14,7 @@ import {
 
 const pickerNavItems: NavItem[] = [
 	{ href: "/picker", labelKey: "dashboard", icon: LayoutDashboardIcon },
+	{ href: "/picker/van-stock", labelKey: "vanStockPicking", icon: PlaySquareIcon },
 	{ href: "/picker/pending", labelKey: "pendingPicks", icon: ClockIcon },
 	{ href: "/picker/active", labelKey: "activePicks", icon: PlaySquareIcon },
 	{ href: "/picker/completed", labelKey: "completedPicks", icon: CheckSquareIcon },

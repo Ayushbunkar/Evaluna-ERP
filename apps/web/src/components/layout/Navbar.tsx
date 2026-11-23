@@ -14,6 +14,7 @@ import Link from "next/link";
 import * as React from "react";
 import { useSession } from "@/hooks/use-session";
 import { trpc } from "@/lib/trpc/client";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { CommandPalette } from "./CommandPalette";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -96,11 +97,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 						</DropdownMenuContent>
 					</DropdownMenu>
 
-					<Button variant="ghost" size="icon" className="relative">
-						<Bell className="h-5 w-5" />
-						<span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" />
-						<span className="sr-only">Notifications</span>
-					</Button>
+					<NotificationBell />
 
 					{/* Admin-only public site button */}
 					{session?.user?.isSuperadmin && (

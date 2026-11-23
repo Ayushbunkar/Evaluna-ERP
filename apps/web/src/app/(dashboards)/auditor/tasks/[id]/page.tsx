@@ -566,7 +566,7 @@ export default function AuditTaskDetailPage() {
 							No items match the current filter or search criteria.
 						</div>
 					) : (
-						<div className="overflow-x-auto">
+						<div className="w-full overflow-x-auto touch-pan-y">
 							<Table>
 								<TableHeader>
 									<TableRow>

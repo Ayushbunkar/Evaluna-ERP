@@ -5,10 +5,18 @@ import { getLocale, getMessages } from "next-intl/server";
 import { Toaster } from "sonner";
 import TRPCProvider from "@/app/_trpc/provider";
 import { CookieConsent } from "@/components/cookie-consent";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
+import { ThemeProvider } from "@/components/theme-provider";
+import { defaultLocale, type Locale } from "@/i18n/config";
 import enMessages from "@/messages/en";
 import hiMessages from "@/messages/hi";
-import { defaultLocale, type Locale } from "@/i18n/config";
+import {
+	constructMetadata,
+	generateOrganizationSchema,
+	generateSoftwareApplicationSchema,
+	generateWebSiteSchema,
+} from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -23,9 +31,26 @@ const fallbackMessages: Record<Locale, any> = {
 	hi: hiMessages,
 };
 
+const baseSeo = constructMetadata({
+	title: "Evaluna ERP — Enterprise Resource Planning & POS Billing System",
+	description:
+		"Next-generation Enterprise Resource Planning and field operations platform built for retail chains, FMCG distribution, and warehouse logistics.",
+	canonicalPath: "/",
+});
+
 export const metadata: Metadata = {
-	title: "Evaluna ERP",
-	description: "Open-source point of sale system",
+	...baseSeo,
+	manifest: "/manifest.json",
+	icons: {
+		icon: "/logo.png",
+		shortcut: "/logo.png",
+		apple: "/logo.png",
+	},
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: "black-translucent",
+		title: "Evaluna ERP",
+	},
 };
 
 export default async function RootLayout({
@@ -50,24 +75,57 @@ export default async function RootLayout({
 		messages = fallbackMessages[locale] || enMessages;
 	}
 
+	const orgSchema = generateOrganizationSchema();
+	const webSiteSchema = generateWebSiteSchema();
+	const appSchema = generateSoftwareApplicationSchema();
+
 	return (
 		<html lang={locale} suppressHydrationWarning>
 			<head>
 				<link rel="manifest" href="/manifest.json" />
-				<meta name="theme-color" content="#000000" />
+				<link rel="icon" type="image/png" href="/logo.png" />
+				<link rel="shortcut icon" href="/logo.png" />
+				<link rel="apple-touch-icon" href="/logo.png" />
+				<meta name="theme-color" content="#0f172a" />
+				<meta name="apple-mobile-web-app-capable" content="yes" />
+				<meta
+					name="apple-mobile-web-app-status-bar-style"
+					content="black-translucent"
+				/>
+				<meta name="apple-mobile-web-app-title" content="Evaluna ERP" />
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+				/>
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
+				/>
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{ __html: JSON.stringify(appSchema) }}
+				/>
 			</head>
 			<body
 				className={`${inter.className} ${notoDevanagari.variable} ${inter.variable}`}
 				suppressHydrationWarning
 			>
 				<NextIntlClientProvider locale={locale} messages={messages}>
-					<TRPCProvider>
-						<SmoothScrollProvider>
-							<main>{children}</main>
-							<Toaster richColors position="top-right" />
-							<CookieConsent />
-						</SmoothScrollProvider>
-					</TRPCProvider>
+					<ThemeProvider
+						attribute="class"
+						defaultTheme="system"
+						enableSystem
+						disableTransitionOnChange
+					>
+						<TRPCProvider>
+							<SmoothScrollProvider>
+								<main>{children}</main>
+								<Toaster richColors position="top-right" />
+								<CookieConsent />
+								<ServiceWorkerRegister />
+							</SmoothScrollProvider>
+						</TRPCProvider>
+					</ThemeProvider>
 				</NextIntlClientProvider>
 			</body>
 		</html>

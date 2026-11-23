@@ -32,6 +32,7 @@ const DDL = buildDDL(
 		schema.products,
 		schema.pickLists,
 		schema.pickListItems,
+		schema.pickingExceptions,
 		schema.packages,
 		schema.packageItems,
 		schema.deliveryRoutes,
@@ -160,6 +161,10 @@ beforeAll(async () => {
 	]);
 });
 
+afterAll(async () => {
+	await pg.close();
+});
+
 describe("Picker to Packer Strict Handoff Workflow", () => {
 	it("1. Confirmed order appears in Picker queue but NOT in Packer queue", async () => {
 		const pendingPacks = await callerPacker.getPendingToPack();
@@ -235,5 +240,22 @@ describe("Picker to Packer Strict Handoff Workflow", () => {
 		const pendingPacksAfter = await callerPacker.getPendingToPack();
 		expect(pendingPacksAfter.some((p) => p.order_id === testOrderId1)).toBe(false);
 		expect(pendingPacksAfter.some((p) => p.order_id === testOrderId2)).toBe(false);
+	});
+
+	it("6. getPackingHistory filters by date range properly without SQL syntax or type error", async () => {
+		const todayStr = new Date().toISOString().split("T")[0];
+		const historyToday = await callerPacker.getPackingHistory({
+			startDate: todayStr,
+			endDate: todayStr,
+		});
+		expect(Array.isArray(historyToday)).toBe(true);
+		expect(historyToday.some((h: any) => h.orderId.includes(String(testOrderId1)))).toBe(true);
+
+		// Future date should return empty
+		const historyFuture = await callerPacker.getPackingHistory({
+			startDate: "2099-01-01",
+			endDate: "2099-01-02",
+		});
+		expect(historyFuture).toHaveLength(0);
 	});
 });

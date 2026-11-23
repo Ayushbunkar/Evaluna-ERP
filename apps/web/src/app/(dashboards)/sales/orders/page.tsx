@@ -34,42 +34,75 @@ import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+	BarChart3Icon,
+	CalendarDaysIcon,
+	CalendarIcon,
 	EyeIcon,
 	FilePenIcon,
+	PrinterIcon,
+	RotateCcwIcon,
 	ShoppingCartIcon,
 	TrashIcon,
+	XIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod/v4";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
+import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/router";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 type Order = RouterOutputs["orders"]["list"][number];
 type OrderStatus = "completed" | "pending" | "cancelled";
 
 export default function OrdersPage() {
+	const router = useRouter();
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+	const [datePreset, setDatePreset] = useState("all");
 	const [page, setPage] = useState(1);
 	const pageSize = 50;
+
+	const debouncedSearch = useDebounce(searchTerm, 300);
 
 	const {
 		data: orders = [],
 		isLoading,
+		isFetching,
 		error,
-	} = trpc.orders.list.useQuery({
-		page,
-		limit: pageSize,
-		search: searchTerm.trim() || undefined,
-		status: statusFilter !== "all" ? statusFilter : undefined,
-	});
+	} = trpc.orders.list.useQuery(
+		{
+			page,
+			limit: pageSize,
+			search: debouncedSearch.trim() || undefined,
+			status: statusFilter !== "all" ? statusFilter : undefined,
+			startDate: startDate || undefined,
+			endDate: endDate || undefined,
+		},
+		{
+			placeholderData: (previousData) => previousData,
+		},
+	);
+
+	const totalSalesAmount = useMemo(() => {
+		return orders.reduce((sum, order) => {
+			if (order.status === "cancelled" && statusFilter !== "cancelled") {
+				return sum;
+			}
+			return sum + (Number(order.total_amount) || 0);
+		}, 0);
+	}, [orders, statusFilter]);
+
 	let tRaw: any = null;
 	let tcRaw: any = null;
 	try {
@@ -97,6 +130,7 @@ export default function OrdersPage() {
 		cancel: { en: "Cancel", hi: "रद्द करें" },
 		save: { en: "Save Changes", hi: "सहेजें" },
 		totalRequired: { en: "Total amount is required", hi: "कुल राशि आवश्यक है" },
+		orderId: { en: "Order / Bill / Invoice #", hi: "ऑर्डर / बिल / इनवॉइस #" },
 	};
 
 	const tc = (key: string) => {
@@ -151,7 +185,20 @@ export default function OrdersPage() {
 	];
 
 	const tableColumns: Column<Order>[] = [
-		{ key: "id", header: t("orderId"), sortable: true },
+		{
+			key: "id",
+			header: t("orderId"),
+			sortable: true,
+			render: (row) => (
+				<div className="flex flex-col">
+					<span className="font-bold text-foreground">#{row.id}</span>
+					<span className="whitespace-nowrap font-medium text-[11px] text-muted-foreground">
+						{locale === "hi" ? "बिल & इनवॉइस: #" : "Bill & Inv: #"}
+						{row.id}
+					</span>
+				</div>
+			),
+		},
 		{
 			key: "customer",
 			header: t("customer"),
@@ -172,7 +219,10 @@ export default function OrdersPage() {
 			sortable: true,
 			render: (row) => {
 				const s = (row.status ?? "pending").toLowerCase();
-				const statusConfig: Record<string, { label: string; cls: string; bg: string }> = {
+				const statusConfig: Record<
+					string,
+					{ label: string; cls: string; bg: string }
+				> = {
 					confirmed: {
 						label: "Sent to Picker",
 						cls: "text-blue-700 dark:text-blue-400 font-semibold",
@@ -246,28 +296,29 @@ export default function OrdersPage() {
 			sortable: false,
 			render: (row: any) => {
 				const fs = row.finance_status ?? "pending_collection";
-				const map: Record<string, { label: string; cls: string; bg: string }> = {
-					pending_collection: {
-						label: "Pending Driver Collection",
-						cls: "text-yellow-700 dark:text-yellow-400 font-medium",
-						bg: "bg-yellow-500/10 border border-yellow-500/20",
-					},
-					driver_collected: {
-						label: "Driver Collected ✓",
-						cls: "text-blue-700 dark:text-blue-400 font-medium",
-						bg: "bg-blue-500/10 border border-blue-500/20",
-					},
-					finance_submitted: {
-						label: "Submitted to Finance",
-						cls: "text-purple-700 dark:text-purple-400 font-medium",
-						bg: "bg-purple-500/10 border border-purple-500/20",
-					},
-					reconciled: {
-						label: "Reconciled (Completed) ✓",
-						cls: "text-emerald-700 dark:text-emerald-400 font-semibold",
-						bg: "bg-emerald-500/10 border border-emerald-500/20",
-					},
-				};
+				const map: Record<string, { label: string; cls: string; bg: string }> =
+					{
+						pending_collection: {
+							label: "Pending Driver Collection",
+							cls: "text-yellow-700 dark:text-yellow-400 font-medium",
+							bg: "bg-yellow-500/10 border border-yellow-500/20",
+						},
+						driver_collected: {
+							label: "Driver Collected ✓",
+							cls: "text-blue-700 dark:text-blue-400 font-medium",
+							bg: "bg-blue-500/10 border border-blue-500/20",
+						},
+						finance_submitted: {
+							label: "Submitted to Finance",
+							cls: "text-purple-700 dark:text-purple-400 font-medium",
+							bg: "bg-purple-500/10 border border-purple-500/20",
+						},
+						reconciled: {
+							label: "Reconciled (Completed) ✓",
+							cls: "text-emerald-700 dark:text-emerald-400 font-semibold",
+							bg: "bg-emerald-500/10 border border-emerald-500/20",
+						},
+					};
 				const { label, cls, bg } = map[fs] ?? map.pending_collection;
 				return (
 					<span
@@ -328,11 +379,18 @@ export default function OrdersPage() {
 	const [statusChangeReason, setStatusChangeReason] = useState("");
 	const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("pending");
 
+	// Cancellation modal state with preset reasons & custom typing option
+	const [cancelReasonPreset, setCancelReasonPreset] = useState<string>("");
+	const [customCancelReason, setCustomCancelReason] = useState<string>("");
+
 	const utils = trpc.useUtils();
 
 	const updateMutation = trpc.orders.update.useMutation({
 		onSuccess: () => {
-			utils.orders.list.invalidate();
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
 			utils.picker.getPending.invalidate();
 			utils.picker.getDashboardStats.invalidate();
 			utils.warehouse.getPickingQueue.invalidate();
@@ -344,15 +402,73 @@ export default function OrdersPage() {
 		},
 	});
 
-	const deleteMutation = trpc.orders.delete.useMutation({
+	const cancelMutation = trpc.orders.cancelOrder.useMutation({
 		onSuccess: () => {
-			utils.orders.list.invalidate();
-			toast.success(t("deleted"));
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
+			utils.warehouse.invalidate();
+			utils.dashboard.invalidate();
+			toast.success(
+				locale === "hi"
+					? `ऑर्डर ORD-${deleteId} सफलतापूर्वक निरस्त किया गया और स्टॉक इन्वेंट्री में तुरंत वापस जोड़ दिया गया.`
+					: `Order ORD-${deleteId} cancelled and items immediately restored to inventory.`,
+			);
+			setIsDeleteOpen(false);
+			setDeleteId(null);
+			setCancelReasonPreset("");
+			setCustomCancelReason("");
 		},
-		onError: () => {
-			toast.error(t("deleteError"));
+		onError: (err) => {
+			toast.error(
+				locale === "hi"
+					? `ऑर्डर निरस्त करने में विफल: ${err.message}`
+					: `Failed to cancel order: ${err.message}`,
+			);
 		},
 	});
+
+	const CANCEL_REASON_PRESETS = [
+		"Customer Request / Cancelled Call (ग्राहक ने मना किया)",
+		"Duplicate Order / Wrong Entry (गलत ऑर्डर प्रविष्टि)",
+		"Item Out of Stock / Unavailability (सामान स्टॉक में नहीं है)",
+		"Pricing Error / Discount Dispute (कीमत / डिस्काउंट विवाद)",
+		"Delayed Dispatch / Delivery Issue (डिलीवरी देरी)",
+		"Other Reason / Write Below",
+	];
+
+	const getFinalCancelReason = (): string => {
+		if (
+			cancelReasonPreset === "Other Reason / Write Below" ||
+			!cancelReasonPreset
+		) {
+			return customCancelReason.trim();
+		}
+		if (customCancelReason.trim()) {
+			return `${cancelReasonPreset} - ${customCancelReason.trim()}`;
+		}
+		return cancelReasonPreset;
+	};
+
+	const handleDelete = () => {
+		const finalReason = getFinalCancelReason();
+		if (!finalReason) {
+			toast.error(
+				locale === "hi"
+					? "कृपया ऑर्डर निरस्त करने का कारण चुनें या दर्ज करें!"
+					: "Please select or type a reason before cancelling!",
+			);
+			return;
+		}
+
+		if (deleteId !== null) {
+			cancelMutation.mutate({
+				id: deleteId,
+				reason: finalReason,
+			});
+		}
+	};
 
 	const form = useForm({
 		defaultValues: { total: "", status: "pending" as OrderStatus },
@@ -370,10 +486,6 @@ export default function OrdersPage() {
 						);
 						return;
 					}
-					console.log(
-						`[Order ID #${editingId} Status Change to ${value.status.toUpperCase()}]: Reason:`,
-						statusChangeReason,
-					);
 				}
 
 				updateMutation.mutate({
@@ -396,107 +508,175 @@ export default function OrdersPage() {
 		setIsDialogOpen(true);
 	};
 
-	const handleDelete = () => {
-		if (deleteId !== null) {
-			deleteMutation.mutate({ id: deleteId });
-			setIsDeleteOpen(false);
-			setDeleteId(null);
-		}
-	};
-
 	const actionsColumn: Column<Order> = {
 		key: "actions",
 		header: tc("actions"),
-		render: (row) => (
-			<TableActions>
-				<TableActionButton
-					onClick={() => openEdit(row)}
-					icon={<FilePenIcon className="h-4 w-4" />}
-					label={tc("edit")}
-				/>
-				{/* Delete button removed for Sales Person based on professional audit rules */}
-				<Link
-					href={`/sales/orders/${row.id}`}
-					prefetch={false}
-					onClick={(e) => e.stopPropagation()}
-				>
-					<Button size="icon" variant="ghost">
-						<EyeIcon className="h-4 w-4" />
+		render: (row: any) => {
+			const isCollectedOrSettled =
+				row.finance_status === "driver_collected" ||
+				row.finance_status === "finance_submitted" ||
+				row.finance_status === "reconciled";
+
+			return (
+				<TableActions>
+					<TableActionButton
+						onClick={() => openEdit(row)}
+						icon={<FilePenIcon className="h-4 w-4" />}
+						label={tc("edit")}
+					/>
+					<Button
+						size="icon"
+						variant="ghost"
+						className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+						title={locale === "hi" ? "बिल प्रिंट करें (Print Bill)" : "Print Bill"}
+						onClick={(e) => {
+							e.stopPropagation();
+							router.push(
+								`/sales/pos?completedOrderId=${row.id}&returnUrl=/sales/orders`,
+							);
+						}}
+					>
+						<PrinterIcon className="h-4 w-4" />
+						<span className="sr-only">Print Bill</span>
+					</Button>
+					<Button
+						size="icon"
+						variant="ghost"
+						title={tc("view")}
+						onClick={(e) => {
+							e.stopPropagation();
+							router.push(`/sales/orders/${row.id}`);
+						}}
+					>
+						<EyeIcon className="h-4 w-4 text-slate-600" />
 						<span className="sr-only">{tc("view")}</span>
 					</Button>
-				</Link>
-			</TableActions>
-		),
+					{!isCollectedOrSettled && (
+						<Button
+							size="icon"
+							variant="ghost"
+							className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+							onClick={(e) => {
+								e.stopPropagation();
+								setDeleteId(row.id);
+								setIsDeleteOpen(true);
+							}}
+							title={
+								locale === "hi"
+									? "ऑर्डर निरस्त करें (Cancelled Orders)"
+									: "Cancel & Archive Order"
+							}
+						>
+							<TrashIcon className="h-4 w-4" />
+							<span className="sr-only">{tc("cancel")}</span>
+						</Button>
+					)}
+				</TableActions>
+			);
+		},
 	};
-
-	if (isLoading) {
-		return (
-			<Card className="flex flex-col gap-6 p-6">
-				<CardHeader className="p-0">
-					<div className="flex items-center justify-between">
-						<Skeleton className="h-10 w-48" />
-						<Skeleton className="h-9 w-32" />
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-3 p-0">
-					{Array.from({ length: 5 }).map((_, i) => (
-						<div key={i} className="flex items-center gap-4">
-							<Skeleton className="h-4 w-12" />
-							<Skeleton className="h-4 w-32" />
-							<Skeleton className="h-4 w-20" />
-							<Skeleton className="h-4 w-20" />
-							<Skeleton className="h-4 w-24" />
-							<Skeleton className="h-8 w-24" />
-						</div>
-					))}
-				</CardContent>
-			</Card>
-		);
-	}
-
-	if (error) {
-		return (
-			<Card>
-				<CardContent>
-					<p className="text-red-500">{error.message}</p>
-				</CardContent>
-			</Card>
-		);
-	}
 
 	return (
 		<Card className="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6">
-			<CardHeader className="p-0">
-				<SearchFilter
-					search={searchTerm}
-					onSearchChange={(val) => {
-						setSearchTerm(val);
+			<CardHeader className="space-y-3 p-0">
+				<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+					<div className="flex-1">
+						<SearchFilter
+							search={searchTerm}
+							onSearchChange={(val) => {
+								setSearchTerm(val);
+								setPage(1);
+							}}
+							searchPlaceholder={t("searchPlaceholder")}
+							filters={[
+								{
+									options: statusFilterOptions,
+									value: statusFilter,
+									onChange: (val) => {
+										setStatusFilter(val);
+										setPage(1);
+									},
+								},
+							]}
+						/>
+					</div>
+					<Link href="/sales/reports">
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-10 gap-2 border-blue-200 bg-blue-50/50 font-semibold text-blue-700 text-xs hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-400"
+						>
+							<BarChart3Icon className="h-4 w-4" />
+							{locale === "hi"
+								? "बिक्री रिपोर्ट व एनालिटिक्स"
+								: "Sales Reports & Analytics"}
+						</Button>
+					</Link>
+				</div>
+
+				<DateFilterBar
+					startDate={startDate}
+					endDate={endDate}
+					datePreset={datePreset}
+					totalCount={orders.length}
+					countLabel={locale === "hi" ? "ऑर्डर" : "orders"}
+					totalAmount={totalSalesAmount}
+					amountLabel={locale === "hi" ? "कुल बिक्री:" : "Total Sales:"}
+					onDateChange={(start, end, preset) => {
+						setStartDate(start);
+						setEndDate(end);
+						setDatePreset(preset);
 						setPage(1);
 					}}
-					searchPlaceholder={t("searchPlaceholder")}
-					filters={[
-						{
-							options: statusFilterOptions,
-							value: statusFilter,
-							onChange: (val) => {
-								setStatusFilter(val);
-								setPage(1);
-							},
-						},
-					]}
 				/>
 			</CardHeader>
 			<CardContent className="space-y-4 p-0">
-				<DataTable
-					data={orders}
-					columns={[...tableColumns, actionsColumn]}
-					exportColumns={exportColumns}
-					exportFilename="orders"
-					emptyMessage={t("noOrders")}
-					emptyIcon={<ShoppingCartIcon className="h-8 w-8" />}
-					defaultSort={[{ id: "created_at", desc: true }]}
-				/>
-				<div className="flex items-center justify-between border-t pt-4 text-xs text-muted-foreground">
+				{isLoading && orders.length === 0 ? (
+					<div className="space-y-3 p-4">
+						{Array.from({ length: 5 }).map((_, i) => (
+							<div key={i} className="flex items-center gap-4">
+								<Skeleton className="h-4 w-12" />
+								<Skeleton className="h-4 w-32" />
+								<Skeleton className="h-4 w-20" />
+								<Skeleton className="h-4 w-20" />
+								<Skeleton className="h-4 w-24" />
+								<Skeleton className="h-8 w-24" />
+							</div>
+						))}
+					</div>
+				) : error && orders.length === 0 ? (
+					<div className="flex flex-col items-center justify-center gap-3 py-12 text-center border-border/60 border-dashed rounded-lg border p-8">
+						<div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400">
+							<ShoppingCartIcon className="h-6 w-6" />
+						</div>
+						<div>
+							<p className="font-semibold text-base text-foreground">
+								Error Loading Customer Orders
+							</p>
+							<p className="text-muted-foreground text-sm">
+								{error.message || "Failed to load orders."}
+							</p>
+						</div>
+					</div>
+				) : (
+					<div
+						className={cn(
+							"relative transition-opacity",
+							isFetching && "opacity-75",
+						)}
+					>
+						<DataTable
+							data={orders}
+							columns={[...tableColumns, actionsColumn]}
+							exportColumns={exportColumns}
+							exportFilename="orders"
+							emptyMessage={t("noOrders")}
+							emptyIcon={<ShoppingCartIcon className="h-8 w-8" />}
+							defaultSort={[{ id: "created_at", desc: true }]}
+						/>
+					</div>
+				)}
+				<div className="flex items-center justify-between border-t pt-4 text-muted-foreground text-xs">
 					<span>
 						{orders.length === pageSize
 							? `Showing ${(page - 1) * pageSize + 1} - ${page * pageSize}`
@@ -511,7 +691,9 @@ export default function OrdersPage() {
 						>
 							{tc("previous") || "Previous"}
 						</Button>
-						<span className="font-medium text-foreground px-2">Page {page}</span>
+						<span className="px-2 font-medium text-foreground">
+							Page {page}
+						</span>
 						<Button
 							variant="outline"
 							size="sm"
@@ -635,12 +817,129 @@ export default function OrdersPage() {
 				</DialogContent>
 			</Dialog>
 
-			<DeleteConfirmationDialog
+			{/* Order Cancellation Modal with mandatory reason selection & write-in note */}
+			<Dialog
 				open={isDeleteOpen}
-				onOpenChange={setIsDeleteOpen}
-				onConfirm={handleDelete}
-				description={t("deleteMessage")}
-			/>
+				onOpenChange={(open) => {
+					setIsDeleteOpen(open);
+					if (!open) {
+						setCancelReasonPreset("");
+						setCustomCancelReason("");
+					}
+				}}
+			>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 font-bold text-lg text-red-600 dark:text-red-400">
+							<TrashIcon className="h-5 w-5 text-red-600" />
+							{locale === "hi"
+								? `ऑर्डर ORD-${deleteId} निरस्त करें`
+								: `Cancel Order ORD-${deleteId}`}
+						</DialogTitle>
+						<div className="mt-1 text-muted-foreground text-xs">
+							{locale === "hi"
+								? "यह ऑर्डर 'निरस्त ऑर्डर (Cancelled Orders)' पेज पर आर्काइव में स्टोर रहेगा. आगे बढ़ने के लिए निरस्तीकरण का कारण चुनें या लिखें."
+								: "This order will be stored safely in 'Cancelled Orders' page. Please select or write a reason to proceed."}
+						</div>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						{/* Preset Reasons Radio List */}
+						<div className="space-y-1.5">
+							<Label className="flex items-center justify-between font-bold text-foreground text-xs">
+								<span>
+									{locale === "hi"
+										? "निरस्त करने का कारण चुनें *"
+										: "Select Cancellation Reason *"}
+								</span>
+								<span className="font-semibold text-[10px] text-amber-600">
+									{locale === "hi" ? "आवश्यक" : "Mandatory"}
+								</span>
+							</Label>
+							<div className="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto pr-1">
+								{CANCEL_REASON_PRESETS.map((reason) => (
+									<button
+										key={reason}
+										type="button"
+										onClick={() => {
+											setCancelReasonPreset(reason);
+										}}
+										className={`rounded-lg border p-2.5 text-left text-xs transition-all ${
+											cancelReasonPreset === reason
+												? "border-red-500 bg-red-50 font-semibold text-red-950 shadow-xs dark:border-red-800 dark:bg-red-950/40 dark:text-red-200"
+												: "border-border text-foreground hover:bg-muted/60"
+										}`}
+									>
+										{reason}
+									</button>
+								))}
+							</div>
+						</div>
+
+						{/* Custom Reason Text Input */}
+						<div className="space-y-1.5">
+							<Label
+								htmlFor="customCancelNote"
+								className="font-semibold text-foreground text-xs"
+							>
+								{locale === "hi"
+									? "अपना कारण लिखें (या अतिरिक्त टिप्पणी):"
+									: "Write your own reason / Additional note:"}
+							</Label>
+							<textarea
+								id="customCancelNote"
+								rows={2}
+								placeholder={
+									locale === "hi"
+										? "यहाँ अपना कारण टाइप करें..."
+										: "Type your reason here..."
+								}
+								value={customCancelReason}
+								onChange={(e) => setCustomCancelReason(e.target.value)}
+								className="w-full rounded-md border border-input bg-background p-2.5 text-foreground text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+							/>
+						</div>
+
+						{/* Live selection preview */}
+						{getFinalCancelReason() && (
+							<div className="rounded-lg border border-red-200/60 bg-red-50/80 p-2.5 text-red-900 text-xs dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+								<span className="font-bold">
+									{locale === "hi" ? "दर्ज कारण:" : "Selected Reason:"}{" "}
+								</span>
+								<span className="italic">{getFinalCancelReason()}</span>
+							</div>
+						)}
+					</div>
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							variant="outline"
+							onClick={() => {
+								setIsDeleteOpen(false);
+								setCancelReasonPreset("");
+								setCustomCancelReason("");
+							}}
+							disabled={cancelMutation.isPending}
+						>
+							{tc("cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							className="bg-red-600 font-bold hover:bg-red-700"
+							onClick={handleDelete}
+							disabled={!getFinalCancelReason() || cancelMutation.isPending}
+						>
+							{cancelMutation.isPending
+								? locale === "hi"
+									? "निरस्त हो रहा है..."
+									: "Cancelling..."
+								: locale === "hi"
+									? "निरस्त करें और सहेजें"
+									: "Cancel & Archive Order"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</Card>
 	);
 }

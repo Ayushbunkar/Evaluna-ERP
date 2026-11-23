@@ -21,12 +21,16 @@ import {
 	ArchiveIcon,
 	CheckCircle2Icon,
 	Loader2Icon,
+	MapPinIcon,
 	PrinterIcon,
 	SearchIcon,
 	TruckIcon,
+	UserIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
+import { DateFilterBar, getTodayStr } from "@/components/shared/filters/date-filter-bar";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -34,18 +38,27 @@ export default function PackerHistoryPage() {
 	const t = useTranslations("packer");
 	const tCommon = useTranslations("common");
 	const trpc = useTRPC();
+	const [startDate, setStartDate] = useState(getTodayStr());
+	const [endDate, setEndDate] = useState(getTodayStr());
+	const [datePreset, setDatePreset] = useState("today");
+
 	const {
 		data: historyList,
 		isLoading,
 		error,
-	} = trpc.packer.getPackingHistory.useQuery({});
+	} = trpc.packer.getPackingHistory.useQuery({
+		startDate: startDate || undefined,
+		endDate: endDate || undefined,
+	});
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [printPackage, setPrintPackage] = useState<{
 		number: string;
 		orderRef: string;
+		customerName?: string;
 	} | null>(null);
 	const printSvgRef = useRef<SVGSVGElement | null>(null);
+	const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
 
 	useEffect(() => {
 		if (printSvgRef.current && printPackage?.number) {
@@ -63,9 +76,24 @@ export default function PackerHistoryPage() {
 			}
 		}
 	}, [printPackage]);
+	useEffect(() => {
+		if (printPackage?.number) {
+			QRCode.toDataURL(
+				printPackage.number,
+				{ width: 140, margin: 1, color: { dark: "#000000", light: "#ffffff" } },
+				(err, url) => {
+					if (!err && url) setQrCodeDataUrl(url);
+				},
+			);
+		}
+	}, [printPackage]);
 
-	const handlePrintLabel = (pkgNum: string, orderRef: string) => {
-		setPrintPackage({ number: pkgNum, orderRef });
+	const handlePrintLabel = (
+		pkgNum: string,
+		orderRef: string,
+		customerName?: string,
+	) => {
+		setPrintPackage({ number: pkgNum, orderRef, customerName });
 		setTimeout(() => {
 			window.print();
 		}, 300);
@@ -75,20 +103,53 @@ export default function PackerHistoryPage() {
 		(p) =>
 			p.packageNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			p.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(p.customerName &&
+				p.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+			(p.routeName &&
+				p.routeName.toLowerCase().includes(searchQuery.toLowerCase())) ||
 			p.packedBy.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
 	return (
 		<PageTransition className="container mx-auto space-y-6">
 			{/* Printable Thermal Label */}
-			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:block print:bg-white print:p-4">
+			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:flex print:items-start print:justify-center print:bg-white print:p-2">
+				<style
+					dangerouslySetInnerHTML={{
+						__html: `
+					@media print {
+						@page { size: 100mm 150mm; margin: 2mm; }
+						body { margin: 0; padding: 0; }
+					}
+				`,
+					}}
+				/>
 				{printPackage && (
 					<div className="mx-auto flex w-[280px] flex-col items-center justify-center border-2 border-black p-4 text-center font-sans">
 						<p className="font-bold text-sm">SHIPMENT PARCEL LABEL</p>
 						<p className="mt-1 font-semibold text-gray-700 text-xs">
 							Ref: {printPackage.orderRef}
 						</p>
-						<svg ref={printSvgRef} className="my-2" />
+						{printPackage.customerName && (
+							<p className="mt-0.5 font-bold text-black text-xs">
+								{printPackage.customerName}
+							</p>
+						)}
+						<div className="my-2 flex flex-col items-center">
+							<svg ref={printSvgRef} className="max-w-[240px]" />
+							{qrCodeDataUrl && (
+								<div className="mt-2 flex flex-col items-center border border-black bg-white p-1">
+									<img
+										src={qrCodeDataUrl}
+										alt="QR Code"
+										className="h-20 w-20 object-contain"
+									/>
+									<span className="font-bold font-mono text-[8px] text-black uppercase">
+										Driver Scan QR
+									</span>
+								</div>
+							)}
+						</div>
 						<p className="text-[10px] text-gray-500">
 							PACKED & VERIFIED BY EVALUNA LOGISTICS
 						</p>
@@ -186,6 +247,21 @@ export default function PackerHistoryPage() {
 						/>
 					</div>
 				</CardHeader>
+
+				<div className="px-6 pb-2">
+					<DateFilterBar
+						startDate={startDate}
+						endDate={endDate}
+						datePreset={datePreset}
+						totalCount={filteredList?.length}
+						countLabel="packages"
+						onDateChange={(start, end, preset) => {
+							setStartDate(start);
+							setEndDate(end);
+							setDatePreset(preset);
+						}}
+					/>
+				</div>
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
@@ -208,6 +284,7 @@ export default function PackerHistoryPage() {
 									<TableRow>
 										<TableHead>{t("packageNumber")}</TableHead>
 										<TableHead>{t("orderRef")}</TableHead>
+										<TableHead>{t("customerName")}</TableHead>
 										<TableHead>{t("assignedRoute")}</TableHead>
 										<TableHead>{t("packedBy")}</TableHead>
 										<TableHead>{tCommon("status")}</TableHead>
@@ -226,8 +303,19 @@ export default function PackerHistoryPage() {
 											<TableCell className="font-semibold text-sm">
 												{pkg.orderId}
 											</TableCell>
+											<TableCell className="font-medium text-foreground text-xs">
+												<div className="flex items-center gap-1.5">
+													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+													<span className="font-semibold text-foreground">
+														{pkg.customerName || "Customer Order"}
+													</span>
+												</div>
+											</TableCell>
 											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
-												📍 {pkg.routeName || "Delivery Route"}
+												<div className="flex items-center gap-1">
+													<MapPinIcon className="h-3 w-3" />{" "}
+													{pkg.routeName || "Delivery Route"}
+												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pkg.packedBy}
@@ -245,8 +333,8 @@ export default function PackerHistoryPage() {
 														: pkg.status}
 												</span>
 											</TableCell>
-											<TableCell className="text-muted-foreground text-xs">
-												{pkg.packedAt}
+											<TableCell className="text-muted-foreground text-xs font-mono">
+												{(pkg as any).packedDateDisplay || pkg.packedAt}
 											</TableCell>
 											<TableCell className="text-right">
 												<Button
@@ -254,7 +342,11 @@ export default function PackerHistoryPage() {
 													size="sm"
 													className="h-8 gap-1"
 													onClick={() =>
-														handlePrintLabel(pkg.packageNumber, pkg.orderId)
+														handlePrintLabel(
+															pkg.packageNumber,
+															pkg.orderId,
+															pkg.customerName,
+														)
 													}
 												>
 													<PrinterIcon className="h-3.5 w-3.5" />{" "}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -124,6 +124,8 @@ export default function CreateSalesReturn() {
 			cgstAmount: 0,
 			sgstAmount: 0,
 			igstAmount: 0,
+			reason,
+			notes,
 		});
 	};
 

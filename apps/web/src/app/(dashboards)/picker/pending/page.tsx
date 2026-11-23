@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
@@ -17,25 +18,68 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
+	CalendarIcon,
 	CheckCircle2Icon,
 	ClockIcon,
+	FilterIcon,
 	Loader2Icon,
+	MapPinIcon,
 	PackageIcon,
 	PlaySquareIcon,
 	SearchIcon,
+	SparklesIcon,
+	UserIcon,
+	ZapIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+
+function toDateKey(dateVal: string | Date | null | undefined): string {
+	if (!dateVal) return "";
+	const d = new Date(dateVal);
+	if (Number.isNaN(d.getTime())) return "";
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, "0");
+	const day = String(d.getDate()).padStart(2, "0");
+	return `${y}-${m}-${day}`;
+}
+
+function getTodayLocalDateStr(): string {
+	const now = new Date();
+	const y = now.getFullYear();
+	const m = String(now.getMonth() + 1).padStart(2, "0");
+	const d = String(now.getDate()).padStart(2, "0");
+	return `${y}-${m}-${d}`;
+}
+
+function getYesterdayLocalDateStr(): string {
+	const y = new Date();
+	y.setDate(y.getDate() - 1);
+	const yr = y.getFullYear();
+	const m = String(y.getMonth() + 1).padStart(2, "0");
+	const d = String(y.getDate()).padStart(2, "0");
+	return `${yr}-${m}-${d}`;
+}
 
 export default function PickerPendingPage() {
 	const t = useTranslations("picker");
 	const trpc = useTRPC();
 	const router = useRouter();
+
+	const todayKey = useMemo(() => getTodayLocalDateStr(), []);
+	const yesterdayKey = useMemo(() => getYesterdayLocalDateStr(), []);
+	const [datePreset, setDatePreset] = useState<
+		"all" | "today" | "yesterday" | "custom"
+	>("all");
+	const [customDate, setCustomDate] = useState<string>(todayKey);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [activeStartingId, setActiveStartingId] = useState<number | null>(null);
+
 	const {
 		data: pendingPicks,
 		isLoading,
@@ -43,15 +87,29 @@ export default function PickerPendingPage() {
 		error,
 		refetch,
 	} = trpc.picker.getPending.useQuery(
-		{},
 		{
-			refetchInterval: 15000, // Auto-refresh every 15 seconds
-			refetchIntervalInBackground: false, // Only poll when tab is active
+			datePreset,
+			date: datePreset === "custom" ? customDate : undefined,
+		},
+		{
+			refetchInterval: 15000,
+			refetchIntervalInBackground: false,
 		},
 	);
 
-	const [searchQuery, setSearchQuery] = useState("");
-	const [activeStartingId, setActiveStartingId] = useState<number | null>(null);
+	const claimNextMutation = trpc.picker.claimNextTask.useMutation({
+		onSuccess: (data) => {
+			toast.success(
+				data.isExisting
+					? "Resuming your active picking task..."
+					: "Next task claimed from queue! Opening pick execution...",
+			);
+			router.push(`/picker/active?id=${data.pickListId}`);
+		},
+		onError: (err) => {
+			toast.error(err.message || "No tasks available to claim.");
+		},
+	});
 
 	const startTaskMutation = trpc.warehouse.startPickingTask.useMutation({
 		onSuccess: (_, variables) => {
@@ -70,14 +128,43 @@ export default function PickerPendingPage() {
 		startTaskMutation.mutate({ pickListId });
 	};
 
-	const filteredPicks = pendingPicks?.filter(
-		(p) =>
-			p.order_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			p.assigned_to.toLowerCase().includes(searchQuery.toLowerCase()),
-	);
+	// Client-side date filter safety check
+	const dateFilteredPicks = useMemo(() => {
+		if (!pendingPicks) return [];
+		return pendingPicks.filter((p: any) => {
+			if (datePreset === "all") return true;
+			const pDate = p.created_at ? toDateKey(p.created_at) : "";
+			if (!pDate) return true;
+			if (datePreset === "today") return pDate === todayKey;
+			if (datePreset === "yesterday") return pDate === yesterdayKey;
+			if (datePreset === "custom") return pDate === customDate;
+			return true;
+		});
+	}, [pendingPicks, datePreset, todayKey, yesterdayKey, customDate]);
+
+	const filteredPicks = useMemo(() => {
+		if (!dateFilteredPicks) return [];
+		const q = searchQuery.toLowerCase().trim();
+		if (!q) return dateFilteredPicks;
+		return dateFilteredPicks.filter(
+			(p: any) =>
+				(p.order_id && p.order_id.toLowerCase().includes(q)) ||
+				(p.assigned_to && p.assigned_to.toLowerCase().includes(q)) ||
+				(p.customerName && p.customerName.toLowerCase().includes(q)) ||
+				(p.routeName && p.routeName.toLowerCase().includes(q)),
+		);
+	}, [dateFilteredPicks, searchQuery]);
+
+	const highPriorityCount = useMemo(() => {
+		return (
+			dateFilteredPicks.filter(
+				(p: any) => p.priority === "High" || p.priority === "Urgent",
+			).length || 0
+		);
+	}, [dateFilteredPicks]);
 
 	return (
-		<PageTransition className="container mx-auto space-y-6">
+		<PageTransition className="w-full max-w-full min-w-0 flex flex-col gap-4 sm:gap-6">
 			{/* Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
@@ -110,13 +197,109 @@ export default function PickerPendingPage() {
 						/>
 						{isFetching ? t("refreshing") : t("refresh")}
 					</Button>
-					<Button className="bg-blue-600 text-white hover:bg-blue-700" asChild>
-						<Link href="/picker/active">
-							<PlaySquareIcon className="mr-2 h-4 w-4" /> {t("startActivePick")}
-						</Link>
+					<Button
+						className="bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-sm"
+						disabled={claimNextMutation.isPending}
+						onClick={() => claimNextMutation.mutate()}
+					>
+						<ZapIcon className="mr-2 h-4 w-4" />
+						{claimNextMutation.isPending
+							? "Claiming Task..."
+							: "Claim Next Task from Queue"}
 					</Button>
 				</div>
 			</div>
+
+			{/* Day-Wise Filter Bar */}
+			<Card className="border-border/60 bg-card/60 shadow-xs backdrop-blur-sm">
+				<CardContent className="p-4">
+					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mr-1">
+								<FilterIcon className="h-3.5 w-3.5 text-blue-600" />
+								Filter Day:
+							</span>
+							<Button
+								type="button"
+								size="sm"
+								variant={datePreset === "all" ? "default" : "outline"}
+								className={
+									datePreset === "all"
+										? "bg-blue-600 text-white hover:bg-blue-700 h-8 text-xs font-medium"
+										: "h-8 text-xs font-medium"
+								}
+								onClick={() => setDatePreset("all")}
+							>
+								All Dates
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant={datePreset === "today" ? "default" : "outline"}
+								className={
+									datePreset === "today"
+										? "bg-blue-600 text-white hover:bg-blue-700 h-8 text-xs font-medium"
+										: "h-8 text-xs font-medium"
+								}
+								onClick={() => setDatePreset("today")}
+							>
+								<CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+								Today
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant={datePreset === "yesterday" ? "default" : "outline"}
+								className={
+									datePreset === "yesterday"
+										? "bg-blue-600 text-white hover:bg-blue-700 h-8 text-xs font-medium"
+										: "h-8 text-xs font-medium"
+								}
+								onClick={() => setDatePreset("yesterday")}
+							>
+								Yesterday
+							</Button>
+
+							<div className="flex items-center gap-1.5 pl-1">
+								<span className="text-xs text-muted-foreground">Custom:</span>
+								<div className="relative">
+									<input
+										type="date"
+										value={customDate}
+										onChange={(e) => {
+											if (e.target.value) {
+												setCustomDate(e.target.value);
+												setDatePreset("custom");
+											}
+										}}
+										className="h-8 rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+							</div>
+						</div>
+
+						{/* Active Filter Indicator */}
+						<div className="flex items-center gap-2">
+							<Badge
+								variant="secondary"
+								className="text-xs font-normal border border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300 px-2.5 py-1"
+							>
+								<CalendarIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
+								{datePreset === "all" && "Showing: All Dates"}
+								{datePreset === "today" && `Showing: Today (${todayKey})`}
+								{datePreset === "yesterday" &&
+									`Showing: Yesterday (${yesterdayKey})`}
+								{datePreset === "custom" &&
+									`Showing: Selected Date (${customDate})`}
+							</Badge>
+							<span className="text-xs font-semibold text-muted-foreground">
+								({dateFilteredPicks.length}{" "}
+								{dateFilteredPicks.length === 1 ? "task" : "tasks"})
+							</span>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 
 			{/* Stats Grid */}
 			<StaggerList className="grid gap-4 sm:grid-cols-3" slow>
@@ -129,7 +312,12 @@ export default function PickerPendingPage() {
 										{t("totalPendingPicks")}
 									</p>
 									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
-										{pendingPicks?.length ?? 0}
+										{dateFilteredPicks.length}
+									</p>
+									<p className="text-[11px] text-blue-600/80 mt-0.5">
+										{datePreset === "all"
+											? "Across all dates"
+											: "For selected date filter"}
 									</p>
 								</div>
 								<ClockIcon className="h-8 w-8 text-blue-500" />
@@ -147,9 +335,10 @@ export default function PickerPendingPage() {
 										{t("highPriorityOrders")}
 									</p>
 									<p className="font-bold text-3xl text-yellow-800 dark:text-yellow-300">
-										{pendingPicks?.filter(
-											(p) => p.priority === "High" || p.priority === "Urgent",
-										).length ?? 0}
+										{highPriorityCount}
+									</p>
+									<p className="text-[11px] text-yellow-700/80 mt-0.5">
+										Requires urgent dispatch
 									</p>
 								</div>
 								<PackageIcon className="h-8 w-8 text-yellow-500" />
@@ -168,6 +357,9 @@ export default function PickerPendingPage() {
 									</p>
 									<p className="font-bold text-green-800 text-xl dark:text-green-300">
 										{t("activeQueue")}
+									</p>
+									<p className="text-[11px] text-green-700/80 mt-0.5">
+										Ready to pick & pack
 									</p>
 								</div>
 								<CheckCircle2Icon className="h-8 w-8 text-green-500" />
@@ -212,80 +404,221 @@ export default function PickerPendingPage() {
 							{error.message || "Error loading pending picks"}
 						</div>
 					) : !filteredPicks || filteredPicks.length === 0 ? (
-						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-							<CheckCircle2Icon className="h-10 w-10 text-green-500 opacity-30" />
-							<p>{t("noPendingPicksFound")}</p>
+						<div className="flex h-48 flex-col items-center justify-center gap-2 text-muted-foreground">
+							<CheckCircle2Icon className="h-10 w-10 text-green-500 opacity-40 mb-1" />
+							<p className="font-semibold text-foreground text-sm">
+								{dateFilteredPicks.length === 0
+									? `No pending pick tasks found for ${
+											datePreset === "all"
+												? "any date"
+												: datePreset === "today"
+													? `Today (${todayKey})`
+													: datePreset === "yesterday"
+														? `Yesterday (${yesterdayKey})`
+														: `Date (${customDate})`
+										}`
+									: "No pick tasks matching your search query"}
+							</p>
+							<p className="text-xs text-muted-foreground">
+								{datePreset !== "all" ? (
+									<button
+										type="button"
+										onClick={() => setDatePreset("all")}
+										className="text-blue-600 hover:underline font-medium"
+									>
+										Click here to view All Dates
+									</button>
+								) : (
+									"All queued orders have been picked!"
+								)}
+							</p>
 						</div>
 					) : (
-						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>{t("queueNo")}</TableHead>
-										<TableHead>{t("orderId")}</TableHead>
-										<TableHead>{t("priority")}</TableHead>
-										<TableHead>{t("totalItems")}</TableHead>
-										<TableHead>{t("assignedPicker")}</TableHead>
-										<TableHead>{t("waitingSince")}</TableHead>
-										<TableHead className="text-right">
-											{t("startPick")}
-										</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{filteredPicks.map((pick) => (
-										<TableRow key={pick.queue_no} className="hover:bg-muted/50">
-											<TableCell className="font-mono font-semibold text-xs">
-												#{pick.queue_no}
-											</TableCell>
-											<TableCell className="font-semibold text-sm">
-												<div>{pick.order_id}</div>
-												{pick.routeName && pick.routeName !== "N/A" && (
-													<div className="text-[11px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-0.5">
-														📍 {pick.routeName}
-													</div>
-												)}
-											</TableCell>
-											<TableCell>
-												<span
-													className={`rounded-full px-2 py-0.5 font-medium text-xs ${
-														pick.priority === "High"
-															? "bg-red-100 text-red-800"
-															: pick.priority === "Urgent"
-																? "bg-orange-100 text-orange-800"
-																: "bg-gray-100 text-gray-800"
-													}`}
-												>
-													{pick.priority}
+						<>
+							{/* Mobile View: Touch Cards (Phone-First) */}
+							<div className="space-y-3 pb-12 sm:hidden sm:pb-0">
+								{filteredPicks.map((pick) => (
+									<div
+										key={pick.queue_no}
+										className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-all hover:border-blue-300 dark:hover:border-blue-700"
+									>
+										<div className="flex items-center justify-between gap-2 mb-2">
+											<div className="flex items-center gap-2">
+												<span className="font-mono font-bold text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md dark:bg-blue-950/60 dark:text-blue-300">
+													#{pick.queue_no}
 												</span>
-											</TableCell>
-											<TableCell className="font-medium text-sm">
-												{pick.items}
-											</TableCell>
-											<TableCell className="text-muted-foreground text-xs">
-												{pick.assigned_to}
-											</TableCell>
-											<TableCell className="text-muted-foreground text-xs">
-												{pick.waiting_since || "Just now"}
-											</TableCell>
-											<TableCell className="text-right">
-												<Button
-													size="sm"
-													className="h-8 bg-blue-600 text-white hover:bg-blue-700"
-													onClick={() => handleStartPick(pick.id)}
-													disabled={startTaskMutation.isPending}
-												>
-													<PlaySquareIcon className="mr-1 h-3.5 w-3.5" />{" "}
-													{startTaskMutation.isPending
-														? t("starting")
-														: t("startPick")}
-												</Button>
-											</TableCell>
+												<span className="font-bold text-sm text-foreground">
+													{pick.order_id}
+												</span>
+											</div>
+											<span
+												className={`rounded-full px-2 py-0.5 font-bold text-[10px] ${
+													pick.priority === "High"
+														? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+														: pick.priority === "Urgent"
+															? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+															: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+												}`}
+											>
+												{pick.priority}
+											</span>
+										</div>
+
+										{pick.routeName && pick.routeName !== "N/A" && (
+											<div className="mb-2 inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+												<MapPinIcon className="h-3 w-3" /> {pick.routeName}
+											</div>
+										)}
+
+										<div className="flex items-center gap-1.5 text-xs text-foreground font-semibold mb-2">
+											<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+											<span>
+												{pick.customerName && pick.customerName !== "N/A"
+													? pick.customerName
+													: "Customer"}
+											</span>
+										</div>
+
+										<div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg mb-3">
+											<div>
+												<span className="block text-[11px] text-muted-foreground/80">
+													Items
+												</span>
+												<span className="font-bold text-foreground">
+													{pick.products_count ?? pick.items} prods (
+													{pick.items} units)
+												</span>
+											</div>
+											<div className="text-right">
+												<span className="block text-[11px] text-muted-foreground/80">
+													Wait Time
+												</span>
+												<span className="font-semibold text-foreground">
+													{pick.waiting_since || "Just now"}
+												</span>
+											</div>
+										</div>
+
+										<Button
+											className="w-full min-h-[44px] bg-blue-600 text-white hover:bg-blue-700 font-semibold text-sm shadow-xs active:scale-[0.98]"
+											onClick={() => handleStartPick(pick.id)}
+											disabled={
+												startTaskMutation.isPending &&
+												activeStartingId === pick.id
+											}
+										>
+											<PlaySquareIcon className="mr-1.5 h-4 w-4" />
+											{startTaskMutation.isPending &&
+											activeStartingId === pick.id
+												? t("starting")
+												: t("startPick")}
+										</Button>
+									</div>
+								))}
+							</div>
+
+							{/* Desktop/Tablet Table View */}
+							<div className="hidden sm:block overflow-x-auto">
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>{t("queueNo")}</TableHead>
+											<TableHead>{t("orderId")}</TableHead>
+											<TableHead>Customer Name</TableHead>
+											<TableHead>{t("priority")}</TableHead>
+											<TableHead>Total Products</TableHead>
+											<TableHead>{t("assignedPicker")}</TableHead>
+											<TableHead>{t("waitingSince")}</TableHead>
+											<TableHead className="text-right">
+												{t("startPick")}
+											</TableHead>
 										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
+									</TableHeader>
+									<TableBody>
+										{filteredPicks.map((pick) => (
+											<TableRow
+												key={pick.queue_no}
+												className="hover:bg-muted/50"
+											>
+												<TableCell className="font-mono font-semibold text-xs">
+													#{pick.queue_no}
+												</TableCell>
+												<TableCell className="font-semibold text-sm">
+													<div className="font-bold">{pick.order_id}</div>
+													{pick.routeName && pick.routeName !== "N/A" && (
+														<div className="text-[11px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-0.5">
+															<MapPinIcon className="h-3 w-3" />{" "}
+															{pick.routeName}
+														</div>
+													)}
+												</TableCell>
+												<TableCell className="font-medium text-xs text-foreground">
+													<div className="flex items-center gap-1.5">
+														<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+														<span className="font-semibold text-gray-900 dark:text-gray-100">
+															{pick.customerName && pick.customerName !== "N/A"
+																? pick.customerName
+																: "Customer"}
+														</span>
+													</div>
+												</TableCell>
+												<TableCell>
+													<span
+														className={`rounded-full px-2 py-0.5 font-medium text-xs ${
+															pick.priority === "High"
+																? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+																: pick.priority === "Urgent"
+																	? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+																	: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+														}`}
+													>
+														{pick.priority}
+													</span>
+												</TableCell>
+												<TableCell className="font-medium text-sm">
+													<div className="font-bold text-gray-900 dark:text-gray-100">
+														{pick.products_count ?? pick.items}{" "}
+														{pick.products_count === 1 ? "product" : "products"}
+													</div>
+													<div className="text-[11px] text-muted-foreground font-medium">
+														({pick.items} {pick.items === 1 ? "unit" : "units"}{" "}
+														total)
+													</div>
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{pick.assigned_to}
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													<div>{pick.waiting_since || "Just now"}</div>
+													{pick.created_at && (
+														<div className="text-[10px] text-muted-foreground/70">
+															{toDateKey(pick.created_at)}
+														</div>
+													)}
+												</TableCell>
+												<TableCell className="text-right">
+													<Button
+														size="sm"
+														className="h-8 bg-blue-600 text-white hover:bg-blue-700 shadow-xs"
+														onClick={() => handleStartPick(pick.id)}
+														disabled={
+															startTaskMutation.isPending &&
+															activeStartingId === pick.id
+														}
+													>
+														<PlaySquareIcon className="mr-1 h-3.5 w-3.5" />{" "}
+														{startTaskMutation.isPending &&
+														activeStartingId === pick.id
+															? t("starting")
+															: t("startPick")}
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						</>
 					)}
 				</CardContent>
 			</Card>

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { attachments } from "@evaluna/db/schema";
@@ -37,7 +38,10 @@ export function attendanceUploadRoot(): string {
 	if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
 		return path.join("/tmp", "uploads", "attendance");
 	}
-	return path.join(/*turbopackIgnore: true*/ process.cwd(), "uploads", "attendance");
+	if (existsSync(path.join(process.cwd(), "apps", "web"))) {
+		return path.join(process.cwd(), "apps", "web", "uploads", "attendance");
+	}
+	return path.join(process.cwd(), "uploads", "attendance");
 }
 
 export function retentionDays(): number {
@@ -74,11 +78,20 @@ export async function storeAttendanceImage(
 	const branchSeg = params.branchId != null ? `b${params.branchId}` : "shared";
 	const storedName = `${randomUUID()}${ext}`;
 	const relDir = path.join(branchSeg, params.entityType);
-	const absDir = path.join(attendanceUploadRoot(), relDir);
-	await mkdir(absDir, { recursive: true });
-	await writeFile(path.join(absDir, storedName), params.buffer);
-
 	const relPath = path.join(relDir, storedName).split(path.sep).join("/");
+
+	// Best-effort local file write (works on localhost/VPS; gracefully ignored on read-only serverless/Vercel)
+	try {
+		const absDir = path.join(attendanceUploadRoot(), relDir);
+		await mkdir(absDir, { recursive: true });
+		await writeFile(path.join(absDir, storedName), params.buffer);
+	} catch (diskErr) {
+		console.warn("[attendance-storage] Ephemeral/read-only disk write skipped (using DB persistence):", diskErr);
+	}
+
+	// Always persist base64 data to database so Vercel serverless instances can serve it reliably
+	const b64Data = params.buffer.toString("base64");
+
 	const [row] = await db
 		.insert(attachments)
 		.values({
@@ -90,6 +103,7 @@ export async function storeAttendanceImage(
 			mime_type: params.mime,
 			file_size: params.buffer.length,
 			storage_path: relPath,
+			file_data: b64Data,
 			uploaded_by: params.uploadedBy,
 		})
 		.returning();

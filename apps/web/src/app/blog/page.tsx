@@ -1,9 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
 import { BookOpen, Tag } from "lucide-react";
+import type { Metadata } from "next";
 import { Navbar } from "@/components/public/navbar";
 import { Footer } from "@/components/public/footer";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Blog & Engineering Insights — Supply Chain & ERP",
+	description:
+		"Deep dives into offline POS architectures, multi-warehouse shrinkage reduction, GPS attendance tracking, and retail tech in India.",
+	canonicalPath: "/blog",
+	ogType: "article",
+});
 
 export default function BlogPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Blog", url: "/blog" },
+	]);
 	const posts = [
 		{
 			title: "Why Offline-First Architecture is Critical for Tier-2/3 Retail in India",
@@ -30,6 +44,10 @@ export default function BlogPage() {
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 text-slate-900">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			<Navbar />
 
 			<section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">

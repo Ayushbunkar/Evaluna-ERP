@@ -2,7 +2,6 @@ import {
 	branchInventory,
 	coupons,
 	dailyProductDiscounts,
-	deliveryTrips,
 	orderAudits,
 	orderItems,
 	orders,
@@ -11,21 +10,27 @@ import {
 	pickListItems,
 	pickLists,
 	products,
-	routeStops,
+	productSlabPricing,
 	staff,
 	stockLedger,
 	transactions,
-	tripStops,
 } from "@evaluna/db/schema";
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import {
+	deductStockForOrder,
+	adjustStockForOrderQuantityChange,
+} from "@/lib/inventory/inventory-service";
+import { ensureSlabPricingTable } from "./slab-pricing";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 
 export const posRouter = router({
 	catalog: protectedProcedure.query(async ({ ctx }) => {
+		const targetBranchId = ctx.user?.branchId || 1;
 		const todayStr = new Date().toISOString().split("T")[0];
 
-		// Fetch full products catalog (up to 1000 items) with today's active daily discounts
+		// Fetch full products catalog (up to 1000 items) with branch inventory stock and today's active daily discounts
 		const [catalog, activeDiscounts] = await Promise.all([
 			ctx.db
 				.select({
@@ -40,13 +45,35 @@ export const posRouter = router({
 					description: products.description,
 					is_weighted: products.is_weighted,
 					is_taxable: products.taxable,
+					qty_on_hand: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
+					reorder_level: sql<number>`coalesce(max(${branchInventory.reorder_level}), 10)::int`,
 				})
 				.from(products)
+				.leftJoin(
+					branchInventory,
+					and(
+						eq(products.id, branchInventory.product_id),
+						eq(branchInventory.branch_id, targetBranchId),
+					),
+				)
 				.where(
 					and(
 						or(eq(products.is_deleted, false), isNull(products.is_deleted)),
 						or(eq(products.is_hidden, false), isNull(products.is_hidden)),
 					),
+				)
+				.groupBy(
+					products.id,
+					products.name,
+					products.sku,
+					products.category,
+					products.unit,
+					products.barcode,
+					products.price,
+					products.base_selling_price,
+					products.description,
+					products.is_weighted,
+					products.taxable,
 				)
 				.orderBy(asc(products.name))
 				.limit(1000),
@@ -59,12 +86,57 @@ export const posRouter = router({
 						eq(dailyProductDiscounts.is_active, true),
 					),
 				)
-				.catch(() => [] as { product_id: number; is_active: boolean; discounted_price: string | null; reason: string; discount_percent: string | null }[]),
+				.catch(
+					() =>
+						[] as {
+							product_id: number;
+							is_active: boolean;
+							discounted_price: string | null;
+							reason: string;
+							discount_percent: string | null;
+						}[],
+				),
 		]);
 
 		const discountMap = new Map<number, (typeof activeDiscounts)[0]>();
 		for (const d of activeDiscounts) {
 			discountMap.set(d.product_id, d);
+		}
+
+		await ensureSlabPricingTable(ctx.db);
+		const productIds = catalog.map((item) => item.id);
+		let activeSlabs: any[] = [];
+		if (productIds.length > 0) {
+			try {
+				activeSlabs = await ctx.db
+					.select()
+					.from(productSlabPricing)
+					.where(
+						and(
+							inArray(productSlabPricing.product_id, productIds),
+							eq(productSlabPricing.is_active, true),
+						),
+					)
+					.orderBy(asc(productSlabPricing.min_quantity));
+			} catch (e) {
+				activeSlabs = [];
+			}
+		}
+
+		const slabsMap = new Map<number, any[]>();
+		for (const s of activeSlabs) {
+			const list = slabsMap.get(s.product_id) || [];
+			list.push({
+				id: s.id,
+				productId: s.product_id,
+				minQuantity: Number(s.min_quantity),
+				maxQuantity: s.max_quantity !== null ? Number(s.max_quantity) : null,
+				unitPrice: Number(s.unit_price),
+				startDate: s.start_date,
+				endDate: s.end_date,
+				isActive: s.is_active,
+			});
+			slabsMap.set(s.product_id, list);
 		}
 
 		return catalog.map((item) => {
@@ -75,6 +147,11 @@ export const posRouter = router({
 			const offerPrice = hasOffer
 				? Number.parseFloat(activeOffer.discounted_price || "0")
 				: originalPrice;
+			const currentStock = Number(item.qty_on_hand || 0);
+			const minThreshold = Number(item.reorder_level ?? 10);
+			const isOutOfStock = currentStock <= 0;
+			const isLowStock = !isOutOfStock && currentStock <= minThreshold;
+			const itemSlabs = slabsMap.get(item.id) || [];
 
 			return {
 				...item,
@@ -87,9 +164,25 @@ export const posRouter = router({
 					? Number.parseFloat(activeOffer.discount_percent)
 					: hasOffer && originalPrice > 0
 						? Number.parseFloat(
-								(((originalPrice - offerPrice) / originalPrice) * 100).toFixed(1),
+								(((originalPrice - offerPrice) / originalPrice) * 100).toFixed(
+									1,
+								),
 							)
 						: 0,
+				hasSlabs: itemSlabs.length > 0,
+				slabs: itemSlabs,
+				slabEndDate: itemSlabs.find((s) => s.endDate)?.endDate || null,
+				slabStartDate: itemSlabs.find((s) => s.startDate)?.startDate || null,
+				offerEndDate: activeOffer?.end_date || null,
+				qty_on_hand: currentStock,
+				reorder_level: minThreshold,
+				isOutOfStock,
+				isLowStock,
+				stockStatus: isOutOfStock
+					? "out_of_stock"
+					: isLowStock
+						? "low_stock"
+						: "in_stock",
 			};
 		});
 	}),
@@ -98,11 +191,15 @@ export const posRouter = router({
 		.input(
 			z.object({
 				customerId: z.number().optional(),
+				existingOrderId: z.number().optional(),
+				branchId: z.number().optional(),
 				items: z.array(
 					z.object({
 						productId: z.number(),
 						quantity: z.number(),
-						price: z.string(),
+						price: z
+							.union([z.string(), z.number()])
+							.transform((val) => String(val)),
 					}),
 				),
 				payments: z.array(
@@ -117,11 +214,17 @@ export const posRouter = router({
 				otherChargesReason: z.string().optional(),
 				couponId: z.number().optional(),
 				isOfflineSync: z.boolean().optional(),
+				customBillDate: z.string().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			return await ctx.db.transaction(async (tx) => {
-				const effectiveBranchId = ctx.user.branchId || 1;
+				const userId = ctx.user.id || (ctx.user as any).userId;
+				const effectiveBranchId =
+					input.branchId ||
+					ctx.user.branchId ||
+					(ctx.user as any)?.branch_id ||
+					1;
 
 				// Calculate totals
 				const subtotal = input.items.reduce(
@@ -133,24 +236,92 @@ export const posRouter = router({
 				const total = Math.max(0, subtotal - discount + extra);
 				const status = "confirmed";
 
-				// 1. Create Order
-				const [order] = await tx
-					.insert(orders)
-					.values({
-						customer_id: input.customerId,
-						total_amount: total.toString(),
-						discount_amount: discount.toString(),
-						discount_reason: input.discountReason,
-						other_charges: extra.toString(),
-						other_charges_reason: input.otherChargesReason,
-						coupon_id: input.couponId,
-						is_offline_sync: input.isOfflineSync,
-						user_uid: ctx.user.id,
-						branch_id: effectiveBranchId,
-						status,
-						finance_status: input.payments && input.payments.length > 0 ? "paid" : "pending",
-					})
-					.returning();
+				// Strict Inventory Check: verify items do not exceed available stock
+				if (effectiveBranchId && !input.isOfflineSync && input.items.length > 0) {
+					const productIds = input.items.map((item) => item.productId);
+					const existingStocks = await tx
+						.select()
+						.from(branchInventory)
+						.where(
+							and(
+								eq(branchInventory.branch_id, effectiveBranchId),
+								inArray(branchInventory.product_id, productIds),
+							),
+						);
+
+					const stockMap = new Map(
+						existingStocks.map((s) => [s.product_id, Number(s.in_stock || 0)]),
+					);
+
+					for (const item of input.items) {
+						if (stockMap.has(item.productId)) {
+							const available = stockMap.get(item.productId) ?? 0;
+							if (item.quantity > available) {
+								throw new TRPCError({
+									code: "BAD_REQUEST",
+									message: `Cannot place order: item #${item.productId} quantity (${item.quantity}) exceeds available stock (${available})!`,
+								});
+							}
+						}
+					}
+				}
+
+				// Custom backdate handling if sales person selected a custom bill date
+				const createdAtDate = input.customBillDate
+					? new Date(`${input.customBillDate}T12:00:00.000Z`)
+					: undefined;
+
+				// 1. Create or Update Order (preserving sequential order ID if resuming held bill)
+				let order: any;
+				if (input.existingOrderId) {
+					await tx
+						.delete(orderItems)
+						.where(eq(orderItems.order_id, input.existingOrderId));
+					await tx
+						.delete(pickLists)
+						.where(eq(pickLists.order_id, input.existingOrderId));
+
+					const [updated] = await tx
+						.update(orders)
+						.set({
+							customer_id: input.customerId,
+							total_amount: total.toString(),
+							discount_amount: discount.toString(),
+							discount_reason: input.discountReason,
+							other_charges: extra.toString(),
+							other_charges_reason: input.otherChargesReason,
+							coupon_id: input.couponId,
+							is_offline_sync: input.isOfflineSync,
+							user_uid: userId,
+							branch_id: effectiveBranchId,
+							status,
+							finance_status: input.payments && input.payments.length > 0 ? "paid" : "pending",
+							created_at: createdAtDate || new Date(),
+						})
+						.where(eq(orders.id, input.existingOrderId))
+						.returning();
+					order = updated;
+				} else {
+					const [created] = await tx
+						.insert(orders)
+						.values({
+							customer_id: input.customerId,
+							total_amount: total.toString(),
+							discount_amount: discount.toString(),
+							discount_reason: input.discountReason,
+							other_charges: extra.toString(),
+							other_charges_reason: input.otherChargesReason,
+							coupon_id: input.couponId,
+							is_offline_sync: input.isOfflineSync,
+							user_uid: userId,
+							branch_id: effectiveBranchId,
+							status,
+							finance_status: input.payments && input.payments.length > 0 ? "paid" : "pending",
+							created_at: createdAtDate,
+						})
+						.returning();
+					order = created;
+				}
 
 				// 2. Batch insert Order Items
 				const itemsToInsert = input.items.map((item) => ({
@@ -186,137 +357,30 @@ export const posRouter = router({
 					);
 				}
 
-				// Auto Trip Assignment: Connect customer order to delivery trip for their route
-				if (input.customerId) {
-					try {
-						const customerRouteStop = await tx
-							.select()
-							.from(routeStops)
-							.where(eq(routeStops.customer_id, input.customerId))
-							.limit(1);
 
-						if (customerRouteStop.length > 0 && customerRouteStop[0].route_id) {
-							const routeId = customerRouteStop[0].route_id;
 
-							// Check for existing pending/active trip for this route
-							const existingTrips = await tx
-								.select()
-								.from(deliveryTrips)
-								.where(
-									and(
-										eq(deliveryTrips.route_id, routeId),
-										or(
-											eq(deliveryTrips.status, "pending"),
-											eq(deliveryTrips.status, "active"),
-										),
-									),
-								)
-								.limit(1);
-
-							let targetTripId: number;
-
-							if (existingTrips.length > 0) {
-								targetTripId = existingTrips[0].id;
-							} else {
-								// Auto create new delivery trip for this route
-								const [newTrip] = await tx
-									.insert(deliveryTrips)
-									.values({
-										route_id: routeId,
-										driver_id: ctx.user.id || "auto_dispatch",
-										status: "pending",
-									})
-									.returning();
-								targetTripId = newTrip.id;
-							}
-
-							// Check if stop already exists in this trip
-							const existingStops = await tx
-								.select()
-								.from(tripStops)
-								.where(
-									and(
-										eq(tripStops.trip_id, targetTripId),
-										eq(tripStops.customer_id, input.customerId),
-									),
-								);
-
-							if (existingStops.length === 0) {
-								const currentStopsCount = await tx
-									.select({ count: sql<number>`count(*)` })
-									.from(tripStops)
-									.where(eq(tripStops.trip_id, targetTripId));
-
-								const nextSeq = (Number(currentStopsCount[0]?.count) || 0) + 1;
-
-								await tx.insert(tripStops).values({
-									trip_id: targetTripId,
-									customer_id: input.customerId,
-									sequence: customerRouteStop[0].sequence || nextSeq,
-									status: "pending",
-								});
-							}
-						}
-					} catch (e) {
-						// Non-blocking auto trip assignment
-					}
-				}
-
-				if (status === "completed") {
-					// Batch insert stock ledger
-					const ledgerEntries = input.items.map((item) => ({
-						product_id: item.productId,
-						transaction_type: "out" as const,
-						quantity: -item.quantity,
-						unit_cost: item.price,
-						total_cost: (
-							Number.parseFloat(item.price) * item.quantity
-						).toString(),
-						reference_id: order.id,
-						reference_type: "sale",
-						branch_id: effectiveBranchId,
-					}));
-
-					if (ledgerEntries.length > 0) {
-						await tx.insert(stockLedger).values(ledgerEntries);
-					}
-
-					// Update branch inventory with auto-provisioning
-					if (effectiveBranchId && input.items.length > 0) {
-						const productIds = input.items.map((item) => item.productId);
-						const existingStocks = await tx
-							.select()
-							.from(branchInventory)
-							.where(
-								and(
-									eq(branchInventory.branch_id, effectiveBranchId),
-									inArray(branchInventory.product_id, productIds),
-								),
-							);
-
-						const stockMap = new Map(
-							existingStocks.map((s) => [s.product_id, s]),
-						);
-
-						for (const item of input.items) {
-							const existing = stockMap.get(item.productId);
-							if (!existing) {
-								await tx.insert(branchInventory).values({
-									branch_id: effectiveBranchId,
-									product_id: item.productId,
-									in_stock: 10000,
-									reserved_stock: 0,
-								});
-							} else {
-								await tx
-									.update(branchInventory)
-									.set({
-										in_stock: sql`${branchInventory.in_stock} - ${item.quantity}`,
-									})
-									.where(eq(branchInventory.id, existing.id));
-							}
-						}
-					}
+				// Deduct or adjust stock atomically via centralized inventory service
+				if (input.existingOrderId) {
+					await adjustStockForOrderQuantityChange(tx, {
+						orderId: order.id,
+						branchId: effectiveBranchId,
+						newItems: input.items.map((item) => ({
+							productId: item.productId,
+							quantity: item.quantity,
+							price: item.price,
+						})),
+					});
+				} else {
+					await deductStockForOrder(tx, {
+						orderId: order.id,
+						branchId: effectiveBranchId,
+						items: input.items.map((item) => ({
+							productId: item.productId,
+							quantity: item.quantity,
+							price: item.price,
+						})),
+						referenceType: "sale",
+					});
 				}
 
 				// 3. Process Payments (Split Payments Supported, Safe Method ID Lookup)
@@ -333,7 +397,7 @@ export const posRouter = router({
 					original_amount: payment.amount, // preserve original sales amount
 					adjustment_amount: "0",
 					reconciliation_status: "pending",
-					user_uid: ctx.user.id,
+					user_uid: userId,
 					branch_id: effectiveBranchId,
 					type: "in" as const,
 					category: "sale" as const,
@@ -378,32 +442,65 @@ export const posRouter = router({
 				customerId: z.number().optional(),
 				items: z.any(), // cart state
 				total: z.string(),
+				discountAmount: z.string().optional(),
+				discountReason: z.string().optional(),
+				otherCharges: z.string().optional(),
+				otherChargesReason: z.string().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			// Creates a suspended order that can be retrieved later
-			const [order] = await ctx.db
-				.insert(orders)
-				.values({
-					customer_id: input.customerId,
-					total_amount: input.total,
-					status: "suspended",
-					user_uid: ctx.user.id,
-					branch_id: ctx.user.branchId,
-				})
-				.returning();
+			const userId = ctx.user.id || (ctx.user as any).userId;
+			const effectiveBranchId =
+				ctx.user.branchId || (ctx.user as any)?.branch_id || 1;
 
-			// Insert items
-			for (const item of input.items) {
-				await ctx.db.insert(orderItems).values({
-					order_id: order.id,
-					product_id: item.id || item.productId,
-					quantity: item.qty || item.quantity,
-					price: item.price.toString(),
-				});
-			}
+			return await ctx.db.transaction(async (tx) => {
+				// Creates a suspended order that can be retrieved later
+				const [order] = await tx
+					.insert(orders)
+					.values({
+						customer_id: input.customerId,
+						total_amount: input.total,
+						status: "suspended",
+						user_uid: userId,
+						branch_id: effectiveBranchId,
+						discount_amount: input.discountAmount || "0",
+						discount_reason: input.discountReason,
+						other_charges: input.otherCharges || "0",
+						other_charges_reason: input.otherChargesReason,
+					})
+					.returning();
 
-			return order;
+				// Insert items and collect items to deduct from stock
+				const itemsToDeduct: any[] = [];
+				for (const item of input.items) {
+					const pid = Number(item.id || item.productId);
+					const qty = Number(item.qty || item.quantity);
+					const prc = String(item.price || "0");
+					await tx.insert(orderItems).values({
+						order_id: order.id,
+						product_id: pid,
+						quantity: qty,
+						price: prc,
+					});
+					itemsToDeduct.push({
+						productId: pid,
+						quantity: qty,
+						price: prc,
+					});
+				}
+
+				// Deduct stock and record in stock ledger so products on hold are deducted from available warehouse stock
+				if (itemsToDeduct.length > 0) {
+					await deductStockForOrder(tx, {
+						orderId: order.id,
+						branchId: effectiveBranchId,
+						items: itemsToDeduct,
+						referenceType: "sale",
+					});
+				}
+
+				return order;
+			});
 		}),
 
 	editOrder: protectedProcedure

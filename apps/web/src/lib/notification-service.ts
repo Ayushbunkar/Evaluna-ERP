@@ -5,6 +5,7 @@
  * by business events (sales, purchases, low stock, etc.).
  */
 
+import { sendBrevoEmail } from "@evaluna/auth/email";
 import { notificationQueue, notifications } from "@evaluna/db/schema";
 import { and, eq, lt, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -67,50 +68,50 @@ export const DEFAULT_TEMPLATES: Record<
 	{ subject?: string; body: string }
 > = {
 	low_stock: {
-		subject: "⚠️ Low Stock Alert: {{product_name}}",
+		subject: "Low Stock Alert: {{product_name}}",
 		body: "Product '{{product_name}}' is running low. Current stock: {{current_stock}} units (Reorder level: {{reorder_level}}).",
 	},
 	expiry: {
-		subject: "🗓️ Expiry Alert: {{product_name}}",
+		subject: "Expiry Alert: {{product_name}}",
 		body: "Batch {{batch_number}} of '{{product_name}}' expires on {{expiry_date}}. Quantity: {{quantity}} units.",
 	},
 	damage: {
-		subject: "🔴 Damage Report: {{product_name}}",
+		subject: "Damage Report: {{product_name}}",
 		body: "{{quantity}} units of '{{product_name}}' have been reported as damaged at branch {{branch_name}}.",
 	},
 	purchase: {
-		subject: "📦 Purchase Order Received",
+		subject: "Purchase Order Received",
 		body: "GRN {{grn_number}} from {{supplier_name}} worth ₹{{total_amount}} has been received.",
 	},
 	sale: {
-		subject: "💰 New Sale Completed",
+		subject: "New Sale Completed",
 		body: "Order #{{order_id}} completed for ₹{{total_amount}}. Payment: {{payment_method}}.",
 	},
 	payment_due: {
-		subject: "⏰ Payment Due: {{supplier_name}}",
+		subject: "Payment Due: {{supplier_name}}",
 		body: "Payment of ₹{{amount}} is due to {{supplier_name}} on {{due_date}}.",
 	},
 	birthday: {
-		subject: "🎂 Happy Birthday {{customer_name}}!",
+		subject: "Happy Birthday {{customer_name}}!",
 		body: "Wishing {{customer_name}} a very happy birthday! Use code BDAY{{year}} for a special discount today.",
 	},
 	loyalty: {
-		subject: "⭐ Loyalty Update",
+		subject: "Loyalty Update",
 		body: "{{customer_name}} has earned {{points}} points! Total balance: {{total_points}} points. Tier: {{tier}}.",
 	},
 	campaign: {
-		subject: "📢 {{campaign_name}}",
+		subject: "{{campaign_name}}",
 		body: "{{campaign_message}}",
 	},
 	info: {
 		body: "{{message}}",
 	},
 	warning: {
-		subject: "⚠️ Warning",
+		subject: "Warning",
 		body: "{{message}}",
 	},
 	error: {
-		subject: "🔴 Error Alert",
+		subject: "Error Alert",
 		body: "{{message}}",
 	},
 };
@@ -121,9 +122,28 @@ async function dispatchEmail(
 	subject: string,
 	body: string,
 ): Promise<void> {
-	// Stub: integrate with Resend / SendGrid / Nodemailer
 	console.log(`[EMAIL → ${recipient}] Subject: ${subject}\n${body}`);
-	// await resend.emails.send({ from: 'noreply@evaluna.app', to: recipient, subject, html: body });
+
+	if (process.env.BREVO_API_KEY) {
+		const html = `
+			<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
+				<div style="margin-bottom: 16px;">
+					<h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0;">Evaluna ERP</h2>
+				</div>
+				<h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin-top: 16px;">${subject}</h3>
+				<div style="font-size: 14px; line-height: 1.6; color: #334155; margin-top: 12px; white-space: pre-wrap;">${body}</div>
+				<div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #94a3b8;">
+					Evaluna ERP Automated Notification Service
+				</div>
+			</div>
+		`;
+
+		await sendBrevoEmail({
+			to: recipient,
+			subject,
+			html,
+		});
+	}
 }
 
 async function dispatchSMS(recipient: string, body: string): Promise<void> {
@@ -328,18 +348,22 @@ export async function notifyCustomerOrderPlaced(opts: {
 	// If specific staffId not passed, target all sales / manager staff
 	let targetStaffIds: number[] = opts.staffId ? [opts.staffId] : [];
 	if (targetStaffIds.length === 0) {
-		const salesStaff = await db.select({ id: staff.id, role: staff.role }).from(staff);
+		const salesStaff = await db
+			.select({ id: staff.id, role: staff.role })
+			.from(staff);
 		targetStaffIds = salesStaff
 			.filter((s) => {
 				const r = (s.role || "").toLowerCase();
-				return r.includes("sales") || r.includes("manager") || r.includes("admin");
+				return (
+					r.includes("sales") || r.includes("manager") || r.includes("admin")
+				);
 			})
 			.map((s) => s.id);
 	}
 
 	for (const sId of targetStaffIds) {
 		await dispatchNotification({
-			type: "info",
+			type: "sales",
 			priority: "high",
 			title: `🔔 New Customer Order ORD-${opts.orderId}`,
 			message: bilingual(
@@ -369,9 +393,9 @@ export async function notifyOrderCreated(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "picking",
 		priority: "high",
-		title: `📦 New Order ORD-${opts.orderId}`,
+		title: `New Order ORD-${opts.orderId}`,
 		message: bilingual(
 			`New order ORD-${opts.orderId} for ${opts.customerName} has been placed. Please pick the items.`,
 			`नया ऑर्डर ORD-${opts.orderId} (${opts.customerName}) आया है। कृपया आइटम पिक करें।`,
@@ -381,7 +405,11 @@ export async function notifyOrderCreated(opts: {
 		referenceType: "orders",
 		referenceId: opts.orderId,
 		channels: ["in_app"],
-		metadata: { order_id: opts.orderId, customer_name: opts.customerName, flow_event: "order_created" },
+		metadata: {
+			order_id: opts.orderId,
+			customer_name: opts.customerName,
+			flow_event: "order_created",
+		},
 	});
 }
 
@@ -393,9 +421,9 @@ export async function notifyPickComplete(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "packing",
 		priority: "high",
-		title: `✅ Picking Done — ORD-${opts.orderId}`,
+		title: `Picking Done — ORD-${opts.orderId}`,
 		message: bilingual(
 			`Order ORD-${opts.orderId} (${opts.customerName}) has been fully picked. Please pack it now.`,
 			`ऑर्डर ORD-${opts.orderId} (${opts.customerName}) की पिकिंग पूरी हो गई। अब पैकिंग करें।`,
@@ -405,11 +433,15 @@ export async function notifyPickComplete(opts: {
 		referenceType: "orders",
 		referenceId: opts.orderId,
 		channels: ["in_app"],
-		metadata: { order_id: opts.orderId, customer_name: opts.customerName, flow_event: "pick_complete" },
+		metadata: {
+			order_id: opts.orderId,
+			customer_name: opts.customerName,
+			flow_event: "pick_complete",
+		},
 	});
 }
 
-/** Notify Manager that packing is done — order ready for dispatch. (packer.packOrder) */
+/** Notify Manager & Driver that packing is done — order ready for dispatch. (packer.packOrder) */
 export async function notifyPackComplete(opts: {
 	orderId: number;
 	customerName: string;
@@ -419,9 +451,9 @@ export async function notifyPackComplete(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "delivery",
 		priority: "high",
-		title: `📦 Packed — ORD-${opts.orderId}`,
+		title: `Packed — ORD-${opts.orderId}`,
 		message: bilingual(
 			`Order ORD-${opts.orderId} (${opts.customerName}) packed by ${opts.packerName} [Pkg: ${opts.packageNumber}]. Ready for driver dispatch.`,
 			`ऑर्डर ORD-${opts.orderId} (${opts.customerName}) ${opts.packerName} ने पैक कर दिया [Pkg: ${opts.packageNumber}]। ड्राइवर को डिस्पैच करें।`,
@@ -450,9 +482,9 @@ export async function notifyTripAssigned(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "delivery",
 		priority: "high",
-		title: `🚚 Trip #${opts.tripId} Assigned to You`,
+		title: `Trip #${opts.tripId} Assigned to You`,
 		message: bilingual(
 			`Trip #${opts.tripId} with ${opts.stopsCount} stop(s) has been assigned to you. Prepare for delivery.`,
 			`ट्रिप #${opts.tripId} में ${opts.stopsCount} स्टॉप आपको असाइन हुए हैं। डिलीवरी की तैयारी करें।`,
@@ -462,7 +494,12 @@ export async function notifyTripAssigned(opts: {
 		referenceType: "trips",
 		referenceId: opts.tripId,
 		channels: ["in_app"],
-		metadata: { trip_id: opts.tripId, driver_name: opts.driverName, stops_count: opts.stopsCount, flow_event: "trip_assigned" },
+		metadata: {
+			trip_id: opts.tripId,
+			driver_name: opts.driverName,
+			stops_count: opts.stopsCount,
+			flow_event: "trip_assigned",
+		},
 	});
 }
 
@@ -476,9 +513,9 @@ export async function notifyTripDispatched(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "delivery",
 		priority: "critical",
-		title: `🟢 Start Delivery — Trip #${opts.tripId}`,
+		title: `Start Delivery — Trip #${opts.tripId}`,
 		message: bilingual(
 			`Manager dispatched Trip #${opts.tripId} (${opts.routeName}) with ${opts.stopsCount} stop(s). All stops are now in your app!`,
 			`मैनेजर ने ट्रिप #${opts.tripId} (${opts.routeName}) डिस्पैच किया है। ${opts.stopsCount} स्टॉप आपके ऐप में दिख रहे हैं।`,
@@ -516,9 +553,9 @@ export async function notifyDriverCollected(opts: {
 	const methodStr = methods.join(" + ") || "₹0";
 
 	await dispatchNotification({
-		type: "sale",
+		type: "finance",
 		priority: "high",
-		title: `💰 ₹${total} Collected — ${opts.customerName}`,
+		title: `₹${total} Collected — ${opts.customerName}`,
 		message: bilingual(
 			`Driver ${opts.driverName} collected ${methodStr} from ${opts.customerName}${opts.orderId ? ` (ORD-${opts.orderId})` : ""}. Awaiting reconciliation.`,
 			`ड्राइवर ${opts.driverName} ने ${opts.customerName}${opts.orderId ? ` (ORD-${opts.orderId})` : ""} से ${methodStr} लिया। रिकंसिलिएशन बाकी है।`,
@@ -552,7 +589,7 @@ export async function notifyTripCompleted(opts: {
 	await dispatchNotification({
 		type: "info",
 		priority: "high",
-		title: `✅ Trip #${opts.tripId} Complete`,
+		title: `Trip #${opts.tripId} Complete`,
 		message: bilingual(
 			`Driver ${opts.driverName} completed all deliveries for Trip #${opts.tripId}. Total collected: ₹${opts.totalCollected}.`,
 			`ड्राइवर ${opts.driverName} ने ट्रिप #${opts.tripId} की सभी डिलीवरी पूरी की। कुल कलेक्शन: ₹${opts.totalCollected}।`,
@@ -562,7 +599,12 @@ export async function notifyTripCompleted(opts: {
 		referenceType: "trips",
 		referenceId: opts.tripId,
 		channels: ["in_app"],
-		metadata: { trip_id: opts.tripId, driver_name: opts.driverName, total_collected: opts.totalCollected, flow_event: "trip_completed" },
+		metadata: {
+			trip_id: opts.tripId,
+			driver_name: opts.driverName,
+			total_collected: opts.totalCollected,
+			flow_event: "trip_completed",
+		},
 	});
 }
 

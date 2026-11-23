@@ -1,6 +1,7 @@
 import {
 	customers,
 	deliveryRoutes,
+	deliveryStops,
 	deliveryTrips,
 	orderItems,
 	orders,
@@ -18,6 +19,7 @@ import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, l
 import { z } from "zod";
 import { db as defaultDb } from "@/lib/db";
 import { dispatchNotification } from "@/lib/notification-service";
+import { isDateInISTRange, parseDateFilterRange } from "@/lib/utils";
 import { roleProcedure, router } from "../init";
 
 export const loaderRouter = router({
@@ -29,11 +31,11 @@ export const loaderRouter = router({
 			todayStart.setHours(0, 0, 0, 0);
 
 			// Loaders see their assigned trips + unassigned loading queue trips
-			const userRole = ctx.user?.role || ctx.user?.roles?.[0];
+			const userRole = ctx.user?.roles?.[0] as unknown as string | undefined;
 			const isLoaderRole = userRole === "loader";
 			const callerId = ctx.user?.id;
 			const callerEmail = ctx.user?.email;
-			const callerStaffId = ctx.user?.staff_id ? String(ctx.user.staff_id) : undefined;
+			const callerStaffId = (ctx.user as any)?.staff_id ? String((ctx.user as any).staff_id) : undefined;
 
 			let loaderFilter = undefined;
 			if (isLoaderRole) {
@@ -54,8 +56,8 @@ export const loaderRouter = router({
 				.from(deliveryTrips)
 				.where(
 					loaderFilter
-						? and(inArray(deliveryTrips.status, ["ready_for_loading", "pending"]), loaderFilter)
-						: inArray(deliveryTrips.status, ["ready_for_loading", "pending"]),
+						? and(eq(deliveryTrips.status, "ready_for_loading"), loaderFilter)
+						: eq(deliveryTrips.status, "ready_for_loading"),
 				);
 
 			const [loadingTrips] = await db
@@ -88,11 +90,30 @@ export const loaderRouter = router({
 				.from(orders)
 				.where(inArray(orders.status, ["packed", "ready_for_loading"]));
 
+			const [directPackedOrders] = await db
+				.select({ count: count() })
+				.from(orders)
+				.where(inArray(orders.status, ["packed", "ready_for_dispatch", "ready_for_loading"]));
+
+			let vanStockReadyCount = 0;
+			try {
+				const { vanStockPlans } = require("@evaluna/db/schema");
+				const [vsRes] = await db
+					.select({ count: count() })
+					.from(vanStockPlans)
+					.where(inArray(vanStockPlans.status, ["PENDING_LOADING", "LOADING_IN_PROGRESS"]));
+				vanStockReadyCount = vsRes?.count || 0;
+			} catch {
+				// Fallback
+			}
+
 			return {
 				readyForLoadingTrips: readyTrips?.count || 0,
 				currentlyLoadingTrips: loadingTrips?.count || 0,
 				loadedTodayTrips: loadedTodayTrips?.count || 0,
 				pendingVerificationOrders: pendingVerificationOrders?.count || 0,
+				directPackedOrders: directPackedOrders?.count || 0,
+				vanStockReadyCount,
 			};
 		}),
 
@@ -110,19 +131,19 @@ export const loaderRouter = router({
 
 			let statusFilter;
 			if (input?.status === "ready_for_loading") {
-				statusFilter = inArray(deliveryTrips.status, ["ready_for_loading", "pending"]);
+				statusFilter = eq(deliveryTrips.status, "ready_for_loading");
 			} else if (input?.status && input.status !== "all") {
 				statusFilter = eq(deliveryTrips.status, input.status);
 			} else {
-				statusFilter = inArray(deliveryTrips.status, ["ready_for_loading", "pending", "loading", "loaded"]);
+				statusFilter = inArray(deliveryTrips.status, ["ready_for_loading", "loading", "loaded"]);
 			}
 
 			// Loaders see trips assigned to them OR unassigned pool trips
-			const userRole = ctx.user?.role || ctx.user?.roles?.[0];
+			const userRole = ctx.user?.roles?.[0] as unknown as string | undefined;
 			const isLoaderRole = userRole === "loader";
 			const callerId = ctx.user?.id;
 			const callerEmail = ctx.user?.email;
-			const callerStaffId = ctx.user?.staff_id ? String(ctx.user.staff_id) : undefined;
+			const callerStaffId = (ctx.user as any)?.staff_id ? String((ctx.user as any).staff_id) : undefined;
 
 			let loaderIdFilter = undefined;
 			if (isLoaderRole) {
@@ -162,7 +183,7 @@ export const loaderRouter = router({
 				.orderBy(desc(deliveryTrips.created_at));
 
 			const enrichedTrips = await Promise.all(
-				rawTrips.map(async (t) => {
+				rawTrips.map(async (t: any) => {
 					const stops = await db
 						.select({
 							customerId: tripStops.customer_id,
@@ -177,10 +198,28 @@ export const loaderRouter = router({
 						.where(eq(tripStops.trip_id, t.tripId))
 						.orderBy(tripStops.sequence);
 
-					const customerIds = stops.map((s) => s.customerId).filter(Boolean);
+					const customerIds = stops.map((s: any) => s.customerId).filter(Boolean);
 
 					let tripOrders: any[] = [];
 					if (customerIds.length > 0) {
+						const tripCreatedAtBuffer = t.createdAt
+							? new Date(new Date(t.createdAt).getTime() + 120_000)
+							: null;
+
+						const orderConditions = [
+							inArray(orders.customer_id, customerIds),
+							inArray(orders.status, [
+								"ready_for_dispatch",
+								"ready_for_loading",
+								"packed",
+								"loaded",
+							]),
+						];
+
+						if (tripCreatedAtBuffer) {
+							orderConditions.push(lte(orders.created_at, tripCreatedAtBuffer));
+						}
+
 						tripOrders = await db
 							.select({
 								id: orders.id,
@@ -189,12 +228,7 @@ export const loaderRouter = router({
 								totalAmount: orders.total_amount,
 							})
 							.from(orders)
-							.where(
-								and(
-									inArray(orders.customer_id, customerIds),
-									notInArray(orders.status, ["cancelled", "completed", "delivered"]),
-								),
-							);
+							.where(and(...orderConditions));
 					}
 
 					const totalOrdersCount = tripOrders.length;
@@ -294,6 +328,24 @@ export const loaderRouter = router({
 
 			let tripOrders: any[] = [];
 			if (customerIds.length > 0) {
+				const tripCreatedAtBuffer = trip.createdAt
+					? new Date(new Date(trip.createdAt).getTime() + 120_000)
+					: null;
+
+				const orderConditions = [
+					inArray(orders.customer_id, customerIds),
+					inArray(orders.status, [
+						"ready_for_dispatch",
+						"ready_for_loading",
+						"packed",
+						"loaded",
+					]),
+				];
+
+				if (tripCreatedAtBuffer) {
+					orderConditions.push(lte(orders.created_at, tripCreatedAtBuffer));
+				}
+
 				tripOrders = await db
 					.select({
 						id: orders.id,
@@ -303,12 +355,7 @@ export const loaderRouter = router({
 						createdAt: orders.created_at,
 					})
 					.from(orders)
-					.where(
-						and(
-							inArray(orders.customer_id, customerIds),
-							notInArray(orders.status, ["cancelled", "completed", "delivered"]),
-						),
-					);
+					.where(and(...orderConditions));
 			}
 
 			const orderIds = tripOrders.map((o) => o.id);
@@ -368,9 +415,21 @@ export const loaderRouter = router({
 							isLoaded: o.status === "loaded",
 							totalAmount: o.totalAmount,
 							packageCount: pkgs.length || 1,
-							packages: pkgs,
-							itemsCount: items.reduce((acc, i) => acc + (i.quantity || 1), 0),
-							items: items,
+							itemsCount:
+								Math.round(
+									items.reduce(
+										(acc, i) =>
+											acc + (Number.parseFloat(String(i.quantity)) || 1),
+										0,
+									) * 10,
+								) / 10,
+							items: items.map((it) => ({
+								...it,
+								quantity:
+									Math.round(
+										(Number.parseFloat(String(it.quantity)) || 1) * 10,
+									) / 10,
+							})),
 						};
 					});
 
@@ -436,7 +495,7 @@ export const loaderRouter = router({
 				});
 			}
 
-			if (trip.status === "ready_for_loading" || trip.status === "pending") {
+			if (trip.status === "ready_for_loading") {
 				await db
 					.update(deliveryTrips)
 					.set({
@@ -498,7 +557,7 @@ export const loaderRouter = router({
 				.where(
 					and(
 						eq(deliveryTrips.id, input.tripId),
-						inArray(deliveryTrips.status, ["ready_for_loading", "pending"]),
+						inArray(deliveryTrips.status, ["ready_for_loading", "loading"]),
 					),
 				);
 
@@ -537,15 +596,28 @@ export const loaderRouter = router({
 
 			let tripOrders: any[] = [];
 			if (customerIds.length > 0) {
+				const tripCreatedAtBuffer = trip.created_at
+					? new Date(new Date(trip.created_at).getTime() + 120_000)
+					: null;
+
+				const orderConditions = [
+					inArray(orders.customer_id, customerIds),
+					inArray(orders.status, [
+						"ready_for_dispatch",
+						"ready_for_loading",
+						"packed",
+						"loaded",
+					]),
+				];
+
+				if (tripCreatedAtBuffer) {
+					orderConditions.push(lte(orders.created_at, tripCreatedAtBuffer));
+				}
+
 				tripOrders = await db
 					.select({ id: orders.id, status: orders.status })
 					.from(orders)
-					.where(
-						and(
-							inArray(orders.customer_id, customerIds),
-							notInArray(orders.status, ["cancelled", "completed", "delivered"]),
-						),
-					);
+					.where(and(...orderConditions));
 			}
 
 			const pendingOrders = tripOrders.filter((o) => o.status !== "loaded");
@@ -589,7 +661,7 @@ export const loaderRouter = router({
 				await dispatchNotification({
 					type: "info",
 					priority: "high",
-					title: `✅ Trip #${input.tripId} — Loading Complete`,
+					title: `Trip #${input.tripId} — Loading Complete`,
 					message: `Trip #${input.tripId} has been fully loaded by ${loaderName}. All ${orderIds.length} order(s) are loaded into the vehicle. Please review and dispatch the trip.`,
 					branchId: (ctx.user?.branchId as number) || 1,
 					channels: ["in_app"],
@@ -620,15 +692,39 @@ export const loaderRouter = router({
 			z
 				.object({
 					search: z.string().optional(),
-					startDate: z.coerce.date().optional(),
-					endDate: z.coerce.date().optional(),
+					startDate: z.union([z.string(), z.coerce.date()]).optional(),
+					endDate: z.union([z.string(), z.coerce.date()]).optional(),
 				})
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db || defaultDb;
 
-			const historyTrips = await db
+			const conditions = [
+				or(
+					inArray(deliveryTrips.status, [
+						"loaded",
+						"loading",
+						"active",
+						"in_transit",
+						"dispatched",
+						"completed",
+					]),
+					isNotNull(deliveryTrips.loaded_at),
+				),
+			];
+
+			const { fromDate, toDate, startIST, endIST } = parseDateFilterRange(input?.startDate, input?.endDate);
+			const targetDateCol = sql`COALESCE(${deliveryTrips.loaded_at}, ${deliveryTrips.updated_at}, ${deliveryTrips.created_at})`;
+
+			if (fromDate) {
+				conditions.push(gte(targetDateCol, fromDate));
+			}
+			if (toDate) {
+				conditions.push(lte(targetDateCol, toDate));
+			}
+
+			const rawTrips = await db
 				.select({
 					tripId: deliveryTrips.id,
 					status: deliveryTrips.status,
@@ -638,30 +734,66 @@ export const loaderRouter = router({
 					routeName: deliveryRoutes.name,
 					updatedAt: deliveryTrips.updated_at,
 					createdAt: deliveryTrips.created_at,
+					loadedAt: deliveryTrips.loaded_at,
 				})
 				.from(deliveryTrips)
 				.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, deliveryTrips.route_id))
 				.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
 				.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
-				.where(inArray(deliveryTrips.status, ["loaded", "active", "completed"]))
-				.orderBy(desc(deliveryTrips.updated_at));
+				.where(and(...conditions))
+				.orderBy(desc(targetDateCol), desc(deliveryTrips.id))
+				.limit(500);
+
+			const historyTrips = (startIST || endIST)
+				? rawTrips.filter((t) => isDateInISTRange(t.loadedAt || t.updatedAt || t.createdAt, startIST, endIST))
+				: rawTrips;
 
 			const enrichedHistory = await Promise.all(
 				historyTrips.map(async (t) => {
-					const stops = await db
-						.select({ customerId: tripStops.customer_id })
-						.from(tripStops)
-						.where(eq(tripStops.trip_id, t.tripId));
+					// 1. Direct deliveryStops linked to this trip
+					const directStops = await db
+						.select({ orderId: deliveryStops.order_id })
+						.from(deliveryStops)
+						.where(
+							and(
+								eq(deliveryStops.trip_id, t.tripId),
+								isNotNull(deliveryStops.order_id),
+							),
+						);
 
-					const customerIds = stops.map((s) => s.customerId).filter(Boolean);
+					let ordersCount = directStops.length;
 
-					let ordersCount = 0;
-					if (customerIds.length > 0) {
-						const res = await db
-							.select({ count: count() })
-							.from(orders)
-							.where(inArray(orders.customer_id, customerIds));
-						ordersCount = res[0]?.count || 0;
+					if (ordersCount === 0) {
+						// 2. Fallback to tripStops customers
+						const stops = await db
+							.select({ customerId: tripStops.customer_id })
+							.from(tripStops)
+							.where(eq(tripStops.trip_id, t.tripId));
+
+						const customerIds = stops.map((s) => s.customerId).filter(Boolean);
+
+						if (customerIds.length > 0) {
+							const res = await db
+								.select({ count: count() })
+								.from(orders)
+								.where(
+									and(
+										inArray(orders.customer_id, customerIds),
+										inArray(orders.status, [
+											"ready_for_dispatch",
+											"ready_for_loading",
+											"packed",
+											"loaded",
+											"out_for_delivery",
+											"in_transit",
+											"dispatched",
+											"delivered",
+											"completed",
+										]),
+									),
+								);
+							ordersCount = res[0]?.count || 0;
+						}
 					}
 
 					return {
@@ -672,7 +804,7 @@ export const loaderRouter = router({
 							? `${t.vehicleName} (${t.vehicleReg || ""})`
 							: t.vehicleReg || "N/A",
 						ordersCount,
-						loadedAt: t.updatedAt || t.createdAt,
+						loadedAt: t.loadedAt || t.updatedAt || t.createdAt,
 						status: t.status,
 					};
 				}),
@@ -690,5 +822,283 @@ export const loaderRouter = router({
 			}
 
 			return enrichedHistory;
+		}),
+
+	getPackedOrdersQueue: roleProcedure(["admin", "manager", "auditor", "loader"])
+		.input(
+			z
+				.object({
+					search: z.string().optional(),
+					status: z
+						.enum(["all", "packed", "ready_for_loading", "loaded"])
+						.optional(),
+					startDate: z.union([z.string(), z.coerce.date()]).optional(),
+					endDate: z.union([z.string(), z.coerce.date()]).optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db || defaultDb;
+
+			// Loaders only load orders that have been verified & approved by manager for loading
+			let statusConditions = [
+				inArray(orders.status, [
+					"ready_for_loading",
+					"ready_for_dispatch",
+					"loaded",
+				]),
+			];
+
+			if (input?.status === "loaded") {
+				statusConditions = [eq(orders.status, "loaded")];
+			} else if (input?.status === "packed" || input?.status === "ready_for_loading") {
+				statusConditions = [
+					inArray(orders.status, [
+						"ready_for_loading",
+						"ready_for_dispatch",
+					]),
+				];
+			}
+
+			if (input?.startDate || input?.endDate) {
+				const { fromDate, toDate } = parseDateFilterRange(input?.startDate, input?.endDate);
+				if (fromDate) statusConditions.push(gte(orders.created_at, fromDate));
+				if (toDate) statusConditions.push(lte(orders.created_at, toDate));
+			} else if (input?.status === "loaded") {
+				const todayStart = new Date();
+				todayStart.setHours(0, 0, 0, 0);
+				statusConditions.push(gte(orders.created_at, todayStart));
+			}
+
+			const packedOrdersList = await db
+				.select({
+					id: orders.id,
+					status: orders.status,
+					customerId: orders.customer_id,
+					totalAmount: orders.total_amount,
+					createdAt: orders.created_at,
+					customerName: customers.name,
+					customerPhone: customers.phone,
+					customerAddress: customers.address,
+				})
+				.from(orders)
+				.leftJoin(customers, eq(orders.customer_id, customers.id))
+				.where(and(...statusConditions))
+				.orderBy(desc(orders.id))
+				.limit(100);
+
+			if (packedOrdersList.length === 0) {
+				return [];
+			}
+
+			const orderIds = packedOrdersList.map((o) => o.id);
+			const customerIds = packedOrdersList
+				.map((o) => o.customerId)
+				.filter(Boolean);
+
+			// Fetch packages
+			const pkgs = await db
+				.select({
+					id: packages.id,
+					orderId: packages.order_id,
+					packageNumber: packages.package_number,
+					status: packages.status,
+					packedBy: staff.name,
+					packedAt: packages.packed_at,
+					weight: packages.weight,
+					dimensions: packages.dimensions,
+				})
+				.from(packages)
+				.leftJoin(staff, eq(packages.packed_by, staff.id))
+				.where(inArray(packages.order_id, orderIds));
+
+			const pkgMap = new Map<number, any[]>();
+			for (const p of pkgs) {
+				const list = pkgMap.get(p.orderId) || [];
+				list.push(p);
+				pkgMap.set(p.orderId, list);
+			}
+
+			// Fetch items
+			const items = await db
+				.select({
+					orderId: orderItems.order_id,
+					productId: orderItems.product_id,
+					productName: products.name,
+					sku: products.sku,
+					quantity: orderItems.quantity,
+					price: orderItems.price,
+				})
+				.from(orderItems)
+				.leftJoin(products, eq(products.id, orderItems.product_id))
+				.where(inArray(orderItems.order_id, orderIds));
+
+			const itemsMap = new Map<number, any[]>();
+			for (const it of items) {
+				const list = itemsMap.get(it.orderId) || [];
+				list.push(it);
+				itemsMap.set(it.orderId, list);
+			}
+
+			// Fetch route names from routeStops
+			const routeMap = new Map<number, string>();
+			if (customerIds.length > 0) {
+				const rStops = await db
+					.select({
+						customerId: routeStops.customer_id,
+						routeName: deliveryRoutes.name,
+					})
+					.from(routeStops)
+					.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+					.where(inArray(routeStops.customer_id, customerIds));
+
+				for (const rs of rStops) {
+					if (rs.customerId && rs.routeName) {
+						routeMap.set(rs.customerId, rs.routeName);
+					}
+				}
+			}
+
+			// Check for active/pending delivery trips
+			const tripOrderMap = new Map<
+				number,
+				{
+					tripId: number;
+					status: string;
+					driverName?: string;
+					vehicle?: string;
+				}
+			>();
+			if (customerIds.length > 0) {
+				const activeTripStops = await db
+					.select({
+						tripId: deliveryTrips.id,
+						status: deliveryTrips.status,
+						customerId: tripStops.customer_id,
+						driverName: user.name,
+						vehicleName: vehicles.name,
+						vehicleReg: vehicles.registration_number,
+					})
+					.from(tripStops)
+					.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+					.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
+					.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
+					.where(
+						and(
+							inArray(tripStops.customer_id, customerIds),
+							inArray(deliveryTrips.status, [
+								"pending",
+								"ready_for_loading",
+								"loading",
+								"active",
+								"loaded",
+							]),
+						),
+					);
+
+				for (const ts of activeTripStops) {
+					if (ts.customerId) {
+						tripOrderMap.set(ts.customerId, {
+							tripId: ts.tripId,
+							status: ts.status,
+							driverName: ts.driverName || undefined,
+							vehicle: ts.vehicleName
+								? `${ts.vehicleName} (${ts.vehicleReg || ""})`
+								: ts.vehicleReg || undefined,
+						});
+					}
+				}
+			}
+
+			const enriched = packedOrdersList.map((ord) => {
+				const orderPkgs = pkgMap.get(ord.id) || [];
+				const orderItemsList = itemsMap.get(ord.id) || [];
+				const tripInfo = ord.customerId
+					? tripOrderMap.get(ord.customerId)
+					: undefined;
+				const village =
+					ord.customerAddress?.split(",")[0]?.trim() || "Local Area";
+				const routeName =
+					(ord.customerId ? routeMap.get(ord.customerId) : undefined) ||
+					village;
+
+				return {
+					orderId: ord.id,
+					orderCode: `ORD-${ord.id}`,
+					status: ord.status,
+					customerName: ord.customerName || "Customer",
+					customerPhone: ord.customerPhone || "N/A",
+					customerAddress: ord.customerAddress || "N/A",
+					village,
+					routeName,
+					totalAmount: ord.totalAmount,
+					packageCount: orderPkgs.length || 1,
+					packages: orderPkgs,
+					itemsCount: orderItemsList.length,
+					items: orderItemsList.map((it) => ({
+						name: it.productName || "Product",
+						sku: it.sku || `SKU-${it.productId}`,
+						quantity: Number(it.quantity) || 1,
+					})),
+					packedBy: orderPkgs[0]?.packedBy || "Packer Staff",
+					packedAt: orderPkgs[0]?.packedAt || ord.createdAt,
+					tripId: tripInfo?.tripId || null,
+					tripStatus: tripInfo?.status || null,
+					driverName: tripInfo?.driverName || null,
+					vehicle: tripInfo?.vehicle || null,
+					isLoaded: ord.status === "loaded",
+				};
+			});
+
+			if (input?.search?.trim()) {
+				const q = input.search.toLowerCase().trim();
+				return enriched.filter(
+					(o) =>
+						String(o.orderId).includes(q) ||
+						o.orderCode.toLowerCase().includes(q) ||
+						o.customerName.toLowerCase().includes(q) ||
+						o.village.toLowerCase().includes(q) ||
+						o.routeName.toLowerCase().includes(q),
+				);
+			}
+
+			return enriched;
+		}),
+
+	markDirectOrderLoaded: roleProcedure(["admin", "manager", "loader"])
+		.input(
+			z.object({
+				orderId: z.number(),
+				loaded: z.boolean().default(true),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db || defaultDb;
+
+			const [order] = await db
+				.select()
+				.from(orders)
+				.where(eq(orders.id, input.orderId));
+
+			if (!order) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: `Order #${input.orderId} not found`,
+				});
+			}
+
+			const targetStatus = input.loaded ? "loaded" : "ready_for_loading";
+
+			await db
+				.update(orders)
+				.set({ status: targetStatus })
+				.where(eq(orders.id, input.orderId));
+
+			await db
+				.update(packages)
+				.set({ status: input.loaded ? "loaded" : "packed" })
+				.where(eq(packages.order_id, input.orderId));
+
+			return { success: true, orderId: input.orderId, status: targetStatus };
 		}),
 });

@@ -27,10 +27,10 @@ export default function TRPCProvider({
 						refetchOnWindowFocus: false,
 						refetchOnMount: false,
 						retry: 1,
-						networkMode: "always", // Always try to fetch from localhost even if navigator.onLine is false
+						networkMode: "offlineFirst",
 					},
 					mutations: {
-						networkMode: "always",
+						networkMode: "offlineFirst",
 					},
 				},
 			}),

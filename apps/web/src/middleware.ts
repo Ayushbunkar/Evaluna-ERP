@@ -1,11 +1,20 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { UserManagement } from "@evaluna/db";
 import { session as sessionTable } from "@evaluna/db/schema";
 import { and, eq, gte, or } from "drizzle-orm";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import {
+	isAtLeastRole,
+	isRouteAllowedForRole,
+	ROUTE_ROLE_MAP,
+	type Role,
+} from "@/lib/permissions";
+import {
+	verify2FAToken,
+	verifyTrustedDeviceToken,
+} from "@/lib/trusted-device";
 
 /**
  * Node.js middleware that protects all routes.
@@ -21,13 +30,6 @@ import { and, eq, gte, or } from "drizzle-orm";
 export default async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
-	// Clone headers to strip proxy headers that break Next.js CSRF in Codespaces
-	const requestHeaders = new Headers(request.headers);
-	requestHeaders.delete("x-forwarded-host");
-	requestHeaders.delete("x-forwarded-proto");
-	requestHeaders.delete("x-forwarded-port");
-	requestHeaders.delete("x-forwarded-for");
-
 	// 1. Let public assets, auth APIs, and TRPC pass through
 	// TRPC handles its own authentication via context
 	if (
@@ -35,6 +37,8 @@ export default async function middleware(request: NextRequest) {
 		pathname.startsWith("/api/logout") ||
 		pathname.startsWith("/api/seed-users") ||
 		pathname.startsWith("/api/trpc") ||
+		pathname.startsWith("/api/attendance/attachments") ||
+		pathname.startsWith("/api/finance/attachments") ||
 		pathname.startsWith("/_next") ||
 		pathname === "/favicon.ico" ||
 		pathname === "/manifest.json" ||
@@ -44,7 +48,7 @@ export default async function middleware(request: NextRequest) {
 			pathname,
 		)
 	) {
-		return NextResponse.next({ request: { headers: requestHeaders } });
+		return NextResponse.next();
 	}
 
 	// 1.5. Allow public website routes without authentication
@@ -53,7 +57,6 @@ export default async function middleware(request: NextRequest) {
 		"/about",
 		"/features",
 		"/solutions",
-		"/product",
 		"/pricing",
 		"/careers",
 		"/blog",
@@ -64,6 +67,7 @@ export default async function middleware(request: NextRequest) {
 		"/status",
 		"/docs",
 		"/demo",
+		"/error",
 	];
 
 	if (
@@ -71,7 +75,7 @@ export default async function middleware(request: NextRequest) {
 			(route) => pathname === route || pathname.startsWith(route + "/"),
 		)
 	) {
-		return NextResponse.next({ request: { headers: requestHeaders } });
+		return NextResponse.next();
 	}
 
 	// 2. Public auth pages — redirect to role dashboard if already logged in
@@ -79,7 +83,8 @@ export default async function middleware(request: NextRequest) {
 		pathname === "/login" ||
 		pathname === "/signup" ||
 		pathname === "/forgot-password" ||
-		pathname === "/reset-password";
+		pathname === "/reset-password" ||
+		pathname === "/verify-email";
 
 	// Fast-fail: check session token cookie before any DB/auth work
 	const sessionToken =
@@ -89,7 +94,7 @@ export default async function middleware(request: NextRequest) {
 		request.cookies.get("__Secure-better-auth.session_token")?.value;
 
 	if (!sessionToken && isAuthPage) {
-		return NextResponse.next({ request: { headers: requestHeaders } });
+		return NextResponse.next();
 	}
 	if (!sessionToken) {
 		const url = request.nextUrl.clone();
@@ -105,7 +110,8 @@ export default async function middleware(request: NextRequest) {
 	//
 	//    Role location: Better Auth session getters place the result in session.data.
 	//    We resolve role from session.data.role → session.role → user.role in order.
-	let sessionData: { user: any; session: any; role: string | null } | null = null;
+	let sessionData: { user: any; session: any; role: string | null } | null =
+		null;
 	try {
 		const result = await auth.api.getSession({
 			headers: request.headers,
@@ -133,7 +139,10 @@ export default async function middleware(request: NextRequest) {
 			const tokenOnly = sessionToken.split(".")[0];
 			const dbSession = await db.query.session.findFirst({
 				where: and(
-					or(eq(sessionTable.token, sessionToken), eq(sessionTable.token, tokenOnly)),
+					or(
+						eq(sessionTable.token, sessionToken),
+						eq(sessionTable.token, tokenOnly),
+					),
 					gte(sessionTable.expiresAt, new Date()),
 				),
 				with: {
@@ -141,7 +150,9 @@ export default async function middleware(request: NextRequest) {
 				},
 			});
 			if (dbSession?.user) {
-				const resolvedRole = dbSession.user.role || ((dbSession.user as any)?.is_superadmin ? "super_admin" : "customer");
+				const resolvedRole =
+					(dbSession.user as any)?.role ||
+					((dbSession.user as any)?.is_superadmin ? "super_admin" : "customer");
 				sessionData = {
 					user: dbSession.user,
 					session: dbSession,
@@ -156,7 +167,7 @@ export default async function middleware(request: NextRequest) {
 	if (!sessionData) {
 		// If we're already on an auth page, just render it so the user can log in
 		if (isAuthPage) {
-			return NextResponse.next({ request: { headers: requestHeaders } });
+			return NextResponse.next();
 		}
 
 		// Otherwise redirect to login
@@ -168,7 +179,9 @@ export default async function middleware(request: NextRequest) {
 	// Enrich role from security profile only if not already populated by session getter
 	if (sessionData.user?.id && !sessionData.role) {
 		try {
-			const profile = await UserManagement.getSecurityProfileByUserId(sessionData.user.id);
+			const profile = await UserManagement.getSecurityProfileByUserId(
+				sessionData.user.id,
+			);
 			if (profile?.role) {
 				sessionData.role = profile.role;
 			}
@@ -181,9 +194,70 @@ export default async function middleware(request: NextRequest) {
 		}
 	}
 
-	// 4. If logged in and hitting an auth page, always redirect to their dashboard.
-	// The user is authenticated — send them home regardless of error/expired params.
+	// 3.5. Strict Email Verification Barrier
+	// Users with unverified emails must not establish access to ERP operations
+	const isEmailVerified = Boolean(sessionData.user?.emailVerified);
+	if (!isEmailVerified) {
+		// If already on /verify-email, let them complete verification
+		if (pathname === "/verify-email") {
+			return NextResponse.next();
+		}
+
+		// Redirect any unverified session to the verify-email page
+		const url = request.nextUrl.clone();
+		url.pathname = "/verify-email";
+		if (sessionData.user?.email) {
+			url.searchParams.set("email", sessionData.user.email);
+		}
+		url.searchParams.set("unverified", "true");
+		return NextResponse.redirect(url);
+	}
+
+	// 3.6. Mandatory Two-Factor Authentication (2FA) Barrier
+	// Non-seed sessions must complete 2FA verification before accessing ERP routes
+	const userEmail = (sessionData.user?.email || "").toLowerCase().trim();
+	const isSeedAccount =
+		userEmail.endsWith("@evaluna.dev") || userEmail.endsWith("@evaluna.com");
+	const deviceToken = request.cookies.get("evaluna_trusted_device")?.value;
+	const isDeviceTrusted = sessionData.user?.id
+		? verifyTrustedDeviceToken(deviceToken, sessionData.user.id)
+		: false;
+	const twoFAToken = request.cookies.get("evaluna_2fa_verified")?.value;
+	const is2FAValid = sessionData.user?.id
+		? verify2FAToken(twoFAToken, sessionData.user.id)
+		: false;
+	const is2FAVerified = isSeedAccount || isDeviceTrusted || is2FAValid;
+
+	if (!is2FAVerified) {
+		// If already on login completing 2FA, allow request
+		if (pathname === "/login") {
+			if (request.nextUrl.searchParams.get("step") === "2fa") {
+				return NextResponse.next();
+			}
+			const url = request.nextUrl.clone();
+			url.pathname = "/login";
+			url.searchParams.set("step", "2fa");
+			if (userEmail) {
+				url.searchParams.set("email", userEmail);
+			}
+			return NextResponse.redirect(url);
+		}
+
+		const url = request.nextUrl.clone();
+		url.pathname = "/login";
+		url.searchParams.set("step", "2fa");
+		if (userEmail) {
+			url.searchParams.set("email", userEmail);
+		}
+		return NextResponse.redirect(url);
+	}
+
+	// 4. If logged in and hitting an auth page, redirect to their dashboard.
+	// Allow staying on login page if explicitly completing 2FA verification.
 	if (isAuthPage) {
+		if (request.nextUrl.searchParams.get("step") === "2fa" && !is2FAVerified) {
+			return NextResponse.next();
+		}
 		const url = request.nextUrl.clone();
 		let rawRole = sessionData.role || "customer";
 		if (rawRole) {
@@ -239,64 +313,75 @@ export default async function middleware(request: NextRequest) {
 		return NextResponse.redirect(url);
 	}
 
-	// 5. Coarse-grained Role Checks (for pages)
-	const matchedRoute = ROUTE_ROLE_MAP.find((route) =>
-		pathname.startsWith(route.path),
-	);
-
-	if (matchedRoute) {
-		let userRole = (sessionData.role || "customer") as Role;
-		console.log("[MIDDLEWARE ROLE CHECK]", {
-			email: sessionData.user?.email,
-			sessionRole: (sessionData.session as any)?.role,
-			userRoleField: sessionData.user?.role,
-			resolvedUserRole: userRole,
-			matchedRoutePath: matchedRoute.path,
-			matchedRouteMinRole: matchedRoute.minRole,
-			isAtLeast: isAtLeastRole(userRole, matchedRoute.minRole),
-		});
-		if (userRole) {
-			const lower = (userRole as string).toLowerCase();
-			if (
-				lower === "salesperson" ||
-				lower === "sales" ||
-				lower === "sales_person"
-			) {
-				userRole = "sales_person" as Role;
-			}
-		}
+	// 5. Strict Compartmentalized RBAC Dashboard Route Protection
+	let userRole = (sessionData.role || "customer") as Role;
+	if (userRole) {
+		const lower = (userRole as string).toLowerCase();
 		if (
-			(userRole as string) === "superadmin" ||
-			(userRole as string) === "super_admin"
-		)
-			userRole = "super_admin" as Role;
+			lower === "salesperson" ||
+			lower === "sales" ||
+			lower === "sales_person"
+		) {
+			userRole = "sales_person" as Role;
+		}
+	}
+	if (
+		(userRole as string) === "superadmin" ||
+		(userRole as string) === "super_admin"
+	) {
+		userRole = "super_admin" as Role;
+	}
 
-		const isSuperadmin =
-			sessionData.user?.isSuperadmin === true ||
-			sessionData.user?.is_superadmin === true ||
-			sessionData.role === "superadmin" ||
-			sessionData.role === "super_admin";
+	const isSuperadmin =
+		sessionData.user?.isSuperadmin === true ||
+		sessionData.user?.is_superadmin === true ||
+		sessionData.role === "superadmin" ||
+		sessionData.role === "super_admin";
 
-		if (!isSuperadmin) {
-			if (!isAtLeastRole(userRole, matchedRoute.minRole)) {
-				// User lacks role for this section
-				const url = request.nextUrl.clone();
-				url.pathname = "/error/403";
-				return NextResponse.rewrite(url);
-			}
+	if (!isSuperadmin) {
+		const isAllowed = isRouteAllowedForRole(userRole, pathname);
+		if (!isAllowed) {
+			console.warn("[MIDDLEWARE 403 ACCESS DENIED]", {
+				email: sessionData.user?.email,
+				role: userRole,
+				attemptedPath: pathname,
+			});
+			const url = request.nextUrl.clone();
+			url.pathname = "/error/403";
+			url.searchParams.set("from", pathname);
+			return NextResponse.redirect(url);
 		}
 	}
 
 	// 6. Attach context headers for downstream consumption
-	const response = NextResponse.next({ request: { headers: requestHeaders } });
+	const requestHeaders = new Headers(request.headers);
+	if (sessionData.user?.id || (sessionData.session as any)?.userId) {
+		requestHeaders.set(
+			"x-user-id",
+			sessionData.user?.id || (sessionData.session as any)?.userId || "",
+		);
+	}
+	if (sessionData.role) {
+		requestHeaders.set("x-user-role", sessionData.role);
+	}
+	if ((sessionData.user as any)?.branchId) {
+		requestHeaders.set(
+			"x-branch-id",
+			(sessionData.user as any).branchId.toString(),
+		);
+	}
+
+	const response = NextResponse.next({
+		request: {
+			headers: requestHeaders,
+		},
+	});
+
 	response.headers.set(
 		"X-User-Id",
 		sessionData.user?.id || (sessionData.session as any)?.userId || "",
 	);
-	response.headers.set(
-		"X-User-Role",
-		sessionData.role || "customer",
-	);
+	response.headers.set("X-User-Role", sessionData.role || "customer");
 	if ((sessionData.user as any)?.branchId) {
 		response.headers.set(
 			"X-Branch-Id",

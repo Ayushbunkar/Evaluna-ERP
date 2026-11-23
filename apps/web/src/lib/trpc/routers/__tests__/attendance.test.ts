@@ -26,6 +26,8 @@ const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
 
 const ATTENDANCE_TABLES = [
+	schema.staff,
+	schema.user,
 	schema.branches,
 	schema.employees,
 	schema.enhancedAttendance,
@@ -68,6 +70,17 @@ beforeAll(async () => {
 	await pg.exec(
 		`INSERT INTO branches (id, name) VALUES (1, 'Main'), (2, 'NoFence');`,
 	);
+	// Seed staff and employees
+	await pg.exec(`
+		INSERT INTO staff (id, name, email, role, join_date, salary) VALUES
+		(1, 'Emp One',   'emp1@test.com', 'putter', NOW(), 1000),
+		(2, 'Emp Two',   'emp2@test.com', 'putter', NOW(), 1000),
+		(3, 'Emp Three', 'emp3@test.com', 'putter', NOW(), 1000),
+		(4, 'Emp Four',  'emp4@test.com', 'putter', NOW(), 1000),
+		(5, 'Emp Five',  'emp5@test.com', 'putter', NOW(), 1000),
+		(6, 'Emp Six',   'emp6@test.com', 'putter', NOW(), 1000),
+		(7, 'Emp Seven', 'emp7@test.com', 'putter', NOW(), 1000);
+	`);
 	// One employee per scenario so each starts from a clean NOT_STARTED state.
 	await pg.exec(`
 		INSERT INTO employees (id, employee_code, first_name, last_name, email, hire_date, status) VALUES

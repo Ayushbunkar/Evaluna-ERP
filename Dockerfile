@@ -20,7 +20,7 @@ WORKDIR /app
 COPY --from=deps /app .
 COPY . .
 
-# Run postinstall scripts (fumadocs-mdx needs source files)
+# Run postinstall scripts (fumadocs-mdx needs source files)  docker update
 RUN cd apps/docs && bunx fumadocs-mdx
 
 ENV BETTER_AUTH_SECRET=build-placeholder

@@ -1,12 +1,31 @@
 import { Card, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
+import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { Footer } from "@/components/public/footer";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Implementation & User Guides — Evaluna ERP Setup",
+	description:
+		"Step-by-step setup guides for retail cashiers, offline POS thermal printers, GPS geofencing, and multi-branch inventory transfers.",
+	canonicalPath: "/resources/guides",
+});
 
 export default function GuidesPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Resources", url: "/resources" },
+		{ name: "Guides", url: "/resources/guides" },
+	]);
+
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 text-slate-900">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			<Navbar />
 			<main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
 				<Link href="/resources" className="inline-flex items-center text-sm text-blue-600 hover:underline mb-6">

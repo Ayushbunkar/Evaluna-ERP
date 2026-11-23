@@ -5,18 +5,46 @@ import {
 	productBarcodes,
 	productBatches,
 	productConversions,
+	productSlabPricing,
 	products,
 	stockAdjustments,
 } from "@evaluna/db/schema";
-import { and, asc, count, desc, eq, ilike, lte, or, sql, sum } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	lte,
+	or,
+	sql,
+	sum,
+} from "drizzle-orm";
 import { z } from "zod";
+import {
+	ensureDailyPricingTable,
+	getDailyPricingMapForDate,
+	lockOrUpdateDailyPrice,
+} from "@/lib/daily-pricing";
 import { stockLedger } from "@/lib/db/schema";
+import { notifyStockChanged } from "@/lib/inventory/stock-event-bus";
+import {
+	autoRecoverMissingProductImages,
+	ensureProductImageColumns,
+} from "@/lib/product-schema-ensure";
 import {
 	protectedProcedure,
 	publicProcedure,
 	roleProcedure,
 	router,
 } from "@/lib/trpc/init";
+import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
+import { resolveStaffId } from "../util/audit";
+import { ensureSlabPricingTable } from "./slab-pricing";
 
 export const inventoryRouter = router({
 	listByProduct: publicProcedure
@@ -62,7 +90,12 @@ export const inventoryRouter = router({
 			const targetBranchId = branchId || ctx.user?.branchId || 1;
 			const todayStr = new Date().toISOString().split("T")[0];
 
-			const conditions: any[] = [eq(products.is_deleted, false)];
+			await ensureProductImageColumns(db);
+			await autoRecoverMissingProductImages(db);
+
+			const conditions: any[] = [
+				or(eq(products.is_deleted, false), sql`${products.is_deleted} IS NULL`),
+			];
 			if (search?.trim()) {
 				const term = `%${search.trim().toLowerCase()}%`;
 				conditions.push(
@@ -84,15 +117,19 @@ export const inventoryRouter = router({
 					id: products.id,
 					productId: products.id,
 					product: products.name,
+					description: products.description,
 					sku: products.sku,
 					category: products.category,
 					unit: products.unit,
 					barcode: products.barcode,
 					price: products.price,
 					baseSellingPrice: products.base_selling_price,
+					baseProcurementPrice: products.base_procurement_price,
+					imageUrl: products.image_url,
+					imageStoragePath: products.image_storage_path,
 					inventoryId: sql<number>`max(${branchInventory.id})`,
 					branchId: sql<number>`coalesce(max(${branchInventory.branch_id}), ${targetBranchId})`,
-					qty_on_hand: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::int`,
+					qty_on_hand: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
 					reorder_level: sql<number>`coalesce(max(${branchInventory.reorder_level}), 10)::int`,
 				})
 				.from(products)
@@ -107,12 +144,16 @@ export const inventoryRouter = router({
 				.groupBy(
 					products.id,
 					products.name,
+					products.description,
 					products.sku,
 					products.category,
 					products.unit,
 					products.barcode,
 					products.price,
 					products.base_selling_price,
+					products.base_procurement_price,
+					products.image_url,
+					products.image_storage_path,
 				)
 				.orderBy(asc(products.name))
 				.limit(limit || 1000)
@@ -127,11 +168,59 @@ export const inventoryRouter = router({
 						eq(dailyProductDiscounts.effective_date, todayStr),
 						eq(dailyProductDiscounts.is_active, true),
 					),
+				)
+				.catch(
+					() =>
+						[] as {
+							product_id: number;
+							is_active: boolean;
+							discounted_price: string | null;
+							reason: string;
+							discount_percent: string | null;
+						}[],
 				);
 
 			const discountMap = new Map<number, (typeof activeDiscounts)[0]>();
 			for (const disc of activeDiscounts) {
 				discountMap.set(disc.product_id, disc);
+			}
+
+			// Ensure slab pricing table exists and fetch active slabs
+			await ensureSlabPricingTable(db);
+			const productIds = productRows.map((p) => p.productId);
+			let activeSlabs: any[] = [];
+			if (productIds.length > 0) {
+				try {
+					activeSlabs = await db
+						.select()
+						.from(productSlabPricing)
+						.where(
+							and(
+								inArray(productSlabPricing.product_id, productIds),
+								eq(productSlabPricing.is_active, true),
+							),
+						)
+						.orderBy(asc(productSlabPricing.min_quantity));
+				} catch (e) {
+					activeSlabs = [];
+				}
+			}
+
+			const slabsMap = new Map<number, any[]>();
+			for (const slab of activeSlabs) {
+				const list = slabsMap.get(slab.product_id) || [];
+				list.push({
+					id: slab.id,
+					productId: slab.product_id,
+					minQuantity: Number(slab.min_quantity),
+					maxQuantity:
+						slab.max_quantity !== null ? Number(slab.max_quantity) : null,
+					unitPrice: Number(slab.unit_price),
+					startDate: slab.start_date,
+					endDate: slab.end_date,
+					isActive: slab.is_active,
+				});
+				slabsMap.set(slab.product_id, list);
 			}
 
 			// Total matching count
@@ -169,20 +258,53 @@ export const inventoryRouter = router({
 					id: d.inventoryId || d.productId,
 					productId: d.productId,
 					product: d.product || "Unknown",
+					description: d.description || "",
 					sku: d.sku || "N/A",
 					category: d.category || "General",
 					unit: d.unit || "Pcs",
 					barcode: d.barcode || "",
 					price: originalPrice,
+					imageUrl: d.imageUrl || null,
+					imageStoragePath: d.imageStoragePath || null,
+					costPrice: Number.parseFloat(d.baseProcurementPrice || "0"),
+					cost_price: Number.parseFloat(d.baseProcurementPrice || "0"),
+					baseProcurementPrice: Number.parseFloat(
+						d.baseProcurementPrice || "0",
+					),
+					base_procurement_price: Number.parseFloat(
+						d.baseProcurementPrice || "0",
+					),
 					currentPrice: hasActiveOffer ? offerPrice : originalPrice,
 					hasActiveOffer,
 					offerPrice,
 					discountPercent,
 					offerReason: activeDiscount?.reason || null,
+					hasSlabPricing: (slabsMap.get(d.productId) || []).length > 0,
+					slabsCount: (slabsMap.get(d.productId) || []).length,
+					minSlabPrice:
+						(slabsMap.get(d.productId) || []).length > 0
+							? Math.min(
+									...(slabsMap.get(d.productId) || []).map(
+										(s: any) => s.unitPrice,
+									),
+								)
+							: null,
+					maxSlabPrice:
+						(slabsMap.get(d.productId) || []).length > 0
+							? Math.max(
+									...(slabsMap.get(d.productId) || []).map(
+										(s: any) => s.unitPrice,
+									),
+								)
+							: null,
+					slabEndDate:
+						(slabsMap.get(d.productId) || []).find((s: any) => s.endDate)
+							?.endDate || null,
+					slabs: slabsMap.get(d.productId) || [],
 					branch: "Bhopal Main Warehouse",
 					branchId: d.branchId || targetBranchId,
-					qty_on_hand: d.qty_on_hand ?? 0,
-					reorder_level: d.reorder_level ?? 10,
+					qty_on_hand: Number(d.qty_on_hand ?? 0),
+					reorder_level: Number(d.reorder_level ?? 10),
 					status: itemStatus,
 				};
 			});
@@ -191,6 +313,8 @@ export const inventoryRouter = router({
 				status && status !== "all"
 					? items.filter((i) => {
 							if (status === "on_offer") return i.hasActiveOffer;
+							if (status === "with_slabs") return i.hasSlabPricing;
+							if (status === "without_slabs") return !i.hasSlabPricing;
 							return i.status === status;
 						})
 					: items;
@@ -209,9 +333,22 @@ export const inventoryRouter = router({
 				branchId: z.number().optional().default(1),
 				qtyOnHand: z.number().min(0),
 				price: z.number().min(0),
+				costPrice: z.number().optional().nullable(),
+				name: z.string().optional().nullable(),
+				description: z.string().optional().nullable(),
+				category: z.string().optional().nullable(),
+				unit: z.string().optional().nullable(),
+				barcode: z.string().optional().nullable(),
+				sku: z.string().optional().nullable(),
+				reorderLevel: z.number().min(0).optional().nullable(),
+				reason: z.string().optional().nullable(),
+				pricingDate: z.string().optional().nullable(),
+				imageUrl: z.string().optional().nullable(),
+				imageStoragePath: z.string().optional().nullable(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			await ensureProductImageColumns(ctx.db);
 			return await ctx.db.transaction(async (tx) => {
 				let prodId = input.productId;
 
@@ -234,13 +371,66 @@ export const inventoryRouter = router({
 
 				const priceStr = input.price.toFixed(2);
 
-				// 1. Update product price in `products` table (Syncs across Sales & Driver App)
+				// 1. Update product details & price in `products` table (Syncs across Sales & POS)
+				const productUpdates: any = {
+					price: priceStr,
+					base_selling_price: priceStr,
+				};
+				if (
+					input.name !== undefined &&
+					input.name !== null &&
+					input.name.trim().length > 0
+				) {
+					const trimmedNewName = toBilingualProductName(input.name.trim());
+					const duplicateName = await tx
+						.select({ id: products.id, name: products.name })
+						.from(products)
+						.where(
+							and(
+								eq(products.is_deleted, false),
+								sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedNewName}))`,
+								sql`${products.id} != ${prodId}`,
+							),
+						)
+						.limit(1);
+
+					if (duplicateName.length > 0) {
+						throw new TRPCError({
+							code: "CONFLICT",
+							message: `Another product with the name "${duplicateName[0].name}" already exists (ID: #${duplicateName[0].id}). Cannot rename to a duplicate name.`,
+						});
+					}
+					productUpdates.name = trimmedNewName;
+				}
+				if (input.description !== undefined && input.description !== null) {
+					productUpdates.description = input.description.trim();
+				}
+				if (input.category !== undefined && input.category !== null) {
+					productUpdates.category = input.category.trim();
+				}
+				if (input.unit !== undefined && input.unit !== null) {
+					productUpdates.unit = input.unit.trim();
+				}
+				if (input.barcode !== undefined && input.barcode !== null) {
+					productUpdates.barcode = input.barcode.trim();
+				}
+				if (input.sku !== undefined && input.sku !== null) {
+					productUpdates.sku = input.sku.trim();
+				}
+				if (input.costPrice !== undefined && input.costPrice !== null) {
+					productUpdates.base_procurement_price = input.costPrice.toFixed(2);
+				}
+				if (input.imageUrl !== undefined) {
+					productUpdates.image_url = input.imageUrl;
+					productUpdates.image_storage_path = input.imageStoragePath ?? null;
+					productUpdates.image_updated_at = new Date();
+					productUpdates.image_updated_by =
+						ctx.user?.email || ctx.user?.name || "warehouse_manager";
+				}
+
 				await tx
 					.update(products)
-					.set({
-						price: priceStr,
-						base_selling_price: priceStr,
-					})
+					.set(productUpdates)
 					.where(eq(products.id, prodId));
 
 				// 2. Update physical stock in `branchInventory`
@@ -261,18 +451,26 @@ export const inventoryRouter = router({
 							)
 							.limit(1);
 
+				const branchInvUpdates: any = {
+					in_stock: String(input.qtyOnHand),
+				};
+				if (input.reorderLevel !== undefined && input.reorderLevel !== null) {
+					branchInvUpdates.reorder_level = Math.round(input.reorderLevel);
+				}
+
 				if (existing && existing.length > 0) {
 					await tx
 						.update(branchInventory)
-						.set({
-							in_stock: input.qtyOnHand,
-						})
+						.set(branchInvUpdates)
 						.where(eq(branchInventory.id, existing[0].id));
 				} else {
 					await tx.insert(branchInventory).values({
 						product_id: prodId,
 						branch_id: input.branchId,
-						in_stock: input.qtyOnHand,
+						in_stock: String(input.qtyOnHand),
+						reorder_level: input.reorderLevel
+							? Math.round(input.reorderLevel)
+							: 10,
 					});
 				}
 
@@ -281,11 +479,44 @@ export const inventoryRouter = router({
 					product_id: prodId,
 					branch_id: input.branchId,
 					transaction_type: "in",
-					quantity: input.qtyOnHand,
+					quantity: String(input.qtyOnHand),
 					reference_type: "warehouse_stock_update",
 					unit_cost: priceStr,
 					total_cost: (input.price * input.qtyOnHand).toFixed(2),
 				});
+
+				// 4. Lock day-wise selling and cost price for specific date & append audit log
+				const effectiveDate =
+					input.pricingDate || new Date().toISOString().split("T")[0];
+				let staffId: number | undefined;
+				try {
+					staffId = await resolveStaffId(tx, ctx.user?.email);
+				} catch (e) {}
+
+				await lockOrUpdateDailyPrice(tx, {
+					productId: prodId,
+					pricingDate: effectiveDate,
+					costPrice:
+						input.costPrice !== undefined && input.costPrice !== null
+							? input.costPrice
+							: 0,
+					sellingPrice: input.price,
+					branchId: input.branchId,
+					notes:
+						input.reason ?? `Warehouse stock & rate lock for ${effectiveDate}`,
+					userUid: ctx.user?.id,
+					staffId,
+					source: "warehouse_stock_update",
+				});
+
+				try {
+					notifyStockChanged(prodId, input.branchId);
+				} catch (notifErr) {
+					console.warn(
+						"[inventory.updateStockAndPrice] Error notifying stock change:",
+						notifErr,
+					);
+				}
 
 				return { success: true };
 			});
@@ -564,7 +795,9 @@ export const inventoryRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 			const branchId = input.branch_id;
-			const branchFilter = branchId ? sql`WHERE bi.branch_id = ${branchId}` : sql``;
+			const branchFilter = branchId
+				? sql`WHERE bi.branch_id = ${branchId}`
+				: sql``;
 
 			const [
 				[scalarStats],
@@ -739,6 +972,15 @@ export const inventoryRouter = router({
 			const db = ctx.db;
 			return await db.query.products.findMany({
 				where: eq(products.is_pack, true),
+				columns: {
+					id: true,
+					name: true,
+					sku: true,
+					unit: true,
+					is_pack: true,
+					units_per_pack: true,
+					loose_product_id: true,
+				},
 			});
 		}),
 
@@ -875,6 +1117,98 @@ export const inventoryRouter = router({
 			});
 		}),
 
+	// ── Check if Product/SKU Already Exists (Double Entry Prevention) ───────
+	checkExistingProduct: publicProcedure
+		.input(
+			z.object({
+				name: z.string().optional(),
+				sku: z.string().optional(),
+				barcode: z.string().optional(),
+				branchId: z.number().default(1),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const trimmedName = input.name?.trim() || "";
+			const bilingualName =
+				trimmedName.length >= 2 ? toBilingualProductName(trimmedName) : "";
+			const trimmedSku = input.sku?.trim() || "";
+			const trimmedBarcode = input.barcode?.trim() || "";
+
+			if (
+				trimmedName.length < 2 &&
+				trimmedSku.length < 2 &&
+				trimmedBarcode.length < 2
+			) {
+				return { exists: false, product: null };
+			}
+
+			const conditions: any[] = [];
+			if (trimmedName.length >= 2) {
+				conditions.push(
+					sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedName}))`,
+				);
+				if (
+					bilingualName &&
+					bilingualName.toLowerCase() !== trimmedName.toLowerCase()
+				) {
+					conditions.push(
+						sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${bilingualName}))`,
+					);
+				}
+			}
+			if (trimmedSku.length >= 2) {
+				conditions.push(
+					sql`LOWER(TRIM(${products.sku})) = LOWER(TRIM(${trimmedSku}))`,
+				);
+			}
+			if (trimmedBarcode.length >= 2) {
+				conditions.push(
+					sql`LOWER(TRIM(${products.barcode})) = LOWER(TRIM(${trimmedBarcode}))`,
+				);
+			}
+
+			if (conditions.length === 0) {
+				return { exists: false, product: null };
+			}
+
+			const found = await ctx.db
+				.select({
+					id: products.id,
+					name: products.name,
+					sku: products.sku,
+					barcode: products.barcode,
+					category: products.category,
+					price: products.price,
+					unit: products.unit,
+					stock: branchInventory.in_stock,
+					reorder_level: branchInventory.reorder_level,
+				})
+				.from(products)
+				.leftJoin(
+					branchInventory,
+					and(
+						eq(branchInventory.product_id, products.id),
+						eq(branchInventory.branch_id, input.branchId),
+					),
+				)
+				.where(and(eq(products.is_deleted, false), or(...conditions)))
+				.limit(1);
+
+			if (found.length > 0) {
+				return {
+					exists: true,
+					product: {
+						...found[0],
+						product: found[0].name,
+						productId: found[0].id,
+						qty_on_hand: found[0].stock ?? 0,
+					},
+				};
+			}
+
+			return { exists: false, product: null };
+		}),
+
 	// ── Add New Item to Warehouse Stock ───────────────────────────────────────
 	addItem: publicProcedure
 		.input(
@@ -883,30 +1217,80 @@ export const inventoryRouter = router({
 				sku: z.string().optional(),
 				price: z.number().min(0, "Price must be non-negative."),
 				costPrice: z.number().optional(),
+				category: z.string().optional(),
 				unit: z.string().default("Pcs"),
 				initialStock: z
 					.number()
 					.min(0, "Initial stock cannot be negative.")
 					.default(0),
+				reorderLevel: z
+					.number()
+					.min(0, "Reorder level cannot be negative.")
+					.default(10),
 				binLocation: z.string().optional(),
 				branchId: z.number().default(1),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
+			const trimmedName = toBilingualProductName(input.name.trim());
+			const trimmedSku = input.sku?.trim() || "";
+
+			// 0. Double Entry Prevention Check across products
+			const existingProduct = await db
+				.select({
+					id: products.id,
+					name: products.name,
+					sku: products.sku,
+					category: products.category,
+					price: products.price,
+				})
+				.from(products)
+				.where(
+					and(
+						eq(products.is_deleted, false),
+						or(
+							sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedName}))`,
+							trimmedSku.length > 0
+								? sql`LOWER(TRIM(${products.sku})) = LOWER(TRIM(${trimmedSku}))`
+								: sql`FALSE`,
+							trimmedSku.length > 0
+								? sql`LOWER(TRIM(${products.barcode})) = LOWER(TRIM(${trimmedSku}))`
+								: sql`FALSE`,
+						),
+					),
+				)
+				.limit(1);
+
+			if (existingProduct.length > 0) {
+				const ex = existingProduct[0];
+				throw new TRPCError({
+					code: "CONFLICT",
+					message: `Product "${ex.name}" already exists in warehouse stock (SKU: ${ex.sku || "N/A"}, ID: #${ex.id}). Double entry is prevented. Please edit the existing item to add or update stock.`,
+				});
+			}
+
 			const generatedSku =
-				input.sku && input.sku.trim().length > 0
-					? input.sku.trim()
+				trimmedSku.length > 0
+					? trimmedSku
 					: `SKU-${Date.now().toString().slice(-6)}`;
+
+			const costVal =
+				input.costPrice !== undefined && input.costPrice !== null
+					? input.costPrice
+					: input.price;
 
 			return await db.transaction(async (tx) => {
 				// 1. Create product record
 				const [newProd] = await tx
 					.insert(products)
 					.values({
-						name: input.name.trim(),
+						name: trimmedName,
 						sku: generatedSku,
 						price: input.price.toString(),
+						base_selling_price: input.price.toString(),
+						base_procurement_price: costVal.toString(),
+						category: input.category || "General",
 						user_uid: ctx.user.id,
 						unit: input.unit || "Pcs",
 					})
@@ -922,8 +1306,8 @@ export const inventoryRouter = router({
 					.values({
 						branch_id: input.branchId,
 						product_id: newProd.id,
-						in_stock: input.initialStock,
-						reorder_level: 10,
+						in_stock: String(input.initialStock),
+						reorder_level: Math.round(input.reorderLevel),
 					})
 					.returning();
 
@@ -932,21 +1316,204 @@ export const inventoryRouter = router({
 					await tx.insert(stockLedger).values({
 						product_id: newProd.id,
 						transaction_type: "in",
-						quantity: input.initialStock,
+						quantity: String(input.initialStock),
 						reference_type: "initial_stock",
 						branch_id: input.branchId,
-						unit_cost: (input.costPrice ?? input.price).toString(),
-						total_cost: (
-							(input.costPrice ?? input.price) * input.initialStock
-						).toString(),
+						unit_cost: costVal.toString(),
+						total_cost: (costVal * input.initialStock).toString(),
 					});
 				}
 
 				return {
 					success: true,
-					product: newProd,
+					product: {
+						...newProd,
+						costPrice: costVal,
+						cost_price: costVal,
+						baseProcurementPrice: costVal,
+						base_procurement_price: costVal.toString(),
+					},
 					inventory: newInv,
 				};
+			});
+		}),
+
+	getHistoricalStockSnapshot: roleProcedure([
+		"admin",
+		"manager",
+		"warehouse_manager",
+		"inventory_manager",
+		"auditor",
+		"staff",
+	])
+		.input(
+			z.object({
+				date: z.string(), // YYYY-MM-DD
+				branchId: z.number().optional(),
+				search: z.string().optional(),
+				category: z.string().optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const bId = input.branchId || ctx.user.branchId || 1;
+			const targetDateEnd = new Date(`${input.date}T23:59:59.999Z`);
+
+			// 1. Get current catalogue with branchInventory for this branch
+			const currentInventory = await ctx.db
+				.select({
+					productId: products.id,
+					productName: products.name,
+					sku: products.sku,
+					category: products.category,
+					unit: products.unit,
+					currentStock: branchInventory.in_stock,
+					reorderLevel: branchInventory.reorder_level,
+					sellingPrice: products.selling_price,
+					costPrice: products.base_procurement_price,
+					imageUrl: products.image_url,
+					imageStoragePath: products.image_storage_path,
+				})
+				.from(products)
+				.leftJoin(
+					branchInventory,
+					and(
+						eq(branchInventory.product_id, products.id),
+						eq(branchInventory.branch_id, bId),
+					),
+				)
+				.where(
+					and(
+						input.category && input.category !== "all"
+							? eq(products.category, input.category)
+							: undefined,
+						input.search
+							? or(
+									ilike(products.name, `%${input.search}%`),
+									ilike(products.sku, `%${input.search}%`),
+								)
+							: undefined,
+					),
+				)
+				.orderBy(asc(products.name));
+
+			// 2. Fetch stock movements from stockLedger that occurred AFTER targetDateEnd
+			const ledgerAfter = await ctx.db
+				.select({
+					productId: stockLedger.product_id,
+					quantity: stockLedger.quantity,
+					transactionType: stockLedger.transaction_type,
+				})
+				.from(stockLedger)
+				.where(
+					and(
+						eq(stockLedger.branch_id, bId),
+						gte(stockLedger.created_at, targetDateEnd),
+					),
+				);
+
+			const deltaMap = new Map<number, number>();
+			for (const entry of ledgerAfter) {
+				if (!entry.productId) continue;
+				const currentDelta = deltaMap.get(entry.productId) || 0;
+				const q = Number(entry.quantity) || 0;
+				const signedDelta =
+					entry.transactionType === "out"
+						? -Math.abs(q)
+						: q > 0
+							? q
+							: -Math.abs(q);
+				deltaMap.set(entry.productId, currentDelta + signedDelta);
+			}
+
+			// 3. Fetch day-wise locked prices for target date
+			const lockedPricingMap = await getDailyPricingMapForDate(
+				ctx.db,
+				input.date,
+				bId,
+			);
+
+			// 4. For each product, historical stock = currentStock - deltaAfter, with locked day pricing
+			return currentInventory.map((item) => {
+				const current = Number(item.currentStock || 0);
+				const deltaAfter = deltaMap.get(item.productId) || 0;
+				const historical =
+					Math.round(Math.max(0, current - deltaAfter) * 1000) / 1000;
+				const locked = lockedPricingMap.get(item.productId);
+
+				const effectiveSellingPrice = locked
+					? locked.sellingPrice
+					: Number(item.sellingPrice || 0);
+				const effectiveCostPrice = locked
+					? locked.costPrice
+					: Number(item.costPrice || 0);
+				const marginPercent =
+					effectiveSellingPrice > 0
+						? Math.round(
+								((effectiveSellingPrice - effectiveCostPrice) /
+									effectiveSellingPrice) *
+									100,
+							)
+						: 0;
+
+				return {
+					productId: item.productId,
+					productName: item.productName,
+					sku: item.sku,
+					category: item.category,
+					unit: item.unit,
+					currentStock: current,
+					historicalStock: historical,
+					changeSince: Math.round((current - historical) * 1000) / 1000,
+					reorderLevel: item.reorderLevel,
+					sellingPrice: effectiveSellingPrice,
+					costPrice: effectiveCostPrice,
+					marginPercent,
+					isPriceLocked: Boolean(locked?.isLocked),
+					lockedAt: locked?.lockedAt ?? null,
+					pricingNotes: locked?.notes ?? null,
+					date: input.date,
+					imageUrl: item.imageUrl || null,
+					imageStoragePath: item.imageStoragePath || null,
+				};
+			});
+		}),
+
+	/**
+	 * Explicitly update & lock Cost Price and Selling Price for a particular day
+	 */
+	updateDailyCostAndSellingPrice: roleProcedure([
+		"admin",
+		"manager",
+		"warehouse_manager",
+		"inventory_manager",
+		"staff",
+	])
+		.input(
+			z.object({
+				productId: z.number(),
+				pricingDate: z.string(), // YYYY-MM-DD
+				costPrice: z.number().min(0),
+				sellingPrice: z.number().min(0),
+				branchId: z.number().optional().default(1),
+				notes: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			let staffId: number | undefined;
+			try {
+				staffId = await resolveStaffId(ctx.db, ctx.user?.email);
+			} catch (e) {}
+
+			return await lockOrUpdateDailyPrice(ctx.db, {
+				productId: input.productId,
+				pricingDate: input.pricingDate,
+				costPrice: input.costPrice,
+				sellingPrice: input.sellingPrice,
+				branchId: input.branchId,
+				notes: input.notes || `Day rate lock for ${input.pricingDate}`,
+				userUid: ctx.user?.id,
+				staffId,
+				source: "warehouse_daily_lock",
 			});
 		}),
 });

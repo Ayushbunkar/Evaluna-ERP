@@ -21,10 +21,12 @@ const COOKIE_NAMES = [
 	"evaluna.dont_remember",
 	"better-auth.session_token",
 	"__Secure-better-auth.session_token",
+	"evaluna_2fa_verified",
+	"evaluna_trusted_device",
 ];
 
 async function handleLogout(request: NextRequest) {
-	// 1. Invalidate in-memory session cache if token exists
+	// 1. Invalidate in-memory session cache immediately if token exists
 	try {
 		for (const name of COOKIE_NAMES) {
 			const token = request.cookies.get(name)?.value;
@@ -36,13 +38,18 @@ async function handleLogout(request: NextRequest) {
 		console.warn("[/api/logout] Cache invalidation warning:", cacheErr);
 	}
 
-	// 2. Call Better Auth's server-side signOut to invalidate DB session
+	// 2. Call Better Auth's server-side signOut to invalidate DB session with a fast cutoff
+	// so slow DB connections or cold starts never stall the logout response.
 	try {
-		await auth.api.signOut({
+		const signOutPromise = auth.api.signOut({
 			headers: request.headers,
 		});
+		await Promise.race([
+			signOutPromise,
+			new Promise((resolve) => setTimeout(resolve, 250)),
+		]);
 	} catch (err) {
-		console.error("[/api/logout] signOut error:", err);
+		console.warn("[/api/logout] signOut notice:", err);
 	}
 
 	const acceptsHtml = request.headers.get("accept")?.includes("text/html");
@@ -78,18 +85,19 @@ async function handleLogout(request: NextRequest) {
 		);
 	}
 
-	// 3. Explicitly expire all known Better Auth cookies as a safety net
+	// 3. Explicitly expire all known Better Auth & 2FA cookies as a safety net
+	const isHttps = request.nextUrl.protocol === "https:";
 	for (const name of COOKIE_NAMES) {
 		response.cookies.set(name, "", {
 			expires: new Date(0),
 			path: "/",
 			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
+			secure: isHttps,
 			sameSite: "lax",
 		});
 	}
 
-	// 4. Prevent caching
+	// 4. Prevent caching of this API response without nuking the browser script/bundle cache
 	response.headers.set(
 		"Cache-Control",
 		"no-store, no-cache, must-revalidate, proxy-revalidate",

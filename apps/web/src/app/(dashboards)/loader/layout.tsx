@@ -12,6 +12,7 @@ import {
 
 const loaderNavItems: NavItem[] = [
 	{ href: "/loader", labelKey: "dashboard", icon: LayoutDashboardIcon },
+	{ href: "/loader/van-loading", labelKey: "vanLoading", icon: TruckIcon },
 	{ href: "/loader/loading", labelKey: "loadingQueue", icon: TruckIcon },
 	{ href: "/loader/history", labelKey: "loadingHistory", icon: ArchiveIcon },
 ];

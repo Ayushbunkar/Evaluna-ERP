@@ -86,8 +86,10 @@ const USER_STATUSES = [
 function formatRole(role?: string) {
 	if (!role) return "USER";
 	const normalized = role.toLowerCase().replace(/_/g, " ").trim();
-	if (normalized === "delivery boy" || normalized === "delivery") return "DRIVER";
-	if (normalized === "delivery manager" || normalized === "deliverymanager") return "MANAGER";
+	if (normalized === "delivery boy" || normalized === "delivery")
+		return "DRIVER";
+	if (normalized === "delivery manager" || normalized === "deliverymanager")
+		return "MANAGER";
 	if (normalized === "dispatcher" || normalized === "dispatch") return "PACKER";
 	if (
 		normalized === "biller" ||
@@ -384,21 +386,41 @@ export default function AdminUsersPage() {
 										className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-3.5 shadow-xs"
 									>
 										<div className="flex items-start justify-between gap-2">
-											<div className="min-w-0 flex-1">
-												<div className="flex items-center gap-2">
-													<span className="font-mono text-[11px] font-semibold text-muted-foreground">
-														{u.staffCode || "N/A"}
-													</span>
-													<StatusBadge status={u.status} />
+											<div className="flex min-w-0 flex-1 items-center gap-3">
+												{(u as any).image ? (
+													<img
+														src={(u as any).image}
+														alt={u.name}
+														className="h-10 w-10 shrink-0 rounded-full object-cover shadow-xs ring-1 ring-border"
+													/>
+												) : (
+													<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white text-xs shadow-xs">
+														{u.name
+															? u.name
+																	.split(" ")
+																	.map((n: string) => n[0])
+																	.slice(0, 2)
+																	.join("")
+																	.toUpperCase()
+															: "?"}
+													</div>
+												)}
+												<div className="min-w-0 flex-1">
+													<div className="flex items-center gap-2">
+														<span className="font-mono font-semibold text-[11px] text-muted-foreground">
+															{u.staffCode || "N/A"}
+														</span>
+														<StatusBadge status={u.status} />
+													</div>
+													<h3 className="mt-0.5 truncate font-bold text-foreground text-sm">
+														{u.name}
+													</h3>
+													<p className="truncate text-muted-foreground text-xs">
+														{u.email}
+													</p>
 												</div>
-												<h3 className="font-bold text-sm text-foreground truncate mt-0.5">
-													{u.name}
-												</h3>
-												<p className="text-xs text-muted-foreground truncate">
-													{u.email}
-												</p>
 											</div>
-											<div className="flex items-center gap-1 shrink-0">
+											<div className="flex shrink-0 items-center gap-1">
 												<Button
 													variant="ghost"
 													size="icon"
@@ -461,7 +483,7 @@ export default function AdminUsersPage() {
 											</div>
 										</div>
 
-										<div className="flex items-center justify-between border-t border-border/40 pt-2 text-xs">
+										<div className="flex items-center justify-between border-border/40 border-t pt-2 text-xs">
 											<Badge variant="default" className="text-[10px]">
 												{formatRole(u.role)}
 											</Badge>
@@ -474,7 +496,7 @@ export default function AdminUsersPage() {
 							</div>
 
 							{/* Desktop Table (md+) */}
-							<div className="hidden md:block overflow-x-auto rounded-lg">
+							<div className="hidden overflow-x-auto rounded-lg md:block">
 								<Table className="w-full">
 									<TableHeader className="bg-muted/40 backdrop-blur">
 										<TableRow>
@@ -490,16 +512,41 @@ export default function AdminUsersPage() {
 									</TableHeader>
 									<TableBody>
 										{users.map((u, idx) => (
-											<TableRow key={`${u.id}-${idx}`} className="hover:bg-muted/30">
-												<TableCell className="font-medium">{u.name}</TableCell>
+											<TableRow
+												key={`${u.id}-${idx}`}
+												className="hover:bg-muted/30"
+											>
+												<TableCell>
+													<div className="flex items-center gap-2.5">
+														{(u as any).image ? (
+															<img
+																src={(u as any).image}
+																alt={u.name}
+																className="h-8 w-8 shrink-0 rounded-full object-cover shadow-xs ring-1 ring-border"
+															/>
+														) : (
+															<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white text-xs shadow-xs">
+																{u.name
+																	? u.name
+																			.split(" ")
+																			.map((n: string) => n[0])
+																			.slice(0, 2)
+																			.join("")
+																			.toUpperCase()
+																	: "?"}
+															</div>
+														)}
+														<span className="font-medium text-foreground">
+															{u.name}
+														</span>
+													</div>
+												</TableCell>
 												<TableCell className="font-mono text-xs">
 													{u.staffCode || "N/A"}
 												</TableCell>
 												<TableCell>{u.email}</TableCell>
 												<TableCell>
-													<Badge variant="default">
-														{formatRole(u.role)}
-													</Badge>
+													<Badge variant="default">{formatRole(u.role)}</Badge>
 												</TableCell>
 												<TableCell>
 													<StatusBadge status={u.status} />
@@ -892,6 +939,42 @@ export default function AdminUsersPage() {
 						</div>
 					) : (
 						<div className="space-y-6 py-2">
+							{/* User Avatar & Header */}
+							<div className="flex items-center gap-4 border-border/40 border-b pb-4">
+								{(userDetails.profile as any)?.image ? (
+									<img
+										src={(userDetails.profile as any).image}
+										alt={userDetails.profile?.name || "User"}
+										className="h-14 w-14 rounded-full object-cover shadow-sm ring-2 ring-primary/20"
+									/>
+								) : (
+									<div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-lg text-white shadow-sm">
+										{userDetails.profile?.name
+											? userDetails.profile.name
+													.split(" ")
+													.map((n: string) => n[0])
+													.slice(0, 2)
+													.join("")
+													.toUpperCase()
+											: "?"}
+									</div>
+								)}
+								<div>
+									<h4 className="font-bold text-base text-foreground">
+										{userDetails.profile?.name || "N/A"}
+									</h4>
+									<p className="font-mono text-muted-foreground text-xs">
+										{userDetails.profile?.email || "N/A"}
+									</p>
+									<Badge variant="outline" className="mt-1 text-[11px]">
+										{formatRole(
+											userDetails.profile?.roleName ||
+												userDetails.profile?.role,
+										)}
+									</Badge>
+								</div>
+							</div>
+
 							{/* Profile Grid */}
 							<div className="grid grid-cols-2 gap-4 border-border/40 border-b pb-4">
 								<div>

@@ -1,4 +1,4 @@
-﻿import type React from "react";
+import type React from "react";
 
 export interface ThermalReceiptProps {
 	order: any;
@@ -12,11 +12,11 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 	return (
 		<div className="mx-auto w-80 max-w-[80mm] bg-white p-4 font-mono text-black text-sm leading-tight shadow-sm">
 			<div className="mb-4 text-center">
-				<h2 className="font-bold text-xl">{branch?.name || "Branch Name"}</h2>
+				<h2 className="font-bold text-xl">{branch?.name || "EVALUNA PVT LTD"}</h2>
 				<p className="whitespace-pre-line">
-					{branch?.address || "Branch Address"}
+					{branch?.address || "Near Bank of India, Vidisha Road, Berasia\nBhopal, MP – 463106"}
 				</p>
-				<p>{branch?.phone || "Phone"}</p>
+				<p className="font-bold">PHONE: {branch?.phone || "9630649277"}</p>
 			</div>
 
 			<div className="mb-2 border-black border-b border-dashed pb-2">

@@ -2,6 +2,7 @@
 
 import {
 	AlertCircleIcon,
+	BarChart3Icon,
 	ClipboardListIcon,
 	IndianRupeeIcon,
 	LayoutDashboardIcon,
@@ -34,7 +35,10 @@ export default function Layout({
 		},
 	);
 
-	const pendingCount = typeof pendingData === "number" ? pendingData : (pendingData?.count ?? 0);
+	const pendingCount =
+		typeof pendingData === "number"
+			? pendingData
+			: ((pendingData as any)?.count ?? 0);
 
 	const salesNavItems: NavItem[] = [
 		{ href: "/sales", labelKey: "dashboard", icon: LayoutDashboardIcon },
@@ -46,7 +50,12 @@ export default function Layout({
 			icon: ClipboardListIcon,
 			badge: pendingCount > 0 ? pendingCount : undefined,
 		},
-		{ href: "/sales/orders/cancelled", labelKey: "cancelledOrders", icon: XCircleIcon },
+		{ href: "/sales/reports", labelKey: "reports", icon: BarChart3Icon },
+		{
+			href: "/sales/orders/cancelled",
+			labelKey: "cancelledOrders",
+			icon: XCircleIcon,
+		},
 		{ href: "/sales/shortages", labelKey: "shortages", icon: AlertCircleIcon },
 		{ href: "/sales/customers", labelKey: "customers", icon: UsersIcon },
 		{ href: "/sales/returns", labelKey: "salesReturns", icon: ReceiptTextIcon },

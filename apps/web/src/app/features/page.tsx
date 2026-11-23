@@ -1,39 +1,44 @@
-﻿import { Button } from "@evaluna/ui/components/button";
+import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import {
-	ArrowLeft,
 	BarChart3,
-	MountainIcon,
+	Building2,
 	Package,
 	ShoppingCart,
 	Truck,
 	Users,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { PublicHeader } from "@/components/layout/PublicHeader";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Features & Systems — POS, WMS, Field Sales & HR",
+	description:
+		"Explore the modular ERP features: offline-first POS cash registers, intelligent warehouse bin routing, GPS geofenced workforce tracking, and automated GST reporting.",
+	canonicalPath: "/features",
+});
 
 export default function FeaturesPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Features", url: "/features" },
+	]);
+
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-			{/* Navigation */}
-			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex h-16 items-center justify-between">
-						<div className="flex items-center space-x-2">
-							<MountainIcon className="h-8 w-8 text-primary" strokeWidth={2} />
-							<span className="font-bold text-foreground text-xl">
-								Evaluna ERP
-							</span>
-						</div>
-						<div className="flex items-center space-x-4">
-							<Button asChild variant="outline" className="text-sm">
-								<Link href="/">
-									<ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
-								</Link>
-							</Button>
-						</div>
-					</div>
-				</div>
-			</nav>
+		<div className="relative min-h-screen overflow-x-hidden bg-background text-foreground transition-colors selection:bg-primary/20">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
+			{/* Ambient background glow */}
+			<div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+				<div className="absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-primary/5 blur-[120px] dark:bg-primary/10" />
+			</div>
+
+			{/* Synchronized Homepage Navigation */}
+			<PublicHeader />
 
 			{/* Main Content */}
 			<main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -87,7 +92,7 @@ export default function FeaturesPage() {
 							id: "supply-chain",
 						},
 						{
-							icon: <MountainIcon className="h-8 w-8 text-primary" />,
+							icon: <Building2 className="h-8 w-8 text-primary" />,
 							title: "Multi-Branch Operations",
 							description:
 								"Centralized management system for all our branches with role-based access control tailored to our organizational structure.",
@@ -128,13 +133,11 @@ export default function FeaturesPage() {
 									including accounts payable/receivable, general ledger, and
 									financial reporting.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>â€¢ Expense tracking and approval workflows</li>
-									<li>â€¢ Budget management and forecasting</li>
-									<li>â€¢ Tax calculation and compliance tools</li>
-									<li>
-										â€¢ Multi-currency support for international operations
-									</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>Expense tracking and approval workflows</li>
+									<li>Budget management and forecasting</li>
+									<li>Tax calculation and compliance tools</li>
+									<li>Multi-currency support for international operations</li>
 								</ul>
 							</CardContent>
 						</Card>
@@ -148,12 +151,12 @@ export default function FeaturesPage() {
 									Complete HR management system for our workforce, including
 									employee records, attendance tracking, and payroll processing.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>â€¢ Employee onboarding and offboarding</li>
-									<li>â€¢ Time and attendance management</li>
-									<li>â€¢ Leave and vacation tracking</li>
-									<li>â€¢ Performance evaluation system</li>
-									<li>â€¢ Payroll processing and tax filings</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>Employee onboarding and offboarding</li>
+									<li>Time and attendance management</li>
+									<li>Leave and vacation tracking</li>
+									<li>Performance evaluation system</li>
+									<li>Payroll processing and tax filings</li>
 								</ul>
 							</CardContent>
 						</Card>
@@ -167,12 +170,12 @@ export default function FeaturesPage() {
 									Tools for managing our day-to-day business operations across
 									all departments.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>â€¢ Workflow automation and process management</li>
-									<li>â€¢ Document management and version control</li>
-									<li>â€¢ Task assignment and progress tracking</li>
-									<li>â€¢ Inter-departmental communication tools</li>
-									<li>â€¢ Compliance and audit tracking</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>Workflow automation and process management</li>
+									<li>Document management and version control</li>
+									<li>Task assignment and progress tracking</li>
+									<li>Inter-departmental communication tools</li>
+									<li>Compliance and audit tracking</li>
 								</ul>
 							</CardContent>
 						</Card>
@@ -186,14 +189,12 @@ export default function FeaturesPage() {
 									Advanced analytics and reporting tools to help us make
 									data-driven decisions.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>
-										â€¢ Custom report builder with drag-and-drop interface
-									</li>
-									<li>â€¢ Data visualization tools and dashboards</li>
-									<li>â€¢ Predictive analytics for business forecasting</li>
-									<li>â€¢ Key performance indicator tracking</li>
-									<li>â€¢ Data export and integration capabilities</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>Custom report builder with drag-and-drop interface</li>
+									<li>Data visualization tools and dashboards</li>
+									<li>Predictive analytics for business forecasting</li>
+									<li>Key performance indicator tracking</li>
+									<li>Data export and integration capabilities</li>
 								</ul>
 							</CardContent>
 						</Card>
@@ -217,21 +218,25 @@ export default function FeaturesPage() {
 			</main>
 
 			{/* Footer */}
-			<footer className="mt-16 border-slate-200 border-t bg-white py-8">
+			<footer className="mt-16 border-border border-t bg-card/40 py-10">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex flex-col items-center justify-between md:flex-row">
-						<div className="mb-4 flex items-center space-x-2 md:mb-0">
-							<MountainIcon className="h-6 w-6 text-primary" strokeWidth={2} />
+					<div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+						<div className="flex items-center space-x-2.5">
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-7 w-7 rounded-lg object-cover"
+							/>
 							<span className="font-bold text-foreground text-lg">
 								Evaluna ERP
 							</span>
 						</div>
-						<div className="text-muted-foreground text-sm">
-							Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use
+						<div className="text-muted-foreground text-xs sm:text-sm">
+							© {new Date().getFullYear()} Evaluna Technologies. Internal Use
 							Only.
 						</div>
 					</div>
-					<div className="mt-4 flex flex-wrap justify-center space-x-6 text-muted-foreground text-sm md:justify-end">
+					<div className="mt-6 flex flex-wrap justify-center space-x-6 text-muted-foreground text-xs sm:text-sm md:justify-end">
 						<Link
 							href="/privacy"
 							className="transition-colors hover:text-foreground"

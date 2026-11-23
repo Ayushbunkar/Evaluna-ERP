@@ -6,6 +6,7 @@ import {
 	gpsLogs,
 	orderItems,
 	orders,
+	packages,
 	products,
 	proofOfDeliveries,
 	roles,
@@ -20,7 +21,17 @@ import {
 	vehicles,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, inArray, not, notInArray, or, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	inArray,
+	not,
+	notInArray,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { dispatchNotification } from "@/lib/notification-service";
@@ -144,19 +155,152 @@ async function getDriverIdentifiers(ctx: any): Promise<string[]> {
 	return Array.from(ids).filter(Boolean);
 }
 
+function cleanStopText(text?: string | null): string {
+	if (!text) return "";
+	return text
+		.replace(/,\s*madhya\s+pradesh\b/gi, "")
+		.replace(/\s*madhya\s+pradesh\b/gi, "")
+		.replace(/,\s*m\.?p\.?\b/gi, "")
+		.replace(/\s*m\.?p\.?\b/gi, "")
+		.trim();
+}
+
+function cleanRouteDescription(desc?: string | null): string {
+	if (!desc) return "";
+	const cleaned = cleanStopText(desc);
+	return cleaned
+		.split(/\s*(?:->|→)\s*/)
+		.map((part) => cleanStopText(part))
+		.filter(Boolean)
+		.join(" -> ");
+}
+
+async function resolveCustomerForStop(
+	tx: any,
+	stop: {
+		customerId?: number;
+		name?: string;
+		address?: string;
+		phone?: string;
+	},
+	branch: number,
+	userUid: string,
+	routeId?: number,
+): Promise<number | null> {
+	if (stop.customerId) return stop.customerId;
+	if (!stop.name && !stop.address && !stop.phone) return null;
+
+	const nameClean = cleanStopText(stop.name);
+	const addressClean = cleanStopText(stop.address);
+	const phoneClean = stop.phone?.trim() || "";
+
+	// 1. Match by phone if available (phone belongs to a unique real person)
+	if (phoneClean) {
+		const byPhone = await tx.query.customers.findFirst({
+			where: and(
+				eq(customers.phone, phoneClean),
+				eq(customers.branch_id, branch),
+			),
+		});
+		if (byPhone) return byPhone.id;
+	}
+
+	// 2. If routeId is provided, first check if a stop customer already exists for THIS specific route
+	if (routeId) {
+		const conditions = [];
+		if (nameClean) {
+			conditions.push(sql`LOWER(TRIM(${customers.name})) = LOWER(TRIM(${nameClean}))`);
+		}
+		if (addressClean) {
+			conditions.push(sql`LOWER(TRIM(${customers.address})) = LOWER(TRIM(${addressClean}))`);
+		}
+		if (conditions.length > 0) {
+			const existingRouteStop = await tx
+				.select({ customerId: routeStops.customer_id })
+				.from(routeStops)
+				.innerJoin(customers, eq(customers.id, routeStops.customer_id))
+				.where(
+					and(
+						eq(routeStops.route_id, routeId),
+						eq(customers.branch_id, branch),
+						or(...conditions),
+					),
+				)
+				.limit(1);
+
+			if (existingRouteStop.length > 0 && existingRouteStop[0]?.customerId) {
+				return existingRouteStop[0].customerId;
+			}
+		}
+	}
+
+	// 3. Match candidate customer by name/address ONLY if NOT assigned to any DIFFERENT route
+	// This ensures village stops with identical names across distinct routes never share customer IDs!
+	if (nameClean || addressClean) {
+		const nameOrAddrCondition = [];
+		if (nameClean) {
+			nameOrAddrCondition.push(sql`LOWER(TRIM(${customers.name})) = LOWER(TRIM(${nameClean}))`);
+		}
+		if (addressClean) {
+			nameOrAddrCondition.push(sql`LOWER(TRIM(${customers.address})) = LOWER(TRIM(${addressClean}))`);
+		}
+		const candidates = await tx.query.customers.findMany({
+			where: and(
+				or(...nameOrAddrCondition),
+				eq(customers.branch_id, branch),
+			),
+			limit: 10,
+		});
+
+		for (const cand of candidates) {
+			const otherStops = await tx
+				.select({ routeId: routeStops.route_id })
+				.from(routeStops)
+				.where(eq(routeStops.customer_id, cand.id))
+				.limit(1);
+
+			// Only reuse this customer if it has no assigned route yet, or belongs to this exact route
+			if (otherStops.length === 0 || (routeId && otherStops[0].routeId === routeId)) {
+				return cand.id;
+			}
+		}
+	}
+
+	// 4. Create new customer with collision-proof unique customer_code
+	const uniqueCode = `CUST-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+	const email = phoneClean
+		? `cust_${phoneClean.replace(/\D/g, "") || Date.now()}_${Math.floor(1000 + Math.random() * 9000)}@evaluna.local`
+		: `cust_${Date.now()}_${Math.floor(Math.random() * 100000)}@evaluna.local`;
+
+	const [newCust] = await tx
+		.insert(customers)
+		.values({
+			name:
+				nameClean ||
+				(addressClean
+					? `Stop: ${addressClean.slice(0, 30)}`
+					: `Customer ${phoneClean || Date.now()}`),
+			email,
+			phone: phoneClean || null,
+			address: addressClean || null,
+			branch_id: branch,
+			user_uid: userUid,
+			customer_code: uniqueCode,
+		})
+		.returning();
+
+	return newCust.id;
+}
+
 export const deliveryRouter = router({
 	// ── Routes ─────────────────────────────────────────────────────────────
-	listRoutes: roleProcedure([
-		"admin",
-		"manager",
-		"sales_person",
-	])
+	listRoutes: roleProcedure(["admin", "manager", "sales_person"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 
-			// Clean up auto-generated dummy routes that start with "Trip " or "Quick Trip "
+			// Clean up auto-generated dummy routes and duplicate route entries
 			try {
 				const dummyRoutes = await db.query.deliveryRoutes.findMany({
 					where: and(
@@ -169,29 +313,73 @@ export const deliveryRouter = router({
 				});
 				if (dummyRoutes.length > 0) {
 					const dummyIds = dummyRoutes.map((r) => r.id);
-					// Unlink trips from dummy routes
 					await db
 						.update(deliveryTrips)
 						.set({ route_id: null })
 						.where(inArray(deliveryTrips.route_id, dummyIds));
-					// Delete stops of dummy routes
 					await db
 						.delete(routeStops)
 						.where(inArray(routeStops.route_id, dummyIds));
-					// Delete dummy routes
 					await db
 						.delete(deliveryRoutes)
 						.where(inArray(deliveryRoutes.id, dummyIds));
 				}
+
+				// Deduplicate routes sharing the same name by keeping the one with lowest ID or highest stop count
+				const allCurrentRoutes = await db.query.deliveryRoutes.findMany({
+					where: eq(deliveryRoutes.branch_id, branch),
+					with: { stops: true },
+					orderBy: (r, { asc }) => [asc(r.id)],
+				});
+				const seenNames = new Map<string, any>();
+				const duplicateIdsToDelete: number[] = [];
+
+				for (const r of allCurrentRoutes) {
+					const normName = (r.name || "").trim().toLowerCase();
+					if (!seenNames.has(normName)) {
+						seenNames.set(normName, r);
+					} else {
+						const existing = seenNames.get(normName);
+						// Keep the one with more stops or lower ID
+						if ((r.stops?.length || 0) > (existing.stops?.length || 0)) {
+							duplicateIdsToDelete.push(existing.id);
+							seenNames.set(normName, r);
+						} else {
+							duplicateIdsToDelete.push(r.id);
+						}
+					}
+				}
+
+				if (duplicateIdsToDelete.length > 0) {
+					await db
+						.update(deliveryTrips)
+						.set({ route_id: null })
+						.where(inArray(deliveryTrips.route_id, duplicateIdsToDelete));
+					await db
+						.delete(routeStops)
+						.where(inArray(routeStops.route_id, duplicateIdsToDelete));
+					await db
+						.delete(deliveryRoutes)
+						.where(inArray(deliveryRoutes.id, duplicateIdsToDelete));
+				}
 			} catch (cleanupErr) {
-				console.warn("[listRoutes] Cleanup dummy routes:", cleanupErr);
+				console.warn(
+					"[listRoutes] Cleanup dummy/duplicate routes:",
+					cleanupErr,
+				);
 			}
 
-			return await db.query.deliveryRoutes.findMany({
+			const rawRoutes = await db.query.deliveryRoutes.findMany({
 				where: eq(deliveryRoutes.branch_id, branch),
 				with: { stops: { with: { customer: true } } },
 				orderBy: (r, { asc }) => [asc(r.name)],
 			});
+
+			return rawRoutes.map((r) => ({
+				...r,
+				name: cleanStopText(r.name),
+				description: cleanRouteDescription(r.description),
+			}));
 		}),
 
 	createRoute: roleProcedure(["admin", "manager"])
@@ -216,11 +404,14 @@ export const deliveryRouter = router({
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 
 			return await db.transaction(async (tx) => {
+				const cleanedName = cleanStopText(input.name);
+				const cleanedDesc = cleanRouteDescription(input.description);
+
 				const [route] = await tx
 					.insert(deliveryRoutes)
 					.values({
-						name: input.name,
-						description: input.description,
+						name: cleanedName,
+						description: cleanedDesc,
 						branch_id: branch,
 					})
 					.returning();
@@ -231,44 +422,13 @@ export const deliveryRouter = router({
 				let currentSequence = 1;
 
 				for (const stop of input.stops) {
-					let resolvedCustId = stop.customerId;
-
-					if (!resolvedCustId && (stop.name || stop.address || stop.phone)) {
-						const phoneClean = stop.phone?.trim() || "";
-						const uniqueSuffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-						const email = phoneClean
-							? `cust_${phoneClean.replace(/\D/g, "") || uniqueSuffix}@evaluna.local`
-							: `cust_${uniqueSuffix}@evaluna.local`;
-
-						// Check if a customer with this phone or email already exists in branch
-						let existingCust = null;
-						if (phoneClean) {
-							existingCust = await tx.query.customers.findFirst({
-								where: and(
-									eq(customers.phone, phoneClean),
-									eq(customers.branch_id, branch),
-								),
-							});
-						}
-
-						if (existingCust) {
-							resolvedCustId = existingCust.id;
-						} else {
-							const [newCust] = await tx
-								.insert(customers)
-								.values({
-									name: stop.name?.trim() || (stop.address ? `Stop: ${stop.address.slice(0, 30)}` : `Customer ${phoneClean}`),
-									email,
-									phone: phoneClean || null,
-									address: stop.address?.trim() || null,
-									branch_id: branch,
-									user_uid: ctx.user?.id || "manager",
-									customer_code: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-								})
-								.returning();
-							resolvedCustId = newCust.id;
-						}
-					}
+					const resolvedCustId = await resolveCustomerForStop(
+						tx,
+						stop,
+						branch,
+						ctx.user?.id || "manager",
+						route.id,
+					);
 
 					if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
 						seenCustomers.add(resolvedCustId);
@@ -321,6 +481,39 @@ export const deliveryRouter = router({
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			try {
 				return await database.transaction(async (tx) => {
+					// Check if any specified orders are already assigned to an active trip
+					if (input.orderIds && input.orderIds.length > 0) {
+						const activeAssignedStops = await tx
+							.select({ orderId: tripStops.id, tripId: tripStops.trip_id })
+							.from(tripStops)
+							.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+							.where(
+								and(
+									notInArray(deliveryTrips.status, ["completed", "cancelled"]),
+								),
+							);
+						// Also check direct orders table if assigned to trip / driver
+						const alreadyAssignedOrders = await tx.query.orders.findMany({
+							where: and(
+								inArray(orders.id, input.orderIds),
+								inArray(orders.status, [
+									"ready_for_dispatch",
+									"out_for_delivery",
+								]),
+							),
+						});
+						if (
+							alreadyAssignedOrders.length === input.orderIds.length &&
+							input.orderIds.length > 0
+						) {
+							throw new TRPCError({
+								code: "BAD_REQUEST",
+								message:
+									"All selected orders are already assigned to an active delivery trip.",
+							});
+						}
+					}
+
 					// 1. Create Trip
 					const [trip] = await tx
 						.insert(deliveryTrips)
@@ -340,47 +533,13 @@ export const deliveryRouter = router({
 
 					if (input.stops && input.stops.length > 0) {
 						for (const stop of input.stops) {
-							let resolvedCustId = stop.customerId;
-
-							if (!resolvedCustId && (stop.name || stop.address || stop.phone)) {
-								const phoneClean = stop.phone?.trim() || "";
-								const uniqueSuffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-								const email = phoneClean
-									? `cust_${phoneClean.replace(/\D/g, "") || uniqueSuffix}@evaluna.local`
-									: `cust_${uniqueSuffix}@evaluna.local`;
-
-								let existingCust = null;
-								if (phoneClean) {
-									existingCust = await tx.query.customers.findFirst({
-										where: and(
-											eq(customers.phone, phoneClean),
-											eq(customers.branch_id, branch),
-										),
-									});
-								}
-
-								if (existingCust) {
-									resolvedCustId = existingCust.id;
-								} else {
-									const [newCust] = await tx
-										.insert(customers)
-										.values({
-											name:
-												stop.name?.trim() ||
-												(stop.address
-													? `Stop: ${stop.address.slice(0, 30)}`
-													: `Customer ${phoneClean}`),
-											email,
-											phone: phoneClean || null,
-											address: stop.address?.trim() || null,
-											branch_id: branch,
-											user_uid: ctx.user?.id || "manager",
-											customer_code: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-										})
-										.returning();
-									resolvedCustId = newCust.id;
-								}
-							}
+							const resolvedCustId = await resolveCustomerForStop(
+								tx,
+								stop,
+								branch,
+								ctx.user?.id || "manager",
+								input.routeId,
+							);
 
 							if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
 								seenCustomers.add(resolvedCustId);
@@ -464,7 +623,11 @@ export const deliveryRouter = router({
 								}
 							}
 						}
-						if (driverStaffId === null && !isNaN(Number(input.driverId)) && Number(input.driverId) > 0) {
+						if (
+							driverStaffId === null &&
+							!isNaN(Number(input.driverId)) &&
+							Number(input.driverId) > 0
+						) {
 							driverStaffId = Number(input.driverId);
 						}
 
@@ -472,8 +635,10 @@ export const deliveryRouter = router({
 							await tx
 								.update(orders)
 								.set({
-									...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
-									status: "ready_for_dispatch",
+									...(driverStaffId !== null
+										? { driver_id: driverStaffId }
+										: {}),
+									status: "ready_for_loading",
 								})
 								.where(inArray(orders.id, input.orderIds));
 						} else if (resolvedStops.length > 0) {
@@ -481,8 +646,10 @@ export const deliveryRouter = router({
 							await tx
 								.update(orders)
 								.set({
-									...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
-									status: "ready_for_dispatch",
+									...(driverStaffId !== null
+										? { driver_id: driverStaffId }
+										: {}),
+									status: "ready_for_loading",
 								})
 								.where(
 									and(
@@ -490,7 +657,9 @@ export const deliveryRouter = router({
 										inArray(orders.status, [
 											"confirmed",
 											"processing",
+											"packed",
 											"ready_for_dispatch",
+											"ready_for_loading",
 										]),
 									),
 								);
@@ -543,35 +712,33 @@ ERROR TABLE: ${err.table}
 	}),
 
 	// ── Live Execution ─────────────────────────────────────────────────────
-	activeTrips: roleProcedure(["admin", "manager"]).query(
-		async () => {
-			const activeTripsList = await db.query.deliveryTrips.findMany({
-				where: eq(deliveryTrips.status, "active"),
-				with: {
-					driver: true,
-					stops: {
-						with: { customer: true },
-						orderBy: (s, { asc }) => [asc(s.sequence)],
-					},
-					vehicle: true,
+	activeTrips: roleProcedure(["admin", "manager"]).query(async () => {
+		const activeTripsList = await db.query.deliveryTrips.findMany({
+			where: eq(deliveryTrips.status, "active"),
+			with: {
+				driver: true,
+				stops: {
+					with: { customer: true },
+					orderBy: (s, { asc }) => [asc(s.sequence)],
 				},
-			});
+				vehicle: true,
+			},
+		});
 
-			const tripIds = activeTripsList.map((t) => t.id);
-			if (tripIds.length === 0) return [];
+		const tripIds = activeTripsList.map((t) => t.id);
+		if (tripIds.length === 0) return [];
 
-			// Fetch latest GPS log for each active trip
-			const logs = await db.query.gpsLogs.findMany({
-				where: (t, { inArray }) => inArray(t.trip_id, tripIds),
-				orderBy: (t, { desc }) => [desc(t.timestamp)],
-			});
+		// Fetch latest GPS log for each active trip
+		const logs = await db.query.gpsLogs.findMany({
+			where: (t, { inArray }) => inArray(t.trip_id, tripIds),
+			orderBy: (t, { desc }) => [desc(t.timestamp)],
+		});
 
-			return activeTripsList.map((trip) => {
-				const latestLog = logs.find((l) => l.trip_id === trip.id);
-				return { ...trip, latestLog };
-			});
-		},
-	),
+		return activeTripsList.map((trip) => {
+			const latestLog = logs.find((l) => l.trip_id === trip.id);
+			return { ...trip, latestLog };
+		});
+	}),
 
 	updateTripStatus: protectedProcedure
 		.input(
@@ -587,7 +754,11 @@ ERROR TABLE: ${err.table}
 					.from(deliveryTrips)
 					.where(eq(deliveryTrips.id, input.tripId));
 
-				if (existingTrip && existingTrip.status !== "loaded" && existingTrip.status !== "active") {
+				if (
+					existingTrip &&
+					existingTrip.status !== "loaded" &&
+					existingTrip.status !== "active"
+				) {
 					throw new TRPCError({
 						code: "BAD_REQUEST",
 						message: `Trip #${input.tripId} cannot be dispatched yet. It must first be physically loaded and verified by the warehouse loader (Current status: "${existingTrip.status}").`,
@@ -630,7 +801,11 @@ ERROR TABLE: ${err.table}
 							.where(
 								and(
 									inArray(orders.customer_id, custIds),
-									notInArray(orders.status, ["delivered", "cancelled", "out_for_delivery"]),
+									notInArray(orders.status, [
+										"delivered",
+										"cancelled",
+										"out_for_delivery",
+									]),
 								),
 							);
 
@@ -662,13 +837,20 @@ ERROR TABLE: ${err.table}
 											.where(
 												and(
 													eq(orders.driver_id, driverStaff.id),
-													notInArray(orders.status, ["delivered", "cancelled", "out_for_delivery"]),
+													notInArray(orders.status, [
+														"delivered",
+														"cancelled",
+														"out_for_delivery",
+													]),
 												),
 											);
 									}
 								}
 							} catch (driverSyncErr) {
-								console.warn("[updateTripStatus] Driver order sync error (non-critical):", driverSyncErr);
+								console.warn(
+									"[updateTripStatus] Driver order sync error (non-critical):",
+									driverSyncErr,
+								);
 							}
 						}
 
@@ -676,7 +858,7 @@ ERROR TABLE: ${err.table}
 						await dispatchNotification({
 							type: "info",
 							priority: "high",
-							title: `🚚 Trip #${input.tripId} Dispatched`,
+							title: `Trip #${input.tripId} Dispatched`,
 							message: `Delivery Trip #${input.tripId} (${trip.route?.name || "Route"}) with ${custIds.length} stop(s) is now Out for Delivery with driver ${trip.driver?.name || "assigned driver"}.`,
 							branchId: (ctx.user?.branchId as number) || 1,
 							channels: ["in_app"],
@@ -697,14 +879,19 @@ ERROR TABLE: ${err.table}
 							.where(
 								and(
 									inArray(orders.customer_id, custIds),
-									inArray(orders.status, ["out_for_delivery", "packed"]),
+									inArray(orders.status, [
+										"out_for_delivery",
+										"packed",
+										"ready_for_loading",
+										"loaded",
+									]),
 								),
 							);
 
 						await dispatchNotification({
 							type: "info",
 							priority: "normal",
-							title: `✅ Trip #${input.tripId} Completed`,
+							title: `Trip #${input.tripId} Completed`,
 							message: `Driver ${trip.driver?.name || "Driver"} has completed all deliveries for Trip #${input.tripId}.`,
 							branchId: (ctx.user?.branchId as number) || 1,
 							channels: ["in_app"],
@@ -714,7 +901,10 @@ ERROR TABLE: ${err.table}
 					}
 				}
 			} catch (syncErr) {
-				console.warn("[updateTripStatus] Order status sync or notification warning:", syncErr);
+				console.warn(
+					"[updateTripStatus] Order status sync or notification warning:",
+					syncErr,
+				);
 			}
 
 			return { success: true };
@@ -798,16 +988,17 @@ ERROR TABLE: ${err.table}
 			let items: any[] = [];
 
 			if (orderIds.length > 0) {
-				// Mocked aggregation for demonstration:
-				// Fetch products from these orders
-				// In reality we would query package_items mapped to these orders
-				items = [
-					{
-						product_id: 1,
-						product: { name: "Wireless Mouse M330" },
-						quantity: 5,
+				const orderItemsList = await db.query.orderItems.findMany({
+					where: inArray(orderItems.order_id, orderIds),
+					with: {
+						product: true,
 					},
-				];
+				});
+				items = orderItemsList.map((item: any) => ({
+					product_id: item.product_id,
+					product: { name: item.product?.name || `Product #${item.product_id}` },
+					quantity: Number(item.quantity) || 1,
+				}));
 			}
 
 			return {
@@ -850,6 +1041,7 @@ ERROR TABLE: ${err.table}
 			const productIds = input.returnedItems.map((i) => i.productId);
 			const productsData = await db.query.products.findMany({
 				where: inArray(products.id, productIds.length ? productIds : [0]),
+				columns: { id: true, price: true },
 			});
 
 			const productPriceMap = new Map(
@@ -975,18 +1167,29 @@ ERROR TABLE: ${err.table}
 						eq(s.role, "driver"),
 						eq(s.role, "delivery_boy"),
 					),
-				columns: { id: true, staff_code: true, name: true, email: true, role: true, phone: true },
+				columns: {
+					id: true,
+					staff_code: true,
+					name: true,
+					email: true,
+					role: true,
+					phone: true,
+				},
 			});
 
 			// Only include users who actually have an authenticated user account (and dashboard)
 			const driverUsers = allUsers.filter((u) => {
 				const hasDriverUserRole = u.userRoles?.some((r: any) =>
-					["delivery", "driver", "delivery_boy"].includes(r.role?.name?.toLowerCase() || ""),
+					["delivery", "driver", "delivery_boy"].includes(
+						r.role?.name?.toLowerCase() || "",
+					),
 				);
 				const hasDriverStaffRecord = staffMembers.some(
 					(s) =>
 						s.id === u.staff_id ||
-						(s.email && u.email && s.email.toLowerCase() === u.email.toLowerCase()),
+						(s.email &&
+							u.email &&
+							s.email.toLowerCase() === u.email.toLowerCase()),
 				);
 				return hasDriverUserRole || hasDriverStaffRecord;
 			});
@@ -995,7 +1198,9 @@ ERROR TABLE: ${err.table}
 				const matchingStaff = staffMembers.find(
 					(s) =>
 						s.id === u.staff_id ||
-						(s.email && u.email && s.email.toLowerCase() === u.email.toLowerCase()) ||
+						(s.email &&
+							u.email &&
+							s.email.toLowerCase() === u.email.toLowerCase()) ||
 						(s.name && u.name && s.name.toLowerCase() === u.name.toLowerCase()),
 				);
 
@@ -1006,7 +1211,9 @@ ERROR TABLE: ${err.table}
 					role: "driver",
 					image: u.image || null,
 					phone: matchingStaff?.phone || null,
-					staff_code: matchingStaff?.staff_code || (u.staff_id ? `EMP-${u.staff_id}` : null),
+					staff_code:
+						matchingStaff?.staff_code ||
+						(u.staff_id ? `EMP-${u.staff_id}` : null),
 				};
 			});
 
@@ -1028,7 +1235,14 @@ ERROR TABLE: ${err.table}
 
 			const staffMembers = await db.query.staff.findMany({
 				where: (s, { eq }) => eq(s.role, "loader"),
-				columns: { id: true, staff_code: true, name: true, email: true, role: true, phone: true },
+				columns: {
+					id: true,
+					staff_code: true,
+					name: true,
+					email: true,
+					role: true,
+					phone: true,
+				},
 			});
 
 			// Only include users who actually have an authenticated user account (and dashboard)
@@ -1039,7 +1253,9 @@ ERROR TABLE: ${err.table}
 				const hasLoaderStaffRecord = staffMembers.some(
 					(s) =>
 						s.id === u.staff_id ||
-						(s.email && u.email && s.email.toLowerCase() === u.email.toLowerCase()),
+						(s.email &&
+							u.email &&
+							s.email.toLowerCase() === u.email.toLowerCase()),
 				);
 				return hasLoaderUserRole || hasLoaderStaffRecord;
 			});
@@ -1048,7 +1264,9 @@ ERROR TABLE: ${err.table}
 				const matchingStaff = staffMembers.find(
 					(s) =>
 						s.id === u.staff_id ||
-						(s.email && u.email && s.email.toLowerCase() === u.email.toLowerCase()) ||
+						(s.email &&
+							u.email &&
+							s.email.toLowerCase() === u.email.toLowerCase()) ||
 						(s.name && u.name && s.name.toLowerCase() === u.name.toLowerCase()),
 				);
 
@@ -1059,7 +1277,9 @@ ERROR TABLE: ${err.table}
 					role: "loader",
 					image: u.image || null,
 					phone: matchingStaff?.phone || null,
-					staff_code: matchingStaff?.staff_code || (u.staff_id ? `EMP-${u.staff_id}` : null),
+					staff_code:
+						matchingStaff?.staff_code ||
+						(u.staff_id ? `EMP-${u.staff_id}` : null),
 				};
 			});
 
@@ -1123,7 +1343,7 @@ ERROR TABLE: ${err.table}
 				await dispatchNotification({
 					type: "info",
 					priority: "high",
-					title: `📦 Loading Task Assigned - Trip #${input.tripId}`,
+					title: `Loading Task Assigned - Trip #${input.tripId}`,
 					message: `Trip #${input.tripId} has been released for loading.`,
 					branchId: (ctx.user?.branchId as number) || 1,
 					channels: ["in_app"],
@@ -1134,7 +1354,11 @@ ERROR TABLE: ${err.table}
 				// Non-critical notification fallback
 			}
 
-			return { success: true, tripId: input.tripId, status: "ready_for_loading" };
+			return {
+				success: true,
+				tripId: input.tripId,
+				status: "ready_for_loading",
+			};
 		}),
 
 	getRouteWaitingPool: roleProcedure(["admin", "manager"])
@@ -1155,67 +1379,103 @@ ERROR TABLE: ${err.table}
 				orderBy: (r, { asc }) => [asc(r.name)],
 			});
 
-			const realRoutes = routes.filter(
-				(r) => !r.name?.startsWith("Trip ") && !r.name?.startsWith("Quick Trip "),
+			const rawRealRoutes = routes.filter(
+				(r) =>
+					!r.name?.startsWith("Trip ") && !r.name?.startsWith("Quick Trip "),
+			);
+			const seenRouteNames = new Set<string>();
+			const realRoutes: typeof rawRealRoutes = [];
+			for (const r of rawRealRoutes) {
+				const nameKey = (r.name || "").trim().toLowerCase();
+				if (!seenRouteNames.has(nameKey)) {
+					seenRouteNames.add(nameKey);
+					realRoutes.push(r);
+				}
+			}
+
+			// Find order IDs that are already assigned to active delivery trips
+			const activeTripsStops = await db
+				.select({ orderId: tripStops.id, customerId: tripStops.customer_id })
+				.from(tripStops)
+				.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+				.where(notInArray(deliveryTrips.status, ["completed", "cancelled"]));
+
+			const activeTripCustomerIds = new Set(
+				activeTripsStops.map((s) => s.customerId).filter(Boolean),
 			);
 
-			const activeTrips = await db.query.deliveryTrips.findMany({
-				where: notInArray(deliveryTrips.status, ["cancelled", "completed"]),
-				with: {
-					stops: true,
-				},
-			});
-
-			const customerIdsInActiveTrips = new Set(
-				activeTrips.flatMap((t) => t.stops.map((s) => s.customer_id)).filter(Boolean),
-			);
-
-			const allOrders = await db.query.orders.findMany({
-				where: notInArray(orders.status, ["cancelled", "completed", "delivered", "dispatched", "out_for_delivery"]),
+			const rawOrders = await db.query.orders.findMany({
+				where: notInArray(orders.status, [
+					"cancelled",
+					"completed",
+					"delivered",
+					"dispatched",
+					"out_for_delivery",
+					"pending_review",
+					"under_review",
+					"ready_for_dispatch",
+				]),
 				with: {
 					customer: true,
 				},
 				orderBy: (o, { desc }) => [desc(o.created_at)],
 			});
 
+			// Filter out orders whose customer is already in an active trip or whose order is ready_for_dispatch
+			const allOrders = rawOrders.filter((o) => !o.driver_id);
+
+			const packedOrderIds = new Set<number>();
+			try {
+				if (db.query && (db.query as any).packages) {
+					const allPackages = await (db.query as any).packages.findMany({
+						where: inArray(packages.status, [
+							"packed",
+							"ready_for_dispatch",
+							"completed",
+						]),
+					});
+					if (allPackages) {
+						for (const p of allPackages) {
+							if (p.order_id) packedOrderIds.add(p.order_id);
+						}
+					}
+				}
+			} catch (pkgErr) {
+				// Fallback if packages table not yet migrated in current DB
+			}
+
+			// Build map of customer -> assigned route from route_stops
+			// This ensures strict route isolation: a customer assigned to Route A will NEVER appear under Route B
+			const customerAssignedRouteMap = new Map<number, number>();
+			for (const r of realRoutes) {
+				for (const s of r.stops) {
+					if (s.customer_id) {
+						customerAssignedRouteMap.set(s.customer_id, r.id);
+					}
+				}
+			}
+
 			return realRoutes.map((route) => {
-				const routeCustIds = new Set(route.stops.map((s) => s.customer_id).filter(Boolean));
-
-				const routeOrders = allOrders.filter((order) => {
-					if (order.customer_id && customerIdsInActiveTrips.has(order.customer_id)) return false;
-					
-					const isDirectRoute = (order as any).route_id === route.id;
-					const isStopCustomer = Boolean(order.customer_id && routeCustIds.has(order.customer_id));
-
-					return isDirectRoute || isStopCustomer;
-				});
-
-				const waitingCount = routeOrders.length;
-				const readyCount = routeOrders.filter(
-					(o) => o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch",
-				).length;
-				const pickingCount = routeOrders.filter(
-					(o) => o.status === "confirmed" || o.status === "processing" || o.status === "picking",
-				).length;
-				const packingCount = routeOrders.filter(
-					(o) => o.status === "ready_for_packing" || o.status === "packing",
-				).length;
+				const routeCustIds = new Set(
+					route.stops.map((s) => s.customer_id).filter(Boolean),
+				);
 
 				// Initialize pre-configured village stops from route description or route stops
 				const villageMap = new Map<string, any[]>();
 				const preConfiguredVillages: string[] = [];
+				const cleanedDesc = cleanRouteDescription(route.description);
 
-				if (route.description && route.description.includes("->")) {
-					for (const v of route.description.split("->")) {
-						const trimmed = v.trim();
+				if (cleanedDesc && cleanedDesc.includes("->")) {
+					for (const v of cleanedDesc.split("->")) {
+						const trimmed = cleanStopText(v);
 						if (trimmed && !villageMap.has(trimmed)) {
 							villageMap.set(trimmed, []);
 							preConfiguredVillages.push(trimmed);
 						}
 					}
-				} else if (route.description && route.description.includes(",")) {
-					for (const v of route.description.split(",")) {
-						const trimmed = v.trim();
+				} else if (cleanedDesc && cleanedDesc.includes(",")) {
+					for (const v of cleanedDesc.split(",")) {
+						const trimmed = cleanStopText(v);
 						if (trimmed && !villageMap.has(trimmed)) {
 							villageMap.set(trimmed, []);
 							preConfiguredVillages.push(trimmed);
@@ -1225,32 +1485,103 @@ ERROR TABLE: ${err.table}
 
 				for (const stop of route.stops) {
 					const cust = stop.customer;
-					const vName = cust?.address
+					const rawName = cust?.address
 						? cust.address.split(",")[0].trim()
-						: cust?.name?.replace(/^Stop:\s*/, "").trim() || `Stop ${stop.sequence}`;
-					if (!villageMap.has(vName)) {
+						: cust?.name?.replace(/^Stop:\s*/, "").trim() ||
+							`Stop ${stop.sequence}`;
+					const vName = cleanStopText(rawName);
+					if (vName && !villageMap.has(vName)) {
 						villageMap.set(vName, []);
 						preConfiguredVillages.push(vName);
 					}
 				}
 
+				const routeOrders = allOrders.filter((order) => {
+					// 1. Strict Route Isolation:
+					// If the order or customer is assigned to a route, it MUST match THIS route exactly!
+					// Prevents orders from hopping to another route just because of matching village names.
+					const assignedRouteId =
+						(order as any).route_id ||
+						(order.customer_id ? customerAssignedRouteMap.get(order.customer_id) : null);
+
+					if (assignedRouteId) {
+						return assignedRouteId === route.id;
+					}
+
+					// 2. Unassigned customer fallback: match only if the customer address contains a village stop of THIS route
+					const cust = order.customer;
+					const custAddress = (cust?.address || "").trim().toLowerCase();
+					const custName = (cust?.name || "").trim().toLowerCase();
+
+					if (!custAddress && !custName) return false;
+
+					const addressVillage = custAddress ? custAddress.split(",")[0].trim() : "";
+					return preConfiguredVillages.some((v) => {
+						const vLower = v.toLowerCase();
+						return (
+							(addressVillage && addressVillage === vLower) ||
+							custAddress === vLower ||
+							custName === vLower ||
+							custAddress.includes(vLower)
+						);
+					});
+				});
+
+				const waitingCount = routeOrders.length;
+				const readyCount = routeOrders.filter(
+					(o) =>
+						o.status === "packed" ||
+						o.status === "ready_for_loading" ||
+						o.status === "ready_for_dispatch" ||
+						packedOrderIds.has(o.id),
+				).length;
+				const pickingCount = routeOrders.filter(
+					(o) =>
+						!packedOrderIds.has(o.id) &&
+						o.status !== "packed" &&
+						(o.status === "confirmed" ||
+							o.status === "processing" ||
+							o.status === "picking"),
+				).length;
+				const packingCount = routeOrders.filter(
+					(o) =>
+						!packedOrderIds.has(o.id) &&
+						(o.status === "ready_for_packing" || o.status === "packing"),
+				).length;
+
 				for (const order of routeOrders) {
 					const cust = order.customer;
 					const custAddress = (cust?.address || "").trim().toLowerCase();
 					const custName = (cust?.name || "").trim().toLowerCase();
-					
-					// Find best matching pre-configured village stop
+					const addressVillage = custAddress ? custAddress.split(",")[0].trim() : "";
+					const isOrderReady =
+						order.status === "packed" ||
+						order.status === "ready_for_loading" ||
+						order.status === "ready_for_dispatch" ||
+						packedOrderIds.has(order.id);
+
+					// Find best matching pre-configured village stop on THIS route
 					let targetVillage = preConfiguredVillages.find((v) => {
 						const vLower = v.toLowerCase();
 						return (
-							custAddress.includes(vLower) ||
-							vLower.includes(custAddress) ||
-							custName.includes(vLower)
+							(addressVillage && addressVillage === vLower) ||
+							custAddress === vLower ||
+							custName === vLower
 						);
 					});
 
 					if (!targetVillage) {
-						targetVillage = cust?.address ? cust.address.split(",")[0].trim() : "Other Stops";
+						targetVillage = preConfiguredVillages.find((v) => {
+							const vLower = v.toLowerCase();
+							if (vLower.length < 3) return false;
+							return custAddress.includes(vLower) || custName.includes(vLower);
+						});
+					}
+
+					if (!targetVillage) {
+						targetVillage = cust?.address
+							? cust.address.split(",")[0].trim()
+							: "Other Stops";
 					}
 
 					if (!villageMap.has(targetVillage)) {
@@ -1259,26 +1590,29 @@ ERROR TABLE: ${err.table}
 
 					villageMap.get(targetVillage)?.push({
 						id: order.id,
+						customerId: order.customer_id,
 						orderNumber: order.order_number || `ORD-${order.id}`,
 						customerName: cust?.name || "Customer",
-						status: order.status,
+						status: isOrderReady ? "packed" : order.status,
 						createdAt: order.created_at,
-						isReady: order.status === "packed" || order.status === "ready_for_loading" || order.status === "ready_for_dispatch",
+						isReady: isOrderReady,
 					});
 				}
 
-				const villages = Array.from(villageMap.entries()).map(([villageName, ordersList]) => ({
-					name: villageName,
-					orderCount: ordersList.length,
-					orders: ordersList,
-				}));
+				const villages = Array.from(villageMap.entries()).map(
+					([villageName, ordersList]) => ({
+						name: villageName,
+						orderCount: ordersList.length,
+						orders: ordersList,
+					}),
+				);
 
 				const latestOrder = routeOrders[0]?.created_at || null;
 
 				return {
 					routeId: route.id,
-					routeName: route.name,
-					description: route.description,
+					routeName: cleanStopText(route.name),
+					description: cleanRouteDescription(route.description),
 					waitingCount,
 					readyCount,
 					pickingCount,
@@ -1286,16 +1620,26 @@ ERROR TABLE: ${err.table}
 					villageCount: villages.length,
 					villages,
 					latestOrderTime: latestOrder,
-					orders: routeOrders.map((o) => ({
-						id: o.id,
-						orderNumber: o.order_number || `ORD-${o.id}`,
-						customerId: o.customer_id,
-						customerName: o.customer?.name || "Customer",
-						village: o.customer?.address ? o.customer.address.split(",")[0].trim() : "Stop",
-						status: o.status,
-						createdAt: o.created_at,
-						isEligibleForTrip: o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch",
-					})),
+					orders: routeOrders.map((o) => {
+						const isOrderReady =
+							o.status === "packed" ||
+							o.status === "ready_for_loading" ||
+							o.status === "ready_for_dispatch" ||
+							packedOrderIds.has(o.id);
+						return {
+							id: o.id,
+							orderNumber: o.order_number || `ORD-${o.id}`,
+							customerId: o.customer_id,
+							customerName: o.customer?.name || "Customer",
+							village: o.customer?.address
+								? o.customer.address.split(",")[0].trim()
+								: "Stop",
+							status: isOrderReady ? "packed" : o.status,
+							createdAt: o.created_at,
+							isReady: isOrderReady,
+							isEligibleForTrip: true,
+						};
+					}),
 				};
 			});
 		}),
@@ -1312,6 +1656,9 @@ ERROR TABLE: ${err.table}
 				with: {
 					route: true,
 					driver: {
+						columns: { id: true, name: true, email: true, image: true },
+					},
+					loader: {
 						columns: { id: true, name: true, email: true, image: true },
 					},
 					vehicle: true,
@@ -1353,7 +1700,10 @@ ERROR TABLE: ${err.table}
 						.where(
 							and(
 								inArray(orders.customer_id, custIds),
-								inArray(orders.status, ["ready_for_dispatch", "out_for_delivery"]),
+								inArray(orders.status, [
+									"ready_for_dispatch",
+									"out_for_delivery",
+								]),
 							),
 						);
 				}
@@ -1380,7 +1730,9 @@ ERROR TABLE: ${err.table}
 					.where(inArray(proofOfDeliveries.trip_stop_id, stopIds));
 			}
 			await db.delete(gpsLogs).where(eq(gpsLogs.trip_id, input.tripId));
-			await db.delete(deliveryStops).where(eq(deliveryStops.trip_id, input.tripId));
+			await db
+				.delete(deliveryStops)
+				.where(eq(deliveryStops.trip_id, input.tripId));
 			await db.delete(tripStops).where(eq(tripStops.trip_id, input.tripId));
 			await db
 				.delete(tripCollections)
@@ -1399,7 +1751,10 @@ ERROR TABLE: ${err.table}
 						.where(
 							and(
 								inArray(orders.customer_id, custIds),
-								inArray(orders.status, ["ready_for_dispatch", "out_for_delivery"]),
+								inArray(orders.status, [
+									"ready_for_dispatch",
+									"out_for_delivery",
+								]),
 							),
 						);
 				}
@@ -1444,19 +1799,20 @@ ERROR TABLE: ${err.table}
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			return await db.transaction(async (tx) => {
 				// 1. Update route name and description
+				const cleanedName = cleanStopText(input.name);
+				const cleanedDesc = cleanRouteDescription(input.description);
+
 				const [updatedRoute] = await tx
 					.update(deliveryRoutes)
 					.set({
-						name: input.name,
-						description: input.description,
+						name: cleanedName,
+						description: cleanedDesc,
 					})
 					.where(eq(deliveryRoutes.id, input.id))
 					.returning();
 
 				// 2. Delete existing route stops for this route
-				await tx
-					.delete(routeStops)
-					.where(eq(routeStops.route_id, input.id));
+				await tx.delete(routeStops).where(eq(routeStops.route_id, input.id));
 
 				// 3. Resolve and re-insert stops
 				const resolvedStops: { customerId: number; sequence: number }[] = [];
@@ -1464,47 +1820,13 @@ ERROR TABLE: ${err.table}
 				let currentSequence = 1;
 
 				for (const stop of input.stops) {
-					let resolvedCustId = stop.customerId;
-
-					if (!resolvedCustId && (stop.name || stop.address || stop.phone)) {
-						const phoneClean = stop.phone?.trim() || "";
-						const uniqueSuffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-						const email = phoneClean
-							? `cust_${phoneClean.replace(/\D/g, "") || uniqueSuffix}@evaluna.local`
-							: `cust_${uniqueSuffix}@evaluna.local`;
-
-						let existingCust = null;
-						if (phoneClean) {
-							existingCust = await tx.query.customers.findFirst({
-								where: and(
-									eq(customers.phone, phoneClean),
-									eq(customers.branch_id, branch),
-								),
-							});
-						}
-
-						if (existingCust) {
-							resolvedCustId = existingCust.id;
-						} else {
-							const [newCust] = await tx
-								.insert(customers)
-								.values({
-									name:
-										stop.name?.trim() ||
-										(stop.address
-											? `Stop: ${stop.address.slice(0, 30)}`
-											: `Customer ${phoneClean}`),
-									email,
-									phone: phoneClean || null,
-									address: stop.address?.trim() || null,
-									branch_id: branch,
-									user_uid: ctx.user?.id || "manager",
-									customer_code: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-								})
-								.returning();
-							resolvedCustId = newCust.id;
-						}
-					}
+					const resolvedCustId = await resolveCustomerForStop(
+						tx,
+						stop,
+						branch,
+						ctx.user?.id || "manager",
+						input.id,
+					);
 
 					if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
 						seenCustomers.add(resolvedCustId);
@@ -1529,8 +1851,8 @@ ERROR TABLE: ${err.table}
 			});
 		}),
 
-	clearAllRoutesAndTrips: roleProcedure(["admin", "manager"])
-		.mutation(async () => {
+	clearAllRoutesAndTrips: roleProcedure(["admin", "manager"]).mutation(
+		async () => {
 			// Cascading cleanup of all delivery tracking, proof of deliveries, stops, trips, routes
 			await db.delete(proofOfDeliveries);
 			await db.delete(gpsLogs);
@@ -1540,8 +1862,12 @@ ERROR TABLE: ${err.table}
 			await db.delete(deliveryTrips);
 			await db.delete(routeStops);
 			await db.delete(deliveryRoutes);
-			return { success: true, message: "All routes and trips cleared successfully." };
-		}),
+			return {
+				success: true,
+				message: "All routes and trips cleared successfully.",
+			};
+		},
+	),
 
 	optimizeRouteSequence: roleProcedure(["admin", "manager"])
 		.input(z.object({ customerIds: z.array(z.number()) }))
@@ -1648,43 +1974,12 @@ ERROR TABLE: ${err.table}
 					let currentSequence = 1;
 
 					for (const s of input.stops) {
-						let resolvedCustId = s.customerId;
-
-						if (!resolvedCustId && (s.name || s.address || s.phone)) {
-							const phoneClean = s.phone?.trim() || "";
-							const uniqueSuffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-							const email = phoneClean
-								? `cust_${phoneClean.replace(/\D/g, "") || uniqueSuffix}@evaluna.local`
-								: `cust_${uniqueSuffix}@evaluna.local`;
-
-							let existingCust = null;
-							if (phoneClean) {
-								existingCust = await tx.query.customers.findFirst({
-									where: and(
-										eq(customers.phone, phoneClean),
-										eq(customers.branch_id, branch),
-									),
-								});
-							}
-
-							if (existingCust) {
-								resolvedCustId = existingCust.id;
-							} else {
-								const [newCust] = await tx
-									.insert(customers)
-									.values({
-										name: s.name?.trim() || (s.address ? `Stop: ${s.address.slice(0, 30)}` : `Customer ${phoneClean}`),
-										email,
-										phone: phoneClean || null,
-										address: s.address?.trim() || null,
-										branch_id: branch,
-										user_uid: ctx.user?.id || "manager",
-										customer_code: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-									})
-									.returning();
-								resolvedCustId = newCust.id;
-							}
-						}
+						const resolvedCustId = await resolveCustomerForStop(
+							tx,
+							s,
+							branch,
+							ctx.user?.id || "manager",
+						);
 
 						if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
 							seenCustomers.add(resolvedCustId);
@@ -1697,23 +1992,37 @@ ERROR TABLE: ${err.table}
 
 					let createdRouteId: number | null = null;
 					if (input.routeName) {
-						const [route] = await tx
-							.insert(deliveryRoutes)
-							.values({
-								name: input.routeName,
-								branch_id: branch || null,
-							})
-							.returning();
-						createdRouteId = route.id;
+						const cleanedRouteName = cleanStopText(input.routeName);
+						const existingRoute = await tx.query.deliveryRoutes.findFirst({
+							where: and(
+								eq(deliveryRoutes.branch_id, branch),
+								eq(deliveryRoutes.name, cleanedRouteName),
+							),
+						});
+						if (existingRoute) {
+							createdRouteId = existingRoute.id;
+						} else if (
+							!cleanedRouteName.startsWith("Trip ") &&
+							!cleanedRouteName.startsWith("Quick Trip ")
+						) {
+							const [route] = await tx
+								.insert(deliveryRoutes)
+								.values({
+									name: cleanedRouteName,
+									branch_id: branch || null,
+								})
+								.returning();
+							createdRouteId = route.id;
 
-						if (resolvedStops.length > 0) {
-							await tx.insert(routeStops).values(
-								resolvedStops.map((s) => ({
-									route_id: route.id,
-									customer_id: s.customerId,
-									sequence: s.sequence,
-								})),
-							);
+							if (resolvedStops.length > 0) {
+								await tx.insert(routeStops).values(
+									resolvedStops.map((s) => ({
+										route_id: route.id,
+										customer_id: s.customerId,
+										sequence: s.sequence,
+									})),
+								);
+							}
 						}
 					}
 
@@ -1725,7 +2034,7 @@ ERROR TABLE: ${err.table}
 							driver_id: input.driverId,
 							vehicle_id: input.vehicleId || null,
 							loader_id: input.loaderId || null,
-							status: "pending",
+							status: input.driverId ? "ready_for_loading" : "pending",
 						})
 						.returning();
 
@@ -1780,7 +2089,11 @@ ERROR TABLE: ${err.table}
 								}
 							}
 						}
-						if (driverStaffId === null && !isNaN(Number(input.driverId)) && Number(input.driverId) > 0) {
+						if (
+							driverStaffId === null &&
+							!isNaN(Number(input.driverId)) &&
+							Number(input.driverId) > 0
+						) {
 							driverStaffId = Number(input.driverId);
 						}
 
@@ -1788,8 +2101,10 @@ ERROR TABLE: ${err.table}
 							await tx
 								.update(orders)
 								.set({
-									...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
-									status: "ready_for_dispatch",
+									...(driverStaffId !== null
+										? { driver_id: driverStaffId }
+										: {}),
+									status: "ready_for_loading",
 								})
 								.where(inArray(orders.id, input.orderIds));
 						} else if (resolvedStops.length > 0) {
@@ -1797,8 +2112,10 @@ ERROR TABLE: ${err.table}
 							await tx
 								.update(orders)
 								.set({
-									...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
-									status: "ready_for_dispatch",
+									...(driverStaffId !== null
+										? { driver_id: driverStaffId }
+										: {}),
+									status: "ready_for_loading",
 								})
 								.where(
 									and(
@@ -1806,7 +2123,9 @@ ERROR TABLE: ${err.table}
 										inArray(orders.status, [
 											"confirmed",
 											"processing",
+											"packed",
 											"ready_for_dispatch",
+											"ready_for_loading",
 										]),
 									),
 								);
@@ -1836,6 +2155,91 @@ ERROR TABLE: ${err.table}
 				);
 				throw err;
 			}
+		}),
+
+	assignVehicleAndDriver: roleProcedure(["admin", "manager"])
+		.input(
+			z.object({
+				tripId: z.number(),
+				driverId: z.string(),
+				vehicleId: z.number(),
+				loaderId: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const [trip] = await db
+				.update(deliveryTrips)
+				.set({
+					driver_id: input.driverId,
+					vehicle_id: input.vehicleId,
+					loader_id: input.loaderId || null,
+					status: "ready_for_loading",
+				})
+				.where(eq(deliveryTrips.id, input.tripId))
+				.returning();
+
+			try {
+				let driverStaffId: number | null = null;
+				if (db.query && (db.query as any).staff) {
+					const staffRow = await (db.query as any).staff.findFirst({
+						where: (s: any, { eq, or }: any) =>
+							or(
+								eq(s.email, input.driverId),
+								sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${input.driverId}))`,
+								eq(s.staff_code, input.driverId),
+								sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${input.driverId}))`,
+							),
+					});
+					if (staffRow) {
+						driverStaffId = staffRow.id;
+					}
+				}
+				if (driverStaffId === null && db.query && (db.query as any).user) {
+					const userRow = await (db.query as any).user.findFirst({
+						where: (u: any, { eq, or }: any) =>
+							or(
+								eq(u.id, input.driverId),
+								sql`LOWER(TRIM(${u.email})) = LOWER(TRIM(${input.driverId}))`,
+							),
+					});
+					if (userRow && (db.query as any).staff) {
+						const staffMatch = await (db.query as any).staff.findFirst({
+							where: (s: any, { eq, or }: any) =>
+								or(
+									sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${userRow.email}))`,
+									sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${userRow.name}))`,
+								),
+						});
+						if (staffMatch) {
+							driverStaffId = staffMatch.id;
+						}
+					}
+				}
+
+				const stops = await db.query.tripStops.findMany({
+					where: eq(tripStops.trip_id, input.tripId),
+				});
+				const custIds = stops
+					.map((s) => s.customer_id)
+					.filter(Boolean) as number[];
+				if (custIds.length > 0) {
+					await db
+						.update(orders)
+						.set({
+							...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
+						})
+						.where(
+							and(
+								inArray(orders.customer_id, custIds),
+								notInArray(orders.status, ["delivered", "cancelled"]),
+							),
+						);
+				}
+			} catch (e) {
+				console.warn("[assignVehicleAndDriver] driver sync warning:", e);
+			}
+
+			return trip;
 		}),
 
 	addItemsToDeliveryOrder: protectedProcedure
@@ -1934,7 +2338,11 @@ ERROR TABLE: ${err.table}
 					.where(
 						and(
 							inArray(orders.customer_id, customerIds),
-							notInArray(orders.status, ["delivered", "cancelled", "out_for_delivery"]),
+							notInArray(orders.status, [
+								"delivered",
+								"cancelled",
+								"out_for_delivery",
+							]),
 						),
 					);
 			}
@@ -1972,13 +2380,20 @@ ERROR TABLE: ${err.table}
 								.where(
 									and(
 										eq(orders.driver_id, driverStaff.id),
-										notInArray(orders.status, ["delivered", "cancelled", "out_for_delivery"]),
+										notInArray(orders.status, [
+											"delivered",
+											"cancelled",
+											"out_for_delivery",
+										]),
 									),
 								);
 						}
 					}
 				} catch (driverOrderSyncErr) {
-					console.warn("[dispatchTrip] Driver order sync error (non-critical):", driverOrderSyncErr);
+					console.warn(
+						"[dispatchTrip] Driver order sync error (non-critical):",
+						driverOrderSyncErr,
+					);
 				}
 			}
 
@@ -1987,7 +2402,7 @@ ERROR TABLE: ${err.table}
 				await dispatchNotification({
 					type: "info",
 					priority: "high",
-					title: `🚚 Trip #${input.tripId} Dispatched`,
+					title: `Trip #${input.tripId} Dispatched`,
 					message: `Manager has dispatched Trip #${input.tripId}. You are now Out for Delivery!`,
 					branchId: (ctx.user?.branchId as number) || 1,
 					channels: ["in_app"],

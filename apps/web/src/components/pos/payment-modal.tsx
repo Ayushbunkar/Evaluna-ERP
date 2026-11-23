@@ -1,17 +1,26 @@
 "use client";
 
 import {
+	AlertCircle,
+	Banknote,
+	CheckCircle2,
 	CheckCircle2Icon,
+	Clock,
+	CreditCard,
 	Edit3Icon,
 	HistoryIcon,
+	IndianRupee,
 	MapPinIcon,
 	PhoneIcon,
 	PlusIcon,
+	QrCode,
+	Receipt,
 	RouteIcon,
 	SaveIcon,
 	SearchIcon,
 	UserIcon,
 	UserPlusIcon,
+	Wallet,
 	XIcon,
 } from "lucide-react";
 import { useLocale } from "next-intl";
@@ -27,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { offlineDb } from "@/lib/offline-db";
 import { useTRPC } from "@/lib/trpc/client";
 
 interface CustomerOption {
@@ -35,6 +45,7 @@ interface CustomerOption {
 	phone?: string | null;
 	address?: string | null;
 	customer_code?: string | null;
+	route_id?: number | null;
 }
 
 export function PaymentModal({
@@ -55,10 +66,42 @@ export function PaymentModal({
 		enabled: open,
 	});
 
+	const [effectiveCustomerList, setEffectiveCustomerList] = useState<CustomerOption[]>([]);
+
+	useEffect(() => {
+		if (customerList && customerList.length > 0) {
+			setEffectiveCustomerList(customerList as CustomerOption[]);
+			offlineDb.customers
+				.clear()
+				.then(() => {
+					offlineDb.customers.bulkPut(customerList as any[]);
+				})
+				.catch(() => {});
+		} else {
+			offlineDb.customers
+				.toArray()
+				.then((offlineCusts) => {
+					if (offlineCusts && offlineCusts.length > 0) {
+						setEffectiveCustomerList(offlineCusts as any[]);
+					}
+				})
+				.catch(() => {});
+		}
+	}, [customerList, open]);
+
+	const displayCustomerList = useMemo(
+		() => (effectiveCustomerList.length > 0 ? effectiveCustomerList : customerList),
+		[effectiveCustomerList, customerList],
+	);
+
 	const { data: routes = [] } = trpc.delivery.listRoutes.useQuery(
 		{},
 		{ enabled: open },
 	);
+
+	const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "paid">("unpaid");
+	const [selectedMethodId, setSelectedMethodId] = useState<number>(1);
+	const [receivedAmount, setReceivedAmount] = useState<string>("");
 
 	const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
 		initialCustomerDetails?.customerId || null,
@@ -77,6 +120,7 @@ export function PaymentModal({
 	);
 	const [isSearchOpen, setIsSearchOpen] = useState(false);
 	const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 
 	// Fetch customer history & assigned route when a customer is selected
@@ -127,13 +171,13 @@ export function PaymentModal({
 
 	// Sync route when full details load
 	useEffect(() => {
-		if (fullCustomerDetails?.customer) {
-			const cust = fullCustomerDetails.customer;
-			if (cust.route_id && !selectedRouteId) {
-				setSelectedRouteId(cust.route_id);
+		if (fullCustomerDetails) {
+			const routeId = fullCustomerDetails.route?.id || fullCustomerDetails.customer?.route_id;
+			if (routeId) {
+				setSelectedRouteId(routeId);
 			}
 		}
-	}, [fullCustomerDetails, selectedRouteId]);
+	}, [fullCustomerDetails]);
 
 	// Hindi Translation dictionary
 	const t = {
@@ -173,9 +217,18 @@ export function PaymentModal({
 		walkIn: locale === "hi" ? "वाक-इन ग्राहक (Walk-in Customer)" : "Walk-in Customer",
 	};
 
+	const displayAmount =
+		typeof totalAmount === "number"
+			? totalAmount
+			: Number.parseFloat(totalAmount || "0");
+
 	// Reset when opened if no initial values provided
 	useEffect(() => {
 		if (open) {
+			setIsSubmitting(false);
+			setPaymentStatus("unpaid");
+			setSelectedMethodId(1);
+			setReceivedAmount(displayAmount > 0 ? displayAmount.toString() : "");
 			if (initialCustomerDetails) {
 				setSelectedCustomerId(initialCustomerDetails.customerId || null);
 				setCustomerName(initialCustomerDetails.customerName || "");
@@ -192,7 +245,7 @@ export function PaymentModal({
 			setIsSearchOpen(false);
 			setIsEditingCustomer(false);
 		}
-	}, [open, initialCustomerDetails, isInitialSelection]);
+	}, [open, initialCustomerDetails, isInitialSelection, displayAmount]);
 
 	// Filter customers for autocomplete
 	const filteredCustomers = useMemo(() => {
@@ -200,7 +253,7 @@ export function PaymentModal({
 		const q = customerName.toLowerCase().trim();
 		const digits = q.replace(/[^0-9]/g, "");
 
-		return (customerList as CustomerOption[])
+		return (displayCustomerList as CustomerOption[])
 			.filter((c) => {
 				const nameMatch = c.name?.toLowerCase().includes(q);
 				const phoneMatch =
@@ -219,7 +272,7 @@ export function PaymentModal({
 		setCustomerName(c.name);
 		setCustomerPhone(c.phone || "");
 		setShopName(c.address || "");
-		setSelectedRouteId(null);
+		setSelectedRouteId(c.route_id || null);
 		setIsSearchOpen(false);
 		setIsEditingCustomer(false);
 	};
@@ -251,7 +304,14 @@ export function PaymentModal({
 		if (onConfirmCustomer) {
 			onConfirmCustomer(customerObj);
 		} else if (onConfirm) {
-			onConfirm([{ methodId: 1, amount: totalAmount.toString() }], customerObj);
+			let payments: Array<{ methodId: number; amount: string }> = [];
+			if (paymentStatus === "paid") {
+				const numReceived = Number.parseFloat(receivedAmount) || 0;
+				if (numReceived > 0) {
+					payments = [{ methodId: selectedMethodId, amount: numReceived.toString() }];
+				}
+			}
+			onConfirm(payments, customerObj);
 		}
 		onOpenChange(false);
 	};
@@ -281,6 +341,7 @@ export function PaymentModal({
 	};
 
 	const handleConfirm = () => {
+		if (isSubmitting) return;
 		const isWalkIn = customerName.trim().toLowerCase() === "walk-in customer";
 		
 		// If user typed a new customer name (not walk-in) and hasn't saved to DB / selected from DB
@@ -293,11 +354,26 @@ export function PaymentModal({
 			return;
 		}
 
-		const amountToPay =
-			typeof totalAmount === "number"
-				? totalAmount
-				: Number.parseFloat(totalAmount || "0");
-		const payments = [{ methodId: 1, amount: amountToPay.toString() }];
+		setIsSubmitting(true);
+
+		// Auto-persist route and customer address updates to DB for future orders
+		if (selectedCustomerId && (isEditingCustomer || selectedRouteId)) {
+			updateCustomerMutation.mutate({
+				id: selectedCustomerId,
+				name: customerName.trim(),
+				phone: customerPhone.trim() || undefined,
+				address: shopName.trim() || undefined,
+				route_id: selectedRouteId || undefined,
+			});
+		}
+
+		let payments: Array<{ methodId: number; amount: string }> = [];
+		if (paymentStatus === "paid") {
+			const numReceived = Number.parseFloat(receivedAmount) || 0;
+			if (numReceived > 0) {
+				payments = [{ methodId: selectedMethodId, amount: numReceived.toString() }];
+			}
+		}
 
 		const selectedRoute = routes.find((r: any) => r.id === selectedRouteId);
 		const customerObj = {
@@ -318,17 +394,12 @@ export function PaymentModal({
 		onOpenChange(false);
 	};
 
-	const displayAmount =
-		typeof totalAmount === "number"
-			? totalAmount
-			: Number.parseFloat(totalAmount || "0");
-
 	const lastOrderItems = fullCustomerDetails?.lastOrderItems || [];
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-				<DialogHeader>
+			<DialogContent className="sm:max-w-[520px] max-h-[92vh] sm:max-h-[88vh] flex flex-col p-4 sm:p-6 overflow-hidden gap-0">
+				<DialogHeader className="pb-3 border-b shrink-0">
 					<DialogTitle className="text-xl font-bold flex items-center justify-between">
 						<span className="flex items-center gap-2">
 							<UserIcon className="h-5 w-5 text-emerald-600" />
@@ -346,7 +417,7 @@ export function PaymentModal({
 					</DialogTitle>
 				</DialogHeader>
 
-				<div className="grid gap-4 py-2">
+				<div className="flex-1 overflow-y-auto pr-1 py-3 space-y-4">
 					{/* Total Due Card */}
 					{!isInitialSelection && (
 						<div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-3.5 border border-emerald-500/20">
@@ -536,9 +607,31 @@ export function PaymentModal({
 									<option value="">{t.routePlaceholder}</option>
 									{routes.map((r: any) => {
 										const stopCount = r.stops?.length || 0;
+										let villageCount = 0;
+										if (r.description) {
+											const vParts = r.description.split(/→|->/).map((v: string) => v.trim()).filter(Boolean);
+											if (vParts.length > 0) villageCount = vParts.length;
+										}
+										if (!villageCount && r.stops) {
+											const seenV = new Set<string>();
+											for (const s of r.stops) {
+												const v = (s.customer?.address || "").split(",")[0]?.trim();
+												if (v && !["madhya pradesh", "mp", "india"].includes(v.toLowerCase())) {
+													seenV.add(v.toLowerCase());
+												}
+											}
+											villageCount = seenV.size;
+										}
+
+										const labelSuffix = stopCount > 0
+											? villageCount > 0 && villageCount !== stopCount
+												? ` (${stopCount} Shops across ${villageCount} Villages)`
+												: ` (${stopCount} ${stopCount === 1 ? 'Stop' : 'Stops'})`
+											: '';
+
 										return (
 											<option key={r.id} value={r.id}>
-												{r.name} {stopCount > 0 ? `(${stopCount} ${stopCount === 1 ? 'Stop' : 'Stops'})` : ''}
+												{r.name}{labelSuffix}
 											</option>
 										);
 									})}
@@ -562,14 +655,21 @@ export function PaymentModal({
 												(r: any) => r.id === selectedRouteId,
 											);
 											const villagesSet = new Set<string>();
-											if (activeRouteObj?.stops) {
+											if (activeRouteObj?.description) {
+												const parts = activeRouteObj.description.split(/→|->/).map((v: string) => v.trim()).filter(Boolean);
+												for (const p of parts) {
+													if (p && !["madhya pradesh", "mp", "india"].includes(p.toLowerCase())) {
+														villagesSet.add(p);
+													}
+												}
+											}
+											if (villagesSet.size === 0 && activeRouteObj?.stops) {
 												for (const s of activeRouteObj.stops) {
 													const addr = s.customer?.address || s.notes;
 													if (addr && addr.trim()) {
-														const parts = addr.split(",");
-														for (const part of parts) {
-															const clean = part.trim();
-															if (clean) villagesSet.add(clean);
+														const villageName = addr.split(",")[0]?.trim();
+														if (villageName && !["madhya pradesh", "mp", "india"].includes(villageName.toLowerCase())) {
+															villagesSet.add(villageName);
 														}
 													}
 												}
@@ -651,6 +751,226 @@ export function PaymentModal({
 						</div>
 					</div>
 
+					{/* Payment Status Selection (Default: UNPAID for field salesperson orders) */}
+					{!isInitialSelection && (
+						<div className="space-y-3 rounded-xl border border-blue-200/80 bg-blue-50/40 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/20">
+							<div className="flex items-center justify-between">
+								<span className="font-bold text-xs text-foreground flex items-center gap-1.5">
+									<IndianRupee className="h-3.5 w-3.5 text-blue-600" />
+									{locale === "hi" ? "भुगतान स्थिति एवं अग्रिम राशि (Payment & Advance)" : "Payment Status & Advance Money"}
+								</span>
+								<Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-background">
+									{locale === "hi" ? "उधार या नकद चुनें" : "Select Credit or Paid"}
+								</Badge>
+							</div>
+
+							<div className="grid grid-cols-2 gap-2">
+								<button
+									type="button"
+									onClick={() => {
+										setPaymentStatus("unpaid");
+										setReceivedAmount("0");
+									}}
+									className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
+										paymentStatus === "unpaid"
+											? "border-amber-500 bg-amber-50/90 text-amber-900 shadow-xs ring-2 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-600"
+											: "border-border bg-background text-muted-foreground hover:bg-muted/40"
+									}`}
+								>
+									<span className="flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+										<Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+										{locale === "hi" ? "अनपेड (100% उधार)" : "UNPAID (Pay on Delivery)"}
+									</span>
+									<span className="text-[10px] font-normal text-muted-foreground">
+										{locale === "hi" ? "पूरा बिल उधार रहेगा, बाद में कलेक्ट होगा" : "Full bill on credit, collect later"}
+									</span>
+								</button>
+
+								<button
+									type="button"
+									onClick={() => {
+										setPaymentStatus("paid");
+										setReceivedAmount(displayAmount.toString());
+									}}
+									className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
+										paymentStatus === "paid"
+											? "border-emerald-500 bg-emerald-50/90 text-emerald-900 shadow-xs ring-2 ring-emerald-500/30 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-600"
+											: "border-border bg-background text-muted-foreground hover:bg-muted/40"
+									}`}
+								>
+									<span className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+										<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+										{locale === "hi" ? "पेड / एडवांस (नकद मिला)" : "PAID / ADVANCE (Received)"}
+									</span>
+									<span className="text-[10px] font-normal text-muted-foreground">
+										{locale === "hi" ? "नकद, यूपीआई या अग्रिम भुगतान प्राप्त हुआ" : "Upfront or advance payment received"}
+									</span>
+								</button>
+							</div>
+
+							{paymentStatus === "paid" && (
+								<div className="space-y-3 pt-2 border-t border-blue-200/50 dark:border-blue-900/40">
+									{/* Received Amount Input & Presets */}
+									<div className="space-y-1.5">
+										<div className="flex items-center justify-between text-xs font-semibold text-foreground">
+											<Label htmlFor="received-amount-input" className="text-xs font-bold flex items-center gap-1 text-emerald-800 dark:text-emerald-300">
+												<Wallet className="h-3.5 w-3.5 text-emerald-600" />
+												{locale === "hi" ? "प्राप्त राशि / एडवांस मनी (Amount Received ₹):" : "Amount Received / Advance Money (₹):"}
+											</Label>
+											<span className="text-[11px] text-muted-foreground font-medium">
+												{locale === "hi" ? `कुल बिल: ₹${displayAmount.toLocaleString("en-IN")}` : `Total Bill: ₹${displayAmount.toLocaleString("en-IN")}`}
+											</span>
+										</div>
+
+										<div className="flex items-center gap-2">
+											<div className="relative flex-1">
+												<span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+													₹
+												</span>
+												<Input
+													id="received-amount-input"
+													type="number"
+													min="0"
+													step="any"
+													value={receivedAmount}
+													onChange={(e) => setReceivedAmount(e.target.value)}
+													placeholder="0"
+													className="pl-7 font-bold text-base h-9 bg-background border-emerald-500/50 focus:border-emerald-600 focus:ring-emerald-500"
+												/>
+											</div>
+
+											{/* Quick Preset Buttons */}
+											<div className="flex gap-1 shrink-0">
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => setReceivedAmount(displayAmount.toString())}
+													className="h-9 px-2 text-xs font-bold border-emerald-400 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+												>
+													{locale === "hi" ? "पूरा" : "Full"} (₹{displayAmount})
+												</Button>
+												{displayAmount > 0 && (
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														onClick={() => setReceivedAmount((Math.round(displayAmount / 2)).toString())}
+														className="h-9 px-2 text-xs font-medium border-border hover:bg-muted"
+													>
+														50% (₹{Math.round(displayAmount / 2)})
+													</Button>
+												)}
+											</div>
+										</div>
+
+										{/* Live Financial Breakdown Card */}
+										{(() => {
+											const numReceived = Number.parseFloat(receivedAmount) || 0;
+											const remBalance = Math.max(0, displayAmount - numReceived);
+											const changeReturn = Math.max(0, numReceived - displayAmount);
+
+											return (
+												<div className="mt-2 rounded-lg border p-2.5 bg-background text-xs space-y-1.5 shadow-2xs">
+													<div className="flex items-center justify-between">
+														<span className="text-muted-foreground font-medium flex items-center gap-1">
+															<Receipt className="h-3.5 w-3.5 text-blue-600" />
+															{locale === "hi" ? "भुगतान विवरण (Breakdown):" : "Payment Breakdown:"}
+														</span>
+														{numReceived >= displayAmount ? (
+															<Badge className="bg-emerald-600 text-white font-bold text-[10px] inline-flex items-center gap-1">
+																<CheckCircle2 className="h-3 w-3" />
+																<span>{locale === "hi" ? "पूर्ण भुगतान (Fully Paid)" : "Fully Paid"}</span>
+															</Badge>
+														) : numReceived > 0 ? (
+															<Badge className="bg-amber-500 text-white font-bold text-[10px] inline-flex items-center gap-1">
+																<Clock className="h-3 w-3" />
+																<span>{locale === "hi" ? "अग्रिम / आंशिक भुगतान (Advance Received)" : "Advance / Partial Paid"}</span>
+															</Badge>
+														) : (
+															<Badge variant="destructive" className="font-bold text-[10px] inline-flex items-center gap-1">
+																<AlertCircle className="h-3 w-3" />
+																<span>{locale === "hi" ? "0 भुगतान (Unpaid Credit)" : "Zero Payment"}</span>
+															</Badge>
+														)}
+													</div>
+
+													<div className="grid grid-cols-2 gap-2 pt-1 border-t border-dashed">
+														<div className="rounded border border-emerald-200 bg-emerald-50/70 p-1.5 dark:bg-emerald-950/40 dark:border-emerald-900">
+															<span className="text-[10px] text-muted-foreground block font-medium">
+																{locale === "hi" ? "प्राप्त एडवांस / जमा:" : "Advance Received:"}
+															</span>
+															<span className="font-extrabold text-sm text-emerald-700 dark:text-emerald-400">
+																₹{numReceived.toLocaleString("en-IN")}
+															</span>
+														</div>
+
+														<div className={`rounded border p-1.5 ${
+															remBalance > 0
+																? "bg-amber-50/80 border-amber-200 dark:bg-amber-950/40 dark:border-amber-900"
+																: "bg-slate-50 border-slate-200 dark:bg-slate-900"
+														}`}>
+															<span className="text-[10px] text-muted-foreground block font-medium">
+																{locale === "hi" ? "शेष बकाया (उधार):" : "Remaining Due (Credit):"}
+															</span>
+															<span className={`font-extrabold text-sm ${
+																remBalance > 0
+																	? "text-amber-700 dark:text-amber-400"
+																	: "text-slate-600 dark:text-slate-400"
+															}`}>
+																₹{remBalance.toLocaleString("en-IN")}
+															</span>
+														</div>
+													</div>
+
+													{changeReturn > 0 && (
+														<div className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 p-1.5 rounded border border-emerald-200 text-center">
+															{locale === "hi"
+																? `ग्राहक को वापस देने योग्य छुट्टे (Change Return): ₹${changeReturn.toLocaleString("en-IN")}`
+																: `Change Return to Customer: ₹${changeReturn.toLocaleString("en-IN")}`}
+														</div>
+													)}
+												</div>
+											);
+										})()}
+									</div>
+
+									{/* Payment Method Selection */}
+									<div className="pt-1 flex items-center justify-between">
+										<span className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
+											<Banknote className="h-3.5 w-3.5 text-blue-600" />
+											{locale === "hi" ? "भुगतान का तरीका:" : "Payment Method:"}
+										</span>
+										<div className="flex gap-1.5">
+											{[
+												{ id: 1, label: "Cash", icon: Banknote },
+												{ id: 3, label: "UPI", icon: QrCode },
+												{ id: 2, label: "Card", icon: CreditCard },
+											].map((m) => {
+												const IconComponent = m.icon;
+												return (
+													<button
+														key={m.id}
+														type="button"
+														onClick={() => setSelectedMethodId(m.id)}
+														className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold border transition-all cursor-pointer ${
+															selectedMethodId === m.id
+																? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
+																: "bg-background text-foreground border-border hover:bg-muted"
+														}`}
+													>
+														<IconComponent className="h-3 w-3" />
+														{m.label}
+													</button>
+												);
+											})}
+										</div>
+									</div>
+								</div>
+							)}
+						</div>
+					)}
+
 					{/* Previous Purchased Items Section */}
 					{selectedCustomerId && lastOrderItems.length > 0 && (
 						<div className="rounded-xl border bg-muted/30 p-3 space-y-2">
@@ -704,16 +1024,25 @@ export function PaymentModal({
 				</div>
 
 				{/* Dialog Footer */}
-				<div className="flex justify-end gap-3 pt-2 border-t">
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
+				<div className="flex justify-end items-center gap-3 pt-3 border-t shrink-0 bg-background z-10">
+					<Button variant="outline" onClick={() => onOpenChange(false)} className="h-10">
 						{t.cancel}
 					</Button>
 					<Button
 						size="lg"
+						disabled={isSubmitting || createCustomerMutation.isPending || updateCustomerMutation.isPending}
 						onClick={handleConfirm}
-						className="bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
+						className={
+							paymentStatus === "unpaid"
+								? "bg-amber-600 text-white hover:bg-amber-700 font-semibold h-10 px-4 sm:px-6 shadow-md"
+								: "bg-emerald-600 text-white hover:bg-emerald-700 font-semibold h-10 px-4 sm:px-6 shadow-md"
+						}
 					>
-						{t.confirm}
+						{isInitialSelection
+							? t.confirm
+							: paymentStatus === "unpaid"
+								? (locale === "hi" ? "अनपेड बिल बनाएं और प्रिंट करें" : "Create Unpaid Order & Print")
+								: (locale === "hi" ? "पेड बिल बनाएं और प्रिंट करें" : "Confirm Paid & Print")}
 					</Button>
 				</div>
 			</DialogContent>

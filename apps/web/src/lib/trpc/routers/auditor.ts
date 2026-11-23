@@ -4,6 +4,7 @@ import {
 	notifications,
 	placementVerifications,
 	productBatches,
+	products,
 	receivingInspections,
 	staff,
 	stockAdjustments,
@@ -115,9 +116,18 @@ export const auditorRouter = router({
 			const stockAccuracy =
 				totalItems > 0 ? Math.round((matched / totalItems) * 1000) / 10 : null;
 
-			const damageTimelineRaw = (counts?.damage_timeline || []) as Array<{ month: string; count: number }>;
-			const expiryTimelineRaw = (counts?.expiry_timeline || []) as Array<{ month: string; count: number }>;
-			const findingsBySeverity = (counts?.findings_by_severity || []) as Array<{ severity: string; count: number }>;
+			const damageTimelineRaw = (counts?.damage_timeline || []) as Array<{
+				month: string;
+				count: number;
+			}>;
+			const expiryTimelineRaw = (counts?.expiry_timeline || []) as Array<{
+				month: string;
+				count: number;
+			}>;
+			const findingsBySeverity = (counts?.findings_by_severity || []) as Array<{
+				severity: string;
+				count: number;
+			}>;
 			const recentFindings = (counts?.recent_findings || []) as Array<{
 				id: number;
 				title: string;

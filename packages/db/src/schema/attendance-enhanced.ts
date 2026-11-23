@@ -123,6 +123,13 @@ export const enhancedAttendance = pgTable("enhanced_attendance", {
 	approvedBy: integer("approved_by").references(() => employees.id),
 	approvedAt: timestamp("approved_at"),
 	notes: text("notes"),
+	originalCheckIn: time("original_check_in"),
+	originalCheckOut: time("original_check_out"),
+	isAdjusted: boolean("is_adjusted").default(false),
+	adjustmentReason: text("adjustment_reason"),
+	adjustmentCategory: varchar("adjustment_category", { length: 50 }),
+	adjustedBy: integer("adjusted_by").references(() => employees.id),
+	adjustedAt: timestamp("adjusted_at"),
 	createdAt: timestamp("created_at").defaultNow(),
 	updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -195,7 +202,7 @@ export const attendanceSettings = pgTable("attendance_settings", {
 	enableAutoCheckout: boolean("enable_auto_checkout").default(true),
 	enableLiveLocation: boolean("enable_live_location").default(false),
 	gpsRadius: integer("gps_radius").default(100), // meters
-	minGPSAccuracy: integer("min_gps_accuracy").default(50), // meters
+	minGPSAccuracy: integer("min_gps_accuracy").default(500), // meters
 	maxBreakTime: integer("max_break_time").default(60), // minutes
 	graceTime: integer("grace_time").default(10), // minutes
 	workingHours: integer("working_hours").default(8), // hours
@@ -227,6 +234,11 @@ export const enhancedAttendanceRelations = relations(
 			fields: [enhancedAttendance.approvedBy],
 			references: [employees.id],
 			relationName: "approved_by_employee",
+		}),
+		adjustedByEmployee: one(employees, {
+			fields: [enhancedAttendance.adjustedBy],
+			references: [employees.id],
+			relationName: "adjusted_by_employee",
 		}),
 		breaks: many(attendanceBreaks),
 	}),

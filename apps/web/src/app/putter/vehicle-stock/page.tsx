@@ -34,7 +34,7 @@ import {
 	User,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -53,6 +53,9 @@ export default function PutterVehicleStockPage() {
 		isLoading,
 		refetch,
 	} = trpc.putter.getVehicleStockList.useQuery();
+	const { data: productsData, isLoading: isLoadingProducts } =
+		trpc.products.list.useQuery({ limit: 100 });
+
 	const allocateStock = trpc.putter.allocateVehicleStock.useMutation({
 		onSuccess: () => {
 			toast.success("Extra buffer inventory successfully loaded into vehicle!");
@@ -71,43 +74,16 @@ export default function PutterVehicleStockPage() {
 		useState<AvailableWarehouseItem | null>(null);
 	const [qtyToLoad, setQtyToLoad] = useState<number>(5);
 
-	const availableWarehouseItems: AvailableWarehouseItem[] = [
-		{
-			id: 101,
-			name: "Sugar 1kg",
-			sku: "SUG-1KG",
-			price: 45,
-			warehouseStock: 120,
-		},
-		{
-			id: 102,
-			name: "Fortune Soyabean Oil 1L",
-			sku: "OIL-1L",
-			price: 140,
-			warehouseStock: 85,
-		},
-		{
-			id: 103,
-			name: "Taj Mahal Tea 250g",
-			sku: "TEA-250G",
-			price: 180,
-			warehouseStock: 40,
-		},
-		{
-			id: 104,
-			name: "Amul Pure Ghee 1L",
-			sku: "GHEE-1L",
-			price: 620,
-			warehouseStock: 30,
-		},
-		{
-			id: 105,
-			name: "Tata Salt 1kg",
-			sku: "SALT-1KG",
-			price: 28,
-			warehouseStock: 200,
-		},
-	];
+	const availableWarehouseItems: AvailableWarehouseItem[] = useMemo(() => {
+		if (!productsData) return [];
+		return productsData.map((p) => ({
+			id: p.id,
+			name: p.name,
+			sku: p.sku || `SKU-${p.id}`,
+			price: p.baseSellingPrice || 0,
+			warehouseStock: Number(p.stock) || 0,
+		}));
+	}, [productsData]);
 
 	const activeVehicle =
 		vehicleList?.find((v) => v.vehicleId === selectedVehicleId) ||
@@ -243,56 +219,112 @@ export default function PutterVehicleStockPage() {
 									<thead className="border-b bg-gray-100/50 font-semibold text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300">
 										<tr>
 											<th className="p-3 pl-4">Item & SKU</th>
+											<th className="p-3">Source & Category</th>
 											<th className="p-3">Unit Price</th>
-											<th className="p-3">Initial Loaded Qty</th>
-											<th className="p-3">Remaining in Truck</th>
+											<th className="p-3">Loaded / Returned Qty</th>
+											<th className="p-3">In Vehicle</th>
 											<th className="p-3">Sold on Delivery</th>
 											<th className="p-3 pr-4 text-right">Status</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y">
-										{activeVehicle.allocatedItems.map((item) => {
-											const soldQty = item.loadedQty - item.remainingQty;
-											return (
-												<tr
-													key={item.id}
-													className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
+										{activeVehicle.allocatedItems.length === 0 ? (
+											<tr>
+												<td
+													colSpan={7}
+													className="p-8 text-center text-gray-500 text-xs"
 												>
-													<td className="p-3 pl-4">
-														<div className="font-medium text-gray-900 dark:text-white">
-															{item.name}
-														</div>
-														<div className="font-mono text-[11px] text-gray-500">
-															{item.sku}
-														</div>
-													</td>
-													<td className="p-3 font-mono">₹{item.price}</td>
-													<td className="p-3 font-mono font-semibold">
-														{item.loadedQty} units
-													</td>
-													<td className="p-3 font-bold font-mono text-blue-600 dark:text-blue-400">
-														{item.remainingQty} units
-													</td>
-													<td className="p-3 font-medium font-mono text-emerald-600 dark:text-emerald-400">
-														{soldQty > 0 ? `${soldQty} sold` : "0 sold"}
-													</td>
-													<td className="p-3 pr-4 text-right">
-														<Badge
-															variant={
-																item.remainingQty > 0
-																	? "secondary"
-																	: "destructive"
-															}
-															className="text-[10px]"
-														>
-															{item.remainingQty > 0
-																? "Available in Van"
-																: "Out of Stock"}
-														</Badge>
-													</td>
-												</tr>
-											);
-										})}
+													<Box className="mx-auto mb-2 h-7 w-7 opacity-30 text-blue-500" />
+													<p className="font-semibold text-sm text-gray-700 dark:text-gray-300">
+														No items currently carried in this vehicle
+													</p>
+													<p className="mt-1 text-gray-400">
+														Load extra truck buffer stock above, or customer returns from live delivery stops will automatically appear here.
+													</p>
+												</td>
+											</tr>
+										) : (
+											activeVehicle.allocatedItems.map((item) => {
+												const soldQty = item.loadedQty - item.remainingQty;
+												const isReturn = item.source === "customer_return";
+												return (
+													<tr
+														key={item.id}
+														className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
+													>
+														<td className="p-3 pl-4">
+															<div className="font-medium text-gray-900 dark:text-white">
+																{item.name}
+															</div>
+															<div className="font-mono text-[11px] text-gray-500">
+																{item.sku}
+															</div>
+															{isReturn && item.customerName && (
+																<div className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+																	Customer: {item.customerName}
+																</div>
+															)}
+														</td>
+														<td className="p-3">
+															{isReturn ? (
+																<div className="space-y-0.5">
+																	<Badge
+																		variant="outline"
+																		className="border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-[10px] font-bold"
+																	>
+																		🔄 Customer Return
+																	</Badge>
+																	{item.reason && (
+																		<div className="text-[10px] text-muted-foreground line-clamp-1">
+																			{item.reason}
+																		</div>
+																	)}
+																</div>
+															) : (
+																<Badge
+																	variant="outline"
+																	className="border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 text-[10px]"
+																>
+																	📦 Buffer Stock
+																</Badge>
+															)}
+														</td>
+														<td className="p-3 font-mono">₹{item.price}</td>
+														<td className="p-3 font-mono font-semibold">
+															{item.loadedQty} units
+														</td>
+														<td className="p-3 font-bold font-mono text-blue-600 dark:text-blue-400">
+															{item.remainingQty} units
+														</td>
+														<td className="p-3 font-medium font-mono text-emerald-600 dark:text-emerald-400">
+															{soldQty > 0 ? `${soldQty} sold` : "0 sold"}
+														</td>
+														<td className="p-3 pr-4 text-right">
+															<Badge
+																variant={
+																	isReturn
+																		? "outline"
+																		: item.remainingQty > 0
+																			? "secondary"
+																			: "destructive"
+																}
+																className={`text-[10px] ${
+																	isReturn
+																		? "border-amber-400 bg-amber-50/80 text-amber-900 font-semibold dark:bg-amber-950/30 dark:text-amber-200"
+																		: ""
+																}`}
+															>
+																{isReturn
+																	? "Returned in Van"
+																	: item.remainingQty > 0
+																		? "Available in Van"
+																		: "Out of Stock"}
+															</Badge>
+														</td>
+													</tr>
+												);
+											})
+										)}
 									</tbody>
 								</table>
 							</div>

@@ -29,7 +29,6 @@ import {
 } from "@evaluna/ui/components/table";
 import { Textarea } from "@evaluna/ui/components/textarea";
 import {
-	CheckCircle2Icon,
 	CreditCardIcon,
 	HistoryIcon,
 	Loader2Icon,
@@ -125,13 +124,20 @@ export default function SuppliersPage() {
 	};
 
 	const handleCreateSupplier = async () => {
-		if (!newSupplierName) return;
-		await createSupplierMutation.mutateAsync({
-			name: newSupplierName,
-			email: newSupplierEmail || undefined,
-			phone: newSupplierPhone || undefined,
-			address: newSupplierAddress || undefined,
-		});
+		if (!newSupplierName.trim()) {
+			toast.error("Please enter a supplier partner name");
+			return;
+		}
+		try {
+			await createSupplierMutation.mutateAsync({
+				name: newSupplierName.trim(),
+				email: newSupplierEmail.trim() || undefined,
+				phone: newSupplierPhone.trim() || undefined,
+				address: newSupplierAddress.trim() || undefined,
+			});
+		} catch {
+			// Mutation onError handles the toast display
+		}
 	};
 
 	const filteredSuppliers =
@@ -204,22 +210,22 @@ export default function SuppliersPage() {
 									{filteredSuppliers.map((s) => (
 										<TableRow
 											key={s.id}
-											className="cursor-pointer hover:bg-slate-50/50"
+											className="group cursor-pointer transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
 											onClick={() => openDetails(s.id)}
 										>
-											<TableCell className="font-semibold text-blue-600 text-xs">
+											<TableCell className="font-semibold text-blue-600 dark:text-blue-400 group-hover:text-blue-500 dark:group-hover:text-blue-300 text-xs">
 												{s.supplier_code}
 											</TableCell>
-											<TableCell className="font-bold text-slate-900 dark:text-slate-100">
+											<TableCell className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-black dark:group-hover:text-white">
 												{s.name}
 											</TableCell>
-											<TableCell className="text-slate-500 text-xs">
+											<TableCell className="text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 text-xs">
 												{s.phone || "N/A"}
 											</TableCell>
-											<TableCell className="text-slate-500 text-xs">
+											<TableCell className="text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 text-xs">
 												{s.email || "N/A"}
 											</TableCell>
-											<TableCell className="font-bold text-slate-800 text-xs">
+											<TableCell className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-black dark:group-hover:text-white text-xs">
 												₹{Number(s.outstanding_balance || 0).toFixed(2)}
 											</TableCell>
 											<TableCell className="text-right">
@@ -231,7 +237,7 @@ export default function SuppliersPage() {
 														setSelectedSupplierId(s.id);
 														setIsPayModalOpen(true);
 													}}
-													className="h-8 text-xs"
+													className="h-8 text-xs text-slate-700 dark:text-slate-200 group-hover:text-black dark:group-hover:text-white group-hover:bg-slate-200/60 dark:group-hover:bg-slate-700/60"
 												>
 													<CreditCardIcon className="mr-1.5 h-3.5 w-3.5" /> Pay
 													Supplier
@@ -261,7 +267,7 @@ export default function SuppliersPage() {
 
 			{/* SUPPLIER DETAILS MODAL DRAWER */}
 			<Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-				<DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto bg-white">
+				<DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto border-border bg-white dark:bg-slate-900">
 					{detailsLoading ? (
 						<div className="flex justify-center py-12">
 							<Loader2Icon className="h-8 w-8 animate-spin" />
@@ -427,7 +433,7 @@ export default function SuppliersPage() {
 
 			{/* PAY SUPPLIER DIALOG */}
 			<Dialog open={isPayModalOpen} onOpenChange={setIsPayModalOpen}>
-				<DialogContent className="bg-white">
+				<DialogContent className="border-border bg-white dark:bg-slate-900">
 					<DialogHeader>
 						<DialogTitle className="font-bold text-lg">
 							Register Supplier Payment
@@ -440,7 +446,7 @@ export default function SuppliersPage() {
 
 					<div className="my-2 space-y-4">
 						<div>
-							<Label className="font-bold text-slate-700 text-xs">
+							<Label className="font-bold text-slate-700 text-xs dark:text-slate-300">
 								Amount Paid (₹)
 							</Label>
 							<Input
@@ -452,7 +458,7 @@ export default function SuppliersPage() {
 							/>
 						</div>
 						<div>
-							<Label className="font-bold text-slate-700 text-xs">
+							<Label className="font-bold text-slate-700 text-xs dark:text-slate-300">
 								Transaction Description
 							</Label>
 							<Textarea
@@ -487,7 +493,7 @@ export default function SuppliersPage() {
 
 			{/* CREATE SUPPLIER DIALOG */}
 			<Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-				<DialogContent className="bg-white">
+				<DialogContent className="border-border bg-white dark:bg-slate-900">
 					<DialogHeader>
 						<DialogTitle className="font-bold text-lg">
 							Register New Supplier Partner

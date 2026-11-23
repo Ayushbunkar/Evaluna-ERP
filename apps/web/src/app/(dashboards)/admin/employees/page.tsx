@@ -19,6 +19,7 @@ import {
 	UserPlusIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -34,7 +35,6 @@ import {
 	type FormField,
 	type FormValues,
 } from "@/components/admin/entity-form-dialog";
-
 import {
 	AdminPageHeader,
 	AdminToolbar,
@@ -52,7 +52,6 @@ import {
 	toCsv,
 } from "@/lib/admin/csv";
 import { normaliseError } from "@/lib/admin/errors";
-import { useTranslations } from "next-intl";
 import { date, dateInputValue, inr, phone, text } from "@/lib/admin/format";
 import { PageTransition } from "@/lib/animations";
 import { ROLES } from "@/lib/permissions";
@@ -506,7 +505,7 @@ export default function AdminEmployeesPage() {
 					/>
 				)
 			) : (
-				<div className="flex flex-col gap-3 min-w-0">
+				<div className="flex min-w-0 flex-col gap-3">
 					{/* Mobile Card Layout (<md) */}
 					<div className="grid grid-cols-1 gap-3 md:hidden">
 						{items.map((emp) => (
@@ -515,23 +514,43 @@ export default function AdminEmployeesPage() {
 								className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-card p-3.5 shadow-xs"
 							>
 								<div className="flex items-start justify-between gap-2">
-									<div className="min-w-0 flex-1">
-										<div className="flex items-center gap-2">
-											<span className="font-mono text-[11px] font-semibold text-muted-foreground">
-												{emp.emp_code}
-											</span>
-											<StatusBadge status={emp.status} />
-										</div>
-										<h3 className="font-bold text-sm text-foreground truncate mt-0.5">
-											{emp.name}
-										</h3>
-										{emp.branch_name && (
-											<p className="text-xs text-muted-foreground truncate">
-												{emp.branch_name}
-											</p>
+									<div className="flex min-w-0 flex-1 items-center gap-3">
+										{(emp as any).userImage ? (
+											<img
+												src={(emp as any).userImage}
+												alt={emp.name}
+												className="h-10 w-10 shrink-0 rounded-full object-cover shadow-xs ring-1 ring-border"
+											/>
+										) : (
+											<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white text-xs shadow-xs">
+												{emp.name
+													? emp.name
+															.split(" ")
+															.map((n: string) => n[0])
+															.slice(0, 2)
+															.join("")
+															.toUpperCase()
+													: "?"}
+											</div>
 										)}
+										<div className="min-w-0 flex-1">
+											<div className="flex items-center gap-2">
+												<span className="font-mono font-semibold text-[11px] text-muted-foreground">
+													{emp.emp_code}
+												</span>
+												<StatusBadge status={emp.status} />
+											</div>
+											<h3 className="mt-0.5 truncate font-bold text-foreground text-sm">
+												{emp.name}
+											</h3>
+											{emp.branch_name && (
+												<p className="truncate text-muted-foreground text-xs">
+													{emp.branch_name}
+												</p>
+											)}
+										</div>
 									</div>
-									<div className="flex items-center gap-1 shrink-0">
+									<div className="flex shrink-0 items-center gap-1">
 										<Button
 											variant="ghost"
 											size="icon"
@@ -571,9 +590,7 @@ export default function AdminEmployeesPage() {
 														}
 													: {
 															label: "Reactivate",
-															icon: (
-																<CheckCircle2Icon className="h-4 w-4" />
-															),
+															icon: <CheckCircle2Icon className="h-4 w-4" />,
 															onSelect: () =>
 																setConfirm({
 																	kind: "status",
@@ -598,27 +615,28 @@ export default function AdminEmployeesPage() {
 									</div>
 								</div>
 
-								<div className="grid grid-cols-2 gap-2 border-t border-border/40 pt-2 text-xs">
+								<div className="grid grid-cols-2 gap-2 border-border/40 border-t pt-2 text-xs">
 									<div>
-										<span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+										<span className="block font-semibold text-[10px] text-muted-foreground uppercase">
 											Role & Dept
 										</span>
-										<span className="font-medium capitalize truncate block">
-											{text(emp.role?.replace(/_/g, " "))} · {text(emp.department)}
+										<span className="block truncate font-medium capitalize">
+											{text(emp.role?.replace(/_/g, " "))} ·{" "}
+											{text(emp.department)}
 										</span>
 									</div>
 									<div>
-										<span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+										<span className="block font-semibold text-[10px] text-muted-foreground uppercase">
 											Salary
 										</span>
-										<span className="font-bold tabular-nums text-foreground block">
+										<span className="block font-bold text-foreground tabular-nums">
 											{inr(emp.salary)}
 										</span>
 									</div>
 								</div>
 
 								{(emp.email || emp.phone) && (
-									<div className="border-t border-border/30 pt-1.5 text-[11px] text-muted-foreground truncate">
+									<div className="truncate border-border/30 border-t pt-1.5 text-[11px] text-muted-foreground">
 										{emp.email && <span className="mr-2">{emp.email}</span>}
 										{emp.phone && <span>{phone(emp.phone)}</span>}
 									</div>
@@ -628,7 +646,7 @@ export default function AdminEmployeesPage() {
 					</div>
 
 					{/* Desktop & Tablet Table Layout (md+) */}
-					<div className="hidden md:block overflow-x-auto rounded-lg border border-border/50">
+					<div className="hidden overflow-x-auto rounded-lg border border-border/50 md:block">
 						<Table className="w-full min-w-[850px]">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
@@ -689,8 +707,30 @@ export default function AdminEmployeesPage() {
 							<TableBody>
 								{items.map((emp) => (
 									<TableRow key={emp.id} className="hover:bg-muted/30">
-										<TableCell className="font-mono text-xs">
-											{emp.emp_code}
+										<TableCell>
+											<div className="flex items-center gap-2.5">
+												{(emp as any).userImage ? (
+													<img
+														src={(emp as any).userImage}
+														alt={emp.name}
+														className="h-8 w-8 shrink-0 rounded-full object-cover shadow-xs ring-1 ring-border"
+													/>
+												) : (
+													<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white text-xs shadow-xs">
+														{emp.name
+															? emp.name
+																	.split(" ")
+																	.map((n: string) => n[0])
+																	.slice(0, 2)
+																	.join("")
+																	.toUpperCase()
+															: "?"}
+													</div>
+												)}
+												<span className="font-mono font-semibold text-muted-foreground text-xs">
+													{emp.emp_code}
+												</span>
+											</div>
 										</TableCell>
 										<TableCell>
 											<span className="font-medium">{emp.name}</span>
@@ -855,6 +895,27 @@ export default function AdminEmployeesPage() {
 								{
 									title: "Identity",
 									rows: [
+										{
+											label: "Avatar",
+											value: (detail.data as any).userImage ? (
+												<img
+													src={(detail.data as any).userImage}
+													alt={detail.data.name}
+													className="h-10 w-10 rounded-full object-cover shadow-xs ring-1 ring-border"
+												/>
+											) : (
+												<div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white text-xs shadow-xs">
+													{detail.data.name
+														? detail.data.name
+																.split(" ")
+																.map((n: string) => n[0])
+																.slice(0, 2)
+																.join("")
+																.toUpperCase()
+														: "?"}
+												</div>
+											),
+										},
 										{ label: "Employee code", value: detail.data.emp_code },
 										{
 											label: "Status",

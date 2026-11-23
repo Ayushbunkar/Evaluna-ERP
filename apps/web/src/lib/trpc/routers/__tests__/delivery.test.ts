@@ -8,6 +8,7 @@ mock.module("@/lib/db", () => ({ db, pglite: pg }));
 
 const { deliveryRouter } = await import("../delivery");
 const { driverRouter } = await import("../driver");
+const { putterRouter } = await import("../putter");
 const { createCallerFactory } = await import("../../init");
 const schema = await import("@/lib/db/schema");
 
@@ -36,6 +37,15 @@ const driverAppCaller = createCallerFactory(driverRouter)({
 	db,
 });
 
+const putterCaller = createCallerFactory(putterRouter)({
+	user: {
+		...makeUser("putter-1"),
+		id: "putter-1",
+		role: "putter",
+	},
+	db,
+});
+
 // Delivery-focused test DDL - tables used by delivery router
 const DELIVERY_DDL = buildDDL(
 	[
@@ -53,9 +63,13 @@ const DELIVERY_DDL = buildDDL(
 		schema.customers,
 		schema.orders,
 		schema.orderItems,
+		schema.packages,
+		schema.paymentMethods,
 		schema.products,
 		schema.salesReturns,
 		schema.salesReturnItems,
+		schema.stockAdjustments,
+		schema.transactions,
 		schema.vehicles,
 	],
 	false,
@@ -129,7 +143,9 @@ beforeAll(async () => {
 		},
 	]);
 	try {
-		await pg.exec(`SELECT setval('customers_id_seq', (SELECT MAX(id) FROM customers));`);
+		await pg.exec(
+			`SELECT setval('customers_id_seq', (SELECT MAX(id) FROM customers));`,
+		);
 	} catch (e) {}
 
 	// Setup products
@@ -289,7 +305,12 @@ describe("delivery router core functionality", () => {
 				vehicleId: 1,
 				stops: [
 					{ customerId: 1, sequence: 1 },
-					{ name: "Extra Stop Shop", phone: "9812345678", address: "Market Road", sequence: 2 },
+					{
+						name: "Extra Stop Shop",
+						phone: "9812345678",
+						address: "Market Road",
+						sequence: 2,
+					},
 				],
 			});
 
@@ -504,7 +525,7 @@ describe("delivery router core functionality", () => {
 			});
 			expect(returnItems).toHaveLength(1);
 			expect(returnItems[0].product_id).toBe(1);
-			expect(returnItems[0].quantity).toBe(1);
+			expect(Number(returnItems[0].quantity)).toBe(1);
 			expect(returnItems[0].reason).toBe("Damaged in transit");
 
 			// Verify stop was marked as partially delivered
@@ -637,9 +658,9 @@ describe("delivery router core functionality", () => {
 				})
 				.returning();
 
-			await db.insert(schema.tripStops).values([
-				{ trip_id: trip.id, customer_id: 1, sequence: 1 },
-			]);
+			await db
+				.insert(schema.tripStops)
+				.values([{ trip_id: trip.id, customer_id: 1, sequence: 1 }]);
 
 			const result = await caller.deleteTrip({ tripId: trip.id });
 			expect(result.success).toBe(true);
@@ -659,9 +680,9 @@ describe("delivery router core functionality", () => {
 				})
 				.returning();
 
-			await db.insert(schema.routeStops).values([
-				{ route_id: route.id, customer_id: 1, sequence: 1 },
-			]);
+			await db
+				.insert(schema.routeStops)
+				.values([{ route_id: route.id, customer_id: 1, sequence: 1 }]);
 
 			const result = await caller.deleteRoute({ routeId: route.id });
 			expect(result.success).toBe(true);
@@ -680,8 +701,16 @@ describe("delivery router core functionality", () => {
 				description: "Created via bulk address paste",
 				branchId: 1,
 				stops: [
-					{ name: "Super Bakery", phone: "9876543210", address: "Shop 10, Station Road" },
-					{ name: "Apex Electronics", phone: "9123456780", address: "Plot 42, MIDC" },
+					{
+						name: "Super Bakery",
+						phone: "9876543210",
+						address: "Shop 10, Station Road",
+					},
+					{
+						name: "Apex Electronics",
+						phone: "9123456780",
+						address: "Plot 42, MIDC",
+					},
 				],
 			});
 
@@ -787,7 +816,11 @@ describe("delivery router core functionality", () => {
 					id: testUserUuid,
 					email: testEmail,
 					name: "Lookup Driver",
-					primaryRole: { name: "driver", dashboardRoute: "/driver", permissions: [] },
+					primaryRole: {
+						name: "driver",
+						dashboardRoute: "/driver",
+						permissions: [],
+					},
 				},
 				db,
 			});
@@ -863,6 +896,289 @@ describe("delivery router core functionality", () => {
 
 			const res = await managerCaller.dispatchTrip({ tripId: unloadedTrip.id });
 			expect(res.success).toBe(true);
+		});
+	});
+
+	describe("Driver Handover Returns to Extra Van Stock & Dynamic Truck Stock", () => {
+		it("records customer returns at handover and reflects them in driver's extra van stock", async () => {
+			// Setup customer and trip
+			const [customer] = await db
+				.insert(schema.customers)
+				.values({
+					id: 9981,
+					name: "Pappu Ji Store",
+					phone: "9876543210",
+					address: "Bhopal MP",
+					user_uid: "customer-pappu-1",
+				})
+				.returning();
+
+			const [trip] = await db
+				.insert(schema.deliveryTrips)
+				.values({
+					id: 9981,
+					driver_id: "driver-1",
+					vehicle_id: 1,
+					status: "active",
+				})
+				.returning();
+
+			const [stop] = await db
+				.insert(schema.tripStops)
+				.values({
+					id: 9981,
+					trip_id: trip.id,
+					customer_id: customer.id,
+					sequence: 1,
+					status: "pending",
+				})
+				.returning();
+
+			// Initial van stock should have zero items (no hardcoded dummy items)
+			const initialStock = await driverAppCaller.getVanStock({
+				trip_id: trip.id,
+			});
+			expect(initialStock.items).toHaveLength(0);
+			expect(initialStock.totalQty).toBe(0);
+
+			// Submit delivery handover where customer returns 1 item
+			const handoverRes = await driverAppCaller.submitDeliveryHandover({
+				trip_id: trip.id,
+				stop_id: stop.id,
+				cashAmount: 500,
+				onlineAmount: 0,
+				deliveryNotes: "Customer refused damaged rice",
+				damagedOrReturnedItems: [
+					{
+						id: 1,
+						name: "Basmati Rice Special 5kg",
+						qty: 1,
+						price: 580,
+						reason: "Damaged Packaging (पैकेजिंग क्षति)",
+					},
+				],
+				deliveredItems: [
+					{
+						id: 2,
+						name: "Sugar 1kg",
+						qty: 5,
+						price: 45,
+					},
+				],
+			});
+			expect(handoverRes.success).toBe(true);
+
+			// Check driver van stock again - the returned item MUST now be present in extra van stock!
+			const updatedStock = await driverAppCaller.getVanStock({
+				trip_id: trip.id,
+			});
+			expect(updatedStock.items.length).toBeGreaterThanOrEqual(1);
+			const returnedItem = updatedStock.items.find(
+				(i) => i.name === "Basmati Rice Special 5kg",
+			);
+			expect(returnedItem).toBeDefined();
+			expect(returnedItem?.qty).toBe(1);
+			expect(returnedItem?.availableQty).toBe(1);
+			expect(returnedItem?.source).toBe("customer_return");
+			expect(returnedItem?.customerName).toContain("Pappu");
+			expect(returnedItem?.reason).toContain("Damaged Packaging");
+			expect(updatedStock.totalQty).toBe(1);
+			expect(updatedStock.totalValue).toBe(580);
+
+			// Verify putter vehicle stock list also surfaces this returned item dynamically
+			const vehicleStockList = await putterCaller.getVehicleStockList();
+			expect(Array.isArray(vehicleStockList)).toBe(true);
+			const targetVeh = vehicleStockList.find((v) => v.vehicleId === 1);
+			expect(targetVeh).toBeDefined();
+			const returnedInVeh = targetVeh?.allocatedItems.find(
+				(i) => i.name === "Basmati Rice Special 5kg",
+			);
+			expect(returnedInVeh).toBeDefined();
+			expect(returnedInVeh?.source).toBe("customer_return");
+			expect(returnedInVeh?.loadedQty).toBe(1);
+		});
+
+		it("submits delivery handover with decimal / fractional quantity (e.g. 0.5 kg)", async () => {
+			const [customer] = await db
+				.insert(schema.customers)
+				.values({
+					id: 9982,
+					name: "Sharma Kirana Store",
+					phone: "9876543211",
+					address: "Indore MP",
+					user_uid: "customer-sharma-1",
+				})
+				.returning();
+
+			const [trip] = await db
+				.insert(schema.deliveryTrips)
+				.values({
+					id: 9982,
+					driver_id: "driver-1",
+					vehicle_id: 1,
+					status: "active",
+				})
+				.returning();
+
+			const [stop] = await db
+				.insert(schema.tripStops)
+				.values({
+					id: 9982,
+					trip_id: trip.id,
+					customer_id: customer.id,
+					sequence: 2,
+					status: "in_transit",
+				})
+				.returning();
+
+			const handoverRes = await driverAppCaller.submitDeliveryHandover({
+				trip_id: trip.id,
+				stop_id: stop.id,
+				cashAmount: 45,
+				onlineAmount: 0,
+				deliveryNotes: "Customer took 0.5 quantity, returned 0.5 to van stock",
+				damagedOrReturnedItems: [
+					{
+						id: 1,
+						product_id: 1,
+						name: "Basmati Rice Special 5kg",
+						qty: 0.5,
+						price: 90,
+						reason: "Customer only wanted half package",
+					},
+				],
+				deliveredItems: [
+					{
+						id: 1,
+						product_id: 1,
+						name: "Basmati Rice Special 5kg",
+						qty: 0.5,
+						price: 90,
+					},
+				],
+			});
+			expect(handoverRes.success).toBe(true);
+
+			const updatedStock = await driverAppCaller.getVanStock({
+				trip_id: trip.id,
+			});
+			const fractionalItem = updatedStock.items.find(
+				(i) => i.name === "Basmati Rice Special 5kg",
+			);
+			expect(fractionalItem).toBeDefined();
+			expect(Number(fractionalItem?.qty)).toBe(0.5);
+			expect(Number(fractionalItem?.availableQty)).toBe(0.5);
+		});
+	});
+
+	describe("lookupOrderByScan (Driver Package & Bill Scanner)", () => {
+		it("looks up an order and full bill by package number", async () => {
+			// Seed customer
+			const [testCustomer] = await db
+				.insert(schema.customers)
+				.values({
+					name: "Ramesh Kirana Store",
+					phone: "+91 9876543210",
+					email: "ramesh@kirana.test",
+					address: "Shop 14, Main Market, MP Nagar",
+					city: "Bhopal",
+					pincode: "462011",
+					user_uid: "test-user",
+				})
+				.returning();
+
+			// Seed product with unique ID to avoid serial collision
+			const [testProduct] = await db
+				.insert(schema.products)
+				.values({
+					id: 8888,
+					name: "Fortune Sunflower Oil 1L",
+					sku: "OIL-FORT-1L",
+					unit: "PCS",
+					price: "150.00",
+					user_uid: "test-user",
+				})
+				.returning();
+
+			// Seed order with unique ID
+			const [testOrder] = await db
+				.insert(schema.orders)
+				.values({
+					id: 8888,
+					customer_id: testCustomer.id,
+					total_amount: "300.00",
+					status: "ready_for_dispatch",
+					user_uid: "test-user",
+					discount_amount: "0.00",
+					other_charges: "0.00",
+					cgst_amount: "7.50",
+					sgst_amount: "7.50",
+				})
+				.returning();
+
+			// Seed order items
+			await db.insert(schema.orderItems).values({
+				order_id: testOrder.id,
+				product_id: testProduct.id,
+				quantity: "2",
+				price: "150.00",
+				cgst_rate: "2.5",
+				sgst_rate: "2.5",
+			});
+
+			// Seed package
+			const packageNumber = "PKG-2026-TESTSCAN01";
+			await db.insert(schema.packages).values({
+				order_id: testOrder.id,
+				package_number: packageNumber,
+				status: "packed",
+				weight: "2.5",
+				dimensions: "30x20x15 cm",
+			});
+
+			// Test lookup by exact package number
+			const resByPkg = await driverAppCaller.lookupOrderByScan({
+				code: packageNumber,
+			});
+
+			expect(resByPkg.success).toBe(true);
+			expect(resByPkg.order.id).toBe(testOrder.id);
+			expect(resByPkg.order.orderNumber).toBe(`ORD-${testOrder.id}`);
+			expect(resByPkg.customer.name).toBe("Ramesh Kirana Store");
+			expect(resByPkg.customer.phone).toBe("+91 9876543210");
+			expect(resByPkg.package.packageNumber).toBe(packageNumber);
+			expect(resByPkg.package.weight).toBe(2.5);
+			expect(resByPkg.items).toHaveLength(1);
+			expect(resByPkg.items[0].name).toBe("Fortune Sunflower Oil 1L");
+			expect(resByPkg.items[0].quantity).toBe(2);
+			expect(resByPkg.items[0].price).toBe(150);
+			expect(resByPkg.items[0].itemTotal).toBe(300);
+
+			// Test lookup by order reference: ORD-{id}
+			const resByOrd = await driverAppCaller.lookupOrderByScan({
+				code: `ORD-${testOrder.id}`,
+			});
+			expect(resByOrd.success).toBe(true);
+			expect(resByOrd.order.id).toBe(testOrder.id);
+
+			// Test lookup by JSON payload from QR Code
+			const jsonQr = JSON.stringify({
+				pkg: packageNumber,
+				orderId: testOrder.id,
+			});
+			const resByJson = await driverAppCaller.lookupOrderByScan({
+				code: jsonQr,
+			});
+			expect(resByJson.success).toBe(true);
+			expect(resByJson.package.packageNumber).toBe(packageNumber);
+		});
+
+		it("throws NOT_FOUND when scanning non-existent package or order code", async () => {
+			await expect(
+				driverAppCaller.lookupOrderByScan({
+					code: "PKG-9999-DOESNOTEXIST",
+				}),
+			).rejects.toThrow();
 		});
 	});
 });

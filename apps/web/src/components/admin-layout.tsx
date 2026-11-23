@@ -49,9 +49,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ChatWidget } from "@/components/chat/ChatWidget";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { authClient } from "@/lib/auth-client";
 import { BranchProvider, useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
@@ -197,7 +197,6 @@ function NotificationBell() {
 		</TooltipProvider>
 	);
 }
-
 export function AdminLayout({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const router = useRouter();
@@ -270,7 +269,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 				>
 					<img
 						src="/logo.jpg"
-						alt="Evaluna ERP"
+						alt="Evaluna"
 						className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
 					/>
 					<span className="sr-only">{t("adminPanel")}</span>
@@ -381,10 +380,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 								>
 									<img
 										src="/logo.jpg"
-										alt="Evaluna ERP"
+										alt="Evaluna"
 										className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
 									/>
-									<span>Evaluna ERP</span>
+									<span>Evaluna</span>
 								</Link>
 								<Button
 									variant="ghost"
@@ -475,7 +474,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 					{children}
 				</motion.main>
 			</div>
-			<ChatWidget />
 		</div>
 	);
 }

@@ -8,6 +8,7 @@ mock.module("@/lib/db", () => ({ db, pglite: pg }));
 const { paymentsRouter } = await import("../payments");
 const { bankAccountsRouter } = await import("../bank-accounts");
 const { employeeExpensesRouter } = await import("../employee-expenses");
+const { financeRouter } = await import("../finance");
 const { createCallerFactory } = await import("../../init");
 
 // Actors
@@ -35,10 +36,17 @@ const otherBranchMgr = makeFinanceUser({
 	role: "manager",
 	branchId: 2,
 });
+const financeUser = makeFinanceUser({
+	id: "fin",
+	email: "fin@test.com",
+	role: "finance",
+	branchId: 1,
+});
 
-const payAs = (u) => createCallerFactory(paymentsRouter)({ user: u });
-const bankAs = (u) => createCallerFactory(bankAccountsRouter)({ user: u });
-const expAs = (u) => createCallerFactory(employeeExpensesRouter)({ user: u });
+const payAs = (u) => createCallerFactory(paymentsRouter)({ user: u, db });
+const bankAs = (u) => createCallerFactory(bankAccountsRouter)({ user: u, db });
+const expAs = (u) => createCallerFactory(employeeExpensesRouter)({ user: u, db });
+const finAs = (u) => createCallerFactory(financeRouter)({ user: u, db });
 
 // Seeded ids populated in beforeAll
 let fuelCatId;
@@ -289,6 +297,32 @@ describe("employeeExpenses — reimbursement workflow", () => {
 			expAs(employee).list({ limit: 10, offset: 0 }),
 		).rejects.toThrow();
 	});
+
+	it("allows finance role to review and approve an expense without 403 Forbidden", async () => {
+		const submitted = await expAs(employee).submit({
+			amount: 750,
+			custom_category_name: "Client Dinner",
+			description: "Dinner meeting",
+		});
+		const approved = await expAs(financeUser).review({
+			id: submitted.id,
+			decision: "approve",
+			review_notes: "Approved by finance manager",
+		});
+		expect(approved.status).toBe("approved");
+	});
+
+	it("direct_payout automatically approves, marks paid, and records cash ledger transaction without HR review", async () => {
+		const direct = await expAs(manager).submit({
+			amount: 500,
+			custom_category_name: "Meals",
+			description: "Finance direct expense",
+			direct_payout: true,
+		});
+		expect(direct.status).toBe("paid");
+		expect(direct.payment_id).toBeDefined();
+		expect(direct.paid_at).toBeDefined();
+	});
 });
 
 describe("branch isolation", () => {
@@ -304,5 +338,12 @@ describe("branch isolation", () => {
 			include_inactive: true,
 		});
 		expect(theirs.every((a) => a.id === otherBranchAcctId)).toBe(true);
+	});
+});
+
+describe("driver collections & net profit", () => {
+	it("returns empty array gracefully when no collections exist", async () => {
+		const result = await finAs(financeUser).getDriverCollections({});
+		expect(Array.isArray(result)).toBe(true);
 	});
 });

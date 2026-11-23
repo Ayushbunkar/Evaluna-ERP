@@ -90,6 +90,12 @@ export const products = pgTable(
 		), // e.g., 'global', 'admin_only', 'warehouse_only', 'sales_exec'
 		is_hidden: boolean("is_hidden").default(false),
 
+		// Product Image
+		image_url: text("image_url"),
+		image_storage_path: text("image_storage_path"),
+		image_updated_at: timestamp("image_updated_at"),
+		image_updated_by: varchar("image_updated_by", { length: 255 }),
+
 		created_at: timestamp("created_at").defaultNow(),
 		updated_at: timestamp("updated_at")
 			.defaultNow()
@@ -239,7 +245,13 @@ export const orderItems = pgTable(
 		id: serial("id").primaryKey(),
 		order_id: integer("order_id").references(() => orders.id),
 		product_id: integer("product_id").references(() => products.id),
-		quantity: integer("quantity").notNull(),
+		quantity: decimal("quantity", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
+		original_quantity: decimal("original_quantity", { precision: 10, scale: 3 })
+			.$type<number | string>(),
+		picked_quantity: decimal("picked_quantity", { precision: 10, scale: 3 })
+			.$type<number | string>(),
 		price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 		cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
 		sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
@@ -324,6 +336,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
 		references: [coupons.id],
 	}),
 	orderAudits: many(orderAudits),
+	pickingExceptions: many(pickingExceptions),
 }));
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
@@ -350,6 +363,74 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 
 export const customersRelations = relations(customers, ({ many }) => ({
 	orders: many(orders),
+	carts: many(carts),
+}));
+
+// ── Customer Shopping Carts (Persistent) ──────────────────────────────────
+export const carts = pgTable(
+	"carts",
+	{
+		id: serial("id").primaryKey(),
+		customer_id: integer("customer_id")
+			.references(() => customers.id)
+			.notNull(),
+		status: varchar("status", { length: 50 }).notNull().default("active"), // active, converted, abandoned
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdateFn(() => new Date()),
+	},
+	(table) => ({
+		customerIdIdx: index("idx_carts_customer_id").on(table.customer_id),
+		statusIdx: index("idx_carts_status").on(table.status),
+	}),
+);
+
+export const cartItems = pgTable(
+	"cart_items",
+	{
+		id: serial("id").primaryKey(),
+		cart_id: integer("cart_id")
+			.references(() => carts.id, { onDelete: "cascade" })
+			.notNull(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		quantity: decimal("quantity", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdateFn(() => new Date()),
+	},
+	(table) => ({
+		cartIdIdx: index("idx_cart_items_cart_id").on(table.cart_id),
+		productIdIdx: index("idx_cart_items_product_id").on(table.product_id),
+		cartProductUnique: uniqueIndex("idx_cart_items_cart_product").on(
+			table.cart_id,
+			table.product_id,
+		),
+	}),
+);
+
+export const cartsRelations = relations(carts, ({ one, many }) => ({
+	customer: one(customers, {
+		fields: [carts.customer_id],
+		references: [customers.id],
+	}),
+	items: many(cartItems),
+}));
+
+export const cartItemsRelations = relations(cartItems, ({ one }) => ({
+	cart: one(carts, {
+		fields: [cartItems.cart_id],
+		references: [carts.id],
+	}),
+	product: one(products, {
+		fields: [cartItems.product_id],
+		references: [products.id],
+	}),
 }));
 
 export const branchInventory = pgTable(
@@ -362,8 +443,14 @@ export const branchInventory = pgTable(
 		product_id: integer("product_id")
 			.references(() => products.id)
 			.notNull(),
-		in_stock: integer("in_stock").notNull().default(0),
-		reserved_stock: integer("reserved_stock").notNull().default(0),
+		in_stock: decimal("in_stock", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull()
+			.default("0"),
+		reserved_stock: decimal("reserved_stock", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull()
+			.default("0"),
 		reorder_level: integer("reorder_level").notNull().default(10),
 		created_at: timestamp("created_at").defaultNow(),
 	},
@@ -558,7 +645,9 @@ export const stockAdjustments = pgTable("stock_adjustments", {
 	product_id: integer("product_id")
 		.references(() => products.id)
 		.notNull(),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	reason: text("reason"),
 	adjustment_type: varchar("adjustment_type", { length: 20 }).notNull(),
 	reference_document: varchar("reference_document", { length: 255 }),
@@ -610,7 +699,9 @@ export const stockTransfers = pgTable("stock_transfers", {
 	product_id: integer("product_id")
 		.references(() => products.id)
 		.notNull(),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	status: varchar("status", { length: 20 }).default("pending"),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -830,6 +921,8 @@ export const notificationQueueRelations = relations(
 export const purchases = pgTable("purchases", {
 	branch_id: integer("branch_id").references(() => branches.id),
 	id: serial("id").primaryKey(),
+	po_number: varchar("po_number", { length: 50 }).unique(),
+	purchase_request_id: integer("purchase_request_id"),
 	grn_number: varchar("grn_number", { length: 50 }).unique(),
 	supplier_id: integer("supplier_id")
 		.references(() => suppliers.id)
@@ -840,6 +933,12 @@ export const purchases = pgTable("purchases", {
 	igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
 	user_uid: varchar("user_uid", { length: 255 }).notNull(),
 	status: varchar("status", { length: 20 }).default("pending"),
+	receiving_status: varchar("receiving_status", { length: 30 }).default("pending"),
+	invoice_status: varchar("invoice_status", { length: 30 }).default("pending"),
+	expected_delivery_date: timestamp("expected_delivery_date"),
+	confirmed_delivery_date: timestamp("confirmed_delivery_date"),
+	notes: text("notes"),
+	terms_and_conditions: text("terms_and_conditions"),
 	amount_paid: decimal("amount_paid", { precision: 10, scale: 2 }).default("0"),
 	payment_status: varchar("payment_status", { length: 20 }).default("unpaid"), // unpaid, partial, paid
 	created_at: timestamp("created_at").defaultNow(),
@@ -848,6 +947,7 @@ export const purchases = pgTable("purchases", {
 	supplierIdIdx: index("idx_purchases_supplier_id").on(table.supplier_id),
 	statusIdx: index("idx_purchases_status").on(table.status),
 	createdAtIdx: index("idx_purchases_created_at").on(table.created_at),
+	poNumberIdx: index("idx_purchases_po_number").on(table.po_number),
 }));
 
 export const purchasesRelations = relations(purchases, ({ one, many }) => ({
@@ -868,7 +968,9 @@ export const purchaseItems = pgTable(
 		product_id: integer("product_id")
 			.references(() => products.id)
 			.notNull(),
-		quantity: integer("quantity").notNull(),
+		quantity: decimal("quantity", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
 		price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 		cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
 		sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
@@ -1014,7 +1116,10 @@ export const productBatches = pgTable("product_batches", {
 		.references(() => products.id)
 		.notNull(),
 	batch_number: varchar("batch_number", { length: 50 }).notNull(),
-	quantity: integer("quantity").notNull().default(0),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull()
+		.default("0"),
 	mrp: decimal("mrp", { precision: 10, scale: 2 }).notNull(),
 	selling_price: decimal("selling_price", {
 		precision: 10,
@@ -1055,7 +1160,9 @@ export const stockLedger = pgTable("stock_ledger", {
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
 	transaction_type: varchar("transaction_type", { length: 20 }).notNull(), // 'in', 'out', 'adjustment', 'transfer', 'damage', 'expiry'
-	quantity: integer("quantity").notNull(), // positive for in, negative for out
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(), // positive for in, negative for out
 	unit_cost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
 	total_cost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
 	reference_id: integer("reference_id"), // order_id, purchase_id, adjustment_id
@@ -1091,7 +1198,9 @@ export const branchLocations = pgTable("branch_locations", {
 	level: varchar("level", { length: 10 }),
 	location_type: varchar("location_type", { length: 20 }).default("storage"), // storage, picking, quarantine, damage
 	capacity: integer("capacity").default(0),
-	current_stock: integer("current_stock").default(0),
+	current_stock: decimal("current_stock", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.default("0"),
 	is_active: boolean("is_active").default(true),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -1139,7 +1248,10 @@ export const batchStock = pgTable("batch_stock", {
 	location_id: integer("location_id")
 		.references(() => branchLocations.id)
 		.notNull(),
-	quantity: integer("quantity").notNull().default(0),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull()
+		.default("0"),
 	min_quantity: integer("min_quantity").default(0),
 	max_quantity: integer("max_quantity").default(0),
 	created_at: timestamp("created_at").defaultNow(),
@@ -1187,6 +1299,7 @@ export const pickListsRelations = relations(pickLists, ({ one, many }) => ({
 		references: [staff.id],
 	}),
 	pickListItems: many(pickListItems),
+	pickingExceptions: many(pickingExceptions),
 }));
 
 // ── Pick List Items (Phase 9) ────────────────────────────────────────────────
@@ -1200,15 +1313,19 @@ export const pickListItems = pgTable("pick_list_items", {
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
 	location_id: integer("location_id").references(() => branchLocations.id),
-	quantity_ordered: integer("quantity_ordered").notNull(),
-	quantity_picked: integer("quantity_picked").default(0),
+	quantity_ordered: decimal("quantity_ordered", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
+	quantity_picked: decimal("quantity_picked", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.default("0"),
 	status: varchar("status", { length: 20 }).default("pending"), // pending, picked, partial, missing
 	picked_by: integer("picked_by").references(() => staff.id),
 	picked_at: timestamp("picked_at"),
 	created_at: timestamp("created_at").defaultNow(),
 });
 
-export const pickListItemsRelations = relations(pickListItems, ({ one }) => ({
+export const pickListItemsRelations = relations(pickListItems, ({ one, many }) => ({
 	pickList: one(pickLists, {
 		fields: [pickListItems.pick_list_id],
 		references: [pickLists.id],
@@ -1228,6 +1345,95 @@ export const pickListItemsRelations = relations(pickListItems, ({ one }) => ({
 	pickedBy: one(staff, {
 		fields: [pickListItems.picked_by],
 		references: [staff.id],
+	}),
+	pickingExceptions: many(pickingExceptions),
+}));
+
+// ── Picking Exceptions (Partial Picking & Stock Shortage) ────────────────────
+export const pickingExceptions = pgTable(
+	"picking_exceptions",
+	{
+		id: serial("id").primaryKey(),
+		pick_list_id: integer("pick_list_id")
+			.references(() => pickLists.id)
+			.notNull(),
+		pick_list_item_id: integer("pick_list_item_id")
+			.references(() => pickListItems.id)
+			.notNull(),
+		order_id: integer("order_id").references(() => orders.id),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		branch_id: integer("branch_id").references(() => branches.id),
+		location_id: integer("location_id").references(() => branchLocations.id),
+		quantity_ordered: decimal("quantity_ordered", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
+		quantity_picked: decimal("quantity_picked", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
+		quantity_damaged: decimal("quantity_damaged", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.default("0"),
+		quantity_missing: decimal("quantity_missing", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.default("0"),
+		reason: varchar("reason", { length: 100 }).notNull(),
+		remarks: text("remarks"),
+		photo_url: text("photo_url"),
+		reported_by: integer("reported_by")
+			.references(() => staff.id)
+			.notNull(),
+		status: varchar("status", { length: 50 }).notNull().default("PENDING_REVIEW"), // PENDING_REVIEW, APPROVED_PARTIAL, REASSIGNED, MARKED_DAMAGED, REJECTED
+		manager_notes: text("manager_notes"),
+		resolved_by: integer("resolved_by").references(() => staff.id),
+		resolved_at: timestamp("resolved_at"),
+		replacement_task_id: integer("replacement_task_id"),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at").defaultNow(),
+	},
+	(table) => ({
+		pickListIdIdx: index("idx_picking_exceptions_pick_list_id").on(table.pick_list_id),
+		orderIdIdx: index("idx_picking_exceptions_order_id").on(table.order_id),
+		productIdIdx: index("idx_picking_exceptions_product_id").on(table.product_id),
+		statusIdx: index("idx_picking_exceptions_status").on(table.status),
+	}),
+);
+
+export const pickingExceptionsRelations = relations(pickingExceptions, ({ one }) => ({
+	pickList: one(pickLists, {
+		fields: [pickingExceptions.pick_list_id],
+		references: [pickLists.id],
+	}),
+	pickListItem: one(pickListItems, {
+		fields: [pickingExceptions.pick_list_item_id],
+		references: [pickListItems.id],
+	}),
+	order: one(orders, {
+		fields: [pickingExceptions.order_id],
+		references: [orders.id],
+	}),
+	product: one(products, {
+		fields: [pickingExceptions.product_id],
+		references: [products.id],
+	}),
+	branch: one(branches, {
+		fields: [pickingExceptions.branch_id],
+		references: [branches.id],
+	}),
+	location: one(branchLocations, {
+		fields: [pickingExceptions.location_id],
+		references: [branchLocations.id],
+	}),
+	reportedBy: one(staff, {
+		fields: [pickingExceptions.reported_by],
+		references: [staff.id],
+		relationName: "pickingExceptionReportedBy",
+	}),
+	resolvedBy: one(staff, {
+		fields: [pickingExceptions.resolved_by],
+		references: [staff.id],
+		relationName: "pickingExceptionResolvedBy",
 	}),
 }));
 
@@ -1282,7 +1488,9 @@ export const packageItems = pgTable("package_items", {
 	product_id: integer("product_id")
 		.references(() => products.id)
 		.notNull(),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	created_at: timestamp("created_at").defaultNow(),
 });
 
@@ -1327,7 +1535,9 @@ export const putListItems = pgTable("put_list_items", {
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
 	location_id: integer("location_id").references(() => branchLocations.id),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	status: varchar("status", { length: 20 }).default("pending"), // pending, put, partial
 	put_by: integer("put_by").references(() => staff.id),
 	put_at: timestamp("put_at"),
@@ -1367,7 +1577,9 @@ export const branchDamage = pgTable("branch_damage", {
 		.references(() => products.id)
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	reason: text("reason"),
 	reported_by: integer("reported_by")
 		.references(() => staff.id)
@@ -1457,15 +1669,25 @@ export const packListsRelations = relations(packLists, ({ one }) => ({
 // ── Stock Audits (Phase 10) ───────────────────────────────────────────────────────
 export const stockAudits = pgTable("stock_audits", {
 	id: serial("id").primaryKey(),
+	audit_number: varchar("audit_number", { length: 50 }),
+	title: varchar("title", { length: 255 }),
 	branch_id: integer("branch_id")
 		.references(() => branches.id)
 		.notNull(),
-	status: varchar("status", { length: 20 }).default("planned"), // planned, in_progress, submitted, completed, escalated, cancelled
+	status: varchar("status", { length: 30 }).default("planned"), // planned, scheduled, in_progress, submitted, under_review, completed, escalated, cancelled, reconciled
+	priority: varchar("priority", { length: 20 }).default("medium"), // low, medium, high, urgent
+	counting_method: varchar("counting_method", { length: 20 }).default("blind"), // blind, assisted
 	auditor_id: integer("auditor_id").references(() => staff.id),
+	assigned_by: integer("assigned_by").references(() => staff.id),
+	assigned_at: timestamp("assigned_at"),
+	start_date: timestamp("start_date"),
 	audit_type: varchar("audit_type", { length: 50 }).default("physical_count"),
 	location_name: varchar("location_name", { length: 255 }),
 	due_date: timestamp("due_date"),
 	notes: text("notes"),
+	review_notes: text("review_notes"),
+	reconciled_by: integer("reconciled_by").references(() => staff.id),
+	reconciled_at: timestamp("reconciled_at"),
 	created_at: timestamp("created_at").defaultNow(),
 	completed_at: timestamp("completed_at"),
 });
@@ -1477,6 +1699,14 @@ export const stockAuditsRelations = relations(stockAudits, ({ one, many }) => ({
 	}),
 	auditor: one(staff, {
 		fields: [stockAudits.auditor_id],
+		references: [staff.id],
+	}),
+	assigner: one(staff, {
+		fields: [stockAudits.assigned_by],
+		references: [staff.id],
+	}),
+	reconciler: one(staff, {
+		fields: [stockAudits.reconciled_by],
 		references: [staff.id],
 	}),
 	auditItems: many(stockAuditItems),
@@ -1494,9 +1724,18 @@ export const stockAuditItems = pgTable("stock_audit_items", {
 	location_id: integer("location_id").references(() => branchLocations.id),
 	expected_qty: integer("expected_qty").notNull(),
 	counted_qty: integer("counted_qty"),
-	status: varchar("status", { length: 20 }).default("pending"), // pending, match, mismatch, recounted, accepted, escalated
+	status: varchar("status", { length: 30 }).default("pending"), // pending, match, mismatch, recount_requested, recounted, accepted, escalated, reconciled
+	recount_qty: integer("recount_qty"),
+	recount_by: integer("recount_by").references(() => staff.id),
+	recount_notes: text("recount_notes"),
+	recount_requested_at: timestamp("recount_requested_at"),
+	final_accepted_qty: integer("final_accepted_qty"),
+	variance_qty: integer("variance_qty"),
+	adjustment_status: varchar("adjustment_status", { length: 30 }).default("none"), // none, pending_approval, approved, rejected, posted
+	adjustment_id: integer("adjustment_id").references(() => stockAdjustments.id),
 	discrepancy_reason: varchar("discrepancy_reason", { length: 100 }),
 	remarks: text("remarks"),
+	submitted_at: timestamp("submitted_at"),
 	created_at: timestamp("created_at").defaultNow(),
 });
 
@@ -1525,13 +1764,15 @@ export const auditDiscrepancies = pgTable("audit_discrepancies", {
 	audit_item_id: integer("audit_item_id")
 		.references(() => stockAuditItems.id)
 		.notNull(),
-	discrepancy_type: varchar("discrepancy_type", { length: 20 }).notNull(), // missing, damage, expiry, pna
+	discrepancy_type: varchar("discrepancy_type", { length: 30 }).notNull(), // shortage, excess, missing, damage, expiry, wrong_location, pna
 	quantity: integer("quantity").notNull(),
+	variance_value: decimal("variance_value", { precision: 10, scale: 2 }),
 	resolved_by: integer("resolved_by").references(() => staff.id),
 	resolution_status: varchar("resolution_status", { length: 20 }).default(
 		"pending",
-	), // pending, approved, rejected
+	), // pending, approved, rejected, investigated
 	reason: text("reason"),
+	investigation_notes: text("investigation_notes"),
 	created_at: timestamp("created_at").defaultNow(),
 	resolved_at: timestamp("resolved_at"),
 });
@@ -1557,7 +1798,9 @@ export const missingStockQueue = pgTable("missing_stock_queue", {
 		.references(() => products.id)
 		.notNull(),
 	audit_id: integer("audit_id").references(() => stockAudits.id),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	status: varchar("status", { length: 20 }).default("missing"), // missing, found, written_off
 	created_at: timestamp("created_at").defaultNow(),
 	resolved_at: timestamp("resolved_at"),
@@ -1679,6 +1922,50 @@ export const dailyProductDiscountsRelations = relations(
 	}),
 );
 
+// ── Daily Product Pricing (Locked Day-Wise Selling & Cost Prices) ──────────────
+export const dailyProductPricing = pgTable(
+	"daily_product_pricing",
+	{
+		id: serial("id").primaryKey(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		branch_id: integer("branch_id").references(() => branches.id),
+		pricing_date: varchar("pricing_date", { length: 10 }).notNull(), // 'YYYY-MM-DD'
+		cost_price: decimal("cost_price", { precision: 10, scale: 2 }).notNull(),
+		selling_price: decimal("selling_price", { precision: 10, scale: 2 }).notNull(),
+		is_locked: boolean("is_locked").default(true),
+		locked_at: timestamp("locked_at").defaultNow(),
+		notes: text("notes"),
+		created_by_uid: varchar("created_by_uid", { length: 255 }),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdateFn(() => new Date()),
+	},
+	(t) => ({
+		idx_daily_pricing_prod_date: index("idx_daily_pricing_prod_date").on(
+			t.product_id,
+			t.pricing_date,
+			t.branch_id,
+		),
+	}),
+);
+
+export const dailyProductPricingRelations = relations(
+	dailyProductPricing,
+	({ one }) => ({
+		product: one(products, {
+			fields: [dailyProductPricing.product_id],
+			references: [products.id],
+		}),
+		branch: one(branches, {
+			fields: [dailyProductPricing.branch_id],
+			references: [branches.id],
+		}),
+	}),
+);
+
 
 // ── Balance Snapshots (Phase 12) ──────────────────────────────────────────────────
 export const balanceSnapshots = pgTable("balance_snapshots", {
@@ -1728,6 +2015,8 @@ export const salesReturns = pgTable("sales_returns", {
 	sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default("0"),
 	igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
 	status: varchar("status", { length: 20 }).default("pending"), // pending, processed, cancelled
+	reason: text("reason"),
+	notes: text("notes"),
 	user_uid: varchar("user_uid", { length: 255 }).notNull(),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -1740,7 +2029,9 @@ export const salesReturnItems = pgTable("sales_return_items", {
 	product_id: integer("product_id")
 		.references(() => products.id)
 		.notNull(),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 	refund_amount: decimal("refund_amount", {
 		precision: 10,
@@ -1792,6 +2083,8 @@ export const purchaseReturns = pgTable("purchase_returns", {
 		.notNull(),
 	total_amount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
 	status: varchar("status", { length: 20 }).default("pending"), // pending, processed, cancelled
+	reason: text("reason"),
+	notes: text("notes"),
 	user_uid: varchar("user_uid", { length: 255 }).notNull(),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -1805,7 +2098,9 @@ export const purchaseReturnItems = pgTable("purchase_return_items", {
 		.references(() => products.id)
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	refund_amount: decimal("refund_amount", {
 		precision: 10,
 		scale: 2,
@@ -1924,13 +2219,35 @@ export const payroll = pgTable("payroll", {
 	// Totals
 	net_payable: decimal("net_payable", { precision: 10, scale: 2 }).notNull(),
 
-	status: varchar("status", { length: 20 }).default("draft"), // draft, approved, paid
+	status: varchar("status", { length: 50 }).default("draft"), // draft, hr_review, submitted_to_manager, returned_to_hr, manager_approved, paid, locked
 	payment_date: timestamp("payment_date"),
 	payment_method_id: integer("payment_method_id").references(
 		() => paymentMethods.id,
 	),
 
 	notes: text("notes"),
+
+	// Attendance & Workflow fields
+	pay_type: varchar("pay_type", { length: 20 }).default("monthly"),
+	working_days: integer("working_days").default(30),
+	present_days: decimal("present_days", { precision: 5, scale: 2 }).default("0"),
+	half_days: integer("half_days").default(0),
+	paid_leave_days: decimal("paid_leave_days", { precision: 5, scale: 2 }).default("0"),
+	unpaid_leave_days: decimal("unpaid_leave_days", { precision: 5, scale: 2 }).default("0"),
+	absent_days: decimal("absent_days", { precision: 5, scale: 2 }).default("0"),
+	overtime_hours: decimal("overtime_hours", { precision: 6, scale: 2 }).default("0"),
+	system_calculated_amount: decimal("system_calculated_amount", { precision: 10, scale: 2 }),
+	adjustment_amount: decimal("adjustment_amount", { precision: 10, scale: 2 }).default("0"),
+	adjustment_reason: text("adjustment_reason"),
+	return_reason: text("return_reason"),
+	submitted_by: varchar("submitted_by", { length: 255 }),
+	submitted_at: timestamp("submitted_at"),
+	approved_by: varchar("approved_by", { length: 255 }),
+	approved_at: timestamp("approved_at"),
+	transaction_reference: varchar("transaction_reference", { length: 100 }),
+	payment_proof_url: text("payment_proof_url"),
+	is_locked: boolean("is_locked").default(false),
+
 	created_at: timestamp("created_at").defaultNow(),
 	updated_at: timestamp("updated_at").defaultNow(),
 });
@@ -2664,8 +2981,12 @@ export const receivingInspections = pgTable(
 			.references(() => products.id)
 			.notNull(),
 		branch_id: integer("branch_id").references(() => branches.id),
-		expected_qty: integer("expected_qty"),
-		received_qty: integer("received_qty"),
+		expected_qty: decimal("expected_qty", { precision: 10, scale: 3 }).$type<
+			number | string
+		>(),
+		received_qty: decimal("received_qty", { precision: 10, scale: 3 }).$type<
+			number | string
+		>(),
 		condition: varchar("condition", { length: 20 }), // good, damaged, mismatch
 		upc_status: varchar("upc_status", { length: 20 }), // present, missing, invalid
 		status: varchar("status", { length: 20 }).notNull().default("PENDING"), // PENDING, VERIFIED, DISCREPANCY
@@ -2742,5 +3063,47 @@ export * from "./schema/delivery";
 export * from "./schema/finance";
 export * from "./schema/hrms";
 export * from "./schema/salary";
+export * from "./schema/procurement";
+export * from "./schema/van-stock";
+export * from "./schema/putaway";
 
+// ── Product Quantity Slab Pricing (Volume / Tiered Pricing) ───────────────
+export const productSlabPricing = pgTable(
+	"product_slab_pricing",
+	{
+		id: serial("id").primaryKey(),
+		product_id: integer("product_id")
+			.references(() => products.id, { onDelete: "cascade" })
+			.notNull(),
+		min_quantity: decimal("min_quantity", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
+		max_quantity: decimal("max_quantity", { precision: 10, scale: 3 })
+			.$type<number | string | null>(),
+		unit_price: decimal("unit_price", { precision: 10, scale: 2 })
+			.$type<number | string>()
+			.notNull(),
+		start_date: varchar("start_date", { length: 20 }), // YYYY-MM-DD
+		end_date: varchar("end_date", { length: 20 }), // YYYY-MM-DD (valid until date in calendar)
+		is_active: boolean("is_active").default(true).notNull(),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdateFn(() => new Date()),
+	},
+	(table) => ({
+		productIdIdx: index("idx_product_slab_product_id").on(table.product_id),
+		activeIdx: index("idx_product_slab_active").on(table.is_active),
+		endDateIdx: index("idx_product_slab_end_date").on(table.end_date),
+	}),
+);
 
+export const productSlabPricingRelations = relations(
+	productSlabPricing,
+	({ one }) => ({
+		product: one(products, {
+			fields: [productSlabPricing.product_id],
+			references: [products.id],
+		}),
+	}),
+);

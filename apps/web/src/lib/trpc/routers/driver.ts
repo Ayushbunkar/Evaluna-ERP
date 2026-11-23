@@ -1,12 +1,42 @@
-import { branches, orders, staff, transactions, user } from "@evaluna/db/schema";
+import {
+	branches,
+	customers,
+	deliveryRoutes,
+	orderItems,
+	orders,
+	packages,
+	paymentMethods,
+	products,
+	salesReturnItems,
+	salesReturns,
+	staff,
+	stockAdjustments,
+	transactions,
+	user,
+} from "@evaluna/db/schema";
 import {
 	deliveryTrips,
 	driverSupportTickets,
+	proofOfDeliveries,
 	tripCollections,
 	tripStops,
 	vehicles,
 } from "@evaluna/db/schema/delivery";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { vanStockPlanItems, vanStockPlans } from "@evaluna/db/schema/van-stock";
+import { TRPCError } from "@trpc/server";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	notInArray,
+	lte,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
@@ -27,6 +57,9 @@ type NextDelivery = {
 	orders?: Array<{
 		id: number;
 		total_amount: number;
+		subtotal?: number;
+		discount_amount?: number;
+		discount_reason?: string | null;
 		status: string;
 		itemsCount: number;
 	}>;
@@ -38,6 +71,9 @@ type NextDelivery = {
 	contactName: string;
 	contactPhone: string;
 	paymentType: string;
+	subtotal?: number;
+	discountAmount?: number;
+	discountReason?: string | null;
 	amountToCollect: number;
 	packages: number;
 	estimatedDuration: string;
@@ -53,6 +89,8 @@ type RouteStop = {
 	status: string;
 	rawStatus: string;
 	time: string;
+	date?: string;
+	created_at?: string;
 	address: string;
 	customerName: string;
 	phone: string | null;
@@ -62,13 +100,20 @@ type RouteStop = {
 	orders?: Array<{
 		id: number;
 		total_amount: number;
+		subtotal?: number;
+		discount_amount?: number;
+		discount_reason?: string | null;
 		status: string;
 		itemsCount: number;
 	}>;
+	subtotal?: number;
+	discountAmount?: number;
+	discountReason?: string | null;
 	amountToCollect: number;
 	packages: number;
 	orderItems: {
 		id: number;
+		order_id?: number | null;
 		product_id: number;
 		name: string;
 		qty: number;
@@ -97,7 +142,9 @@ type VehicleStatus = {
 	maintenanceDue: boolean;
 };
 
-async function getDriverIdentifiers(ctx: any): Promise<{ ids: string[]; numericStaffIds: number[] }> {
+async function getDriverIdentifiers(
+	ctx: any,
+): Promise<{ ids: string[]; numericStaffIds: number[] }> {
 	const currentUser = ctx.user;
 	if (!currentUser) return { ids: [], numericStaffIds: [] };
 
@@ -245,6 +292,7 @@ export const driverRouter = router({
 
 				const userEmail = ctx.user?.email;
 				const userName = ctx.user?.name;
+				const emailPrefix = userEmail?.split("@")[0];
 				const tripSqlConditions: any[] = [];
 				if (driverIds.length > 0) {
 					tripSqlConditions.push(inArray(deliveryTrips.driver_id, driverIds));
@@ -259,72 +307,61 @@ export const driverRouter = router({
 						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userName}))`,
 					);
 				}
+				if (emailPrefix) {
+					tripSqlConditions.push(
+						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${emailPrefix}))`,
+					);
+				}
 
-				const allowedStatuses = [
-					"active",
-					"out_for_delivery",
-					"loaded",
-					"ready_for_loading",
-					"pending",
-					"in_progress",
-					"dispatched",
-					"assigned",
-					"ready_for_dispatch",
-				];
+				let trip: any = null;
 
-				let trip =
-					tripSqlConditions.length > 0
-						? await db.query.deliveryTrips.findFirst({
-								where: and(
-									or(...tripSqlConditions),
-									inArray(deliveryTrips.status, allowedStatuses),
-								),
-								orderBy: [desc(deliveryTrips.created_at)],
-								with: {
-									stops: {
-										orderBy: (deliveryStops: any, { asc }: any) => [
-											asc(deliveryStops.sequence),
-										],
-										with: {
-											customer: true,
-										},
-									},
-								},
-							})
-						: null;
-
-				// Fallback: If no trip matched exact driver ID query, fallback to the most recent active/dispatched trip in system
-				if (!trip || !trip.stops || trip.stops.length === 0) {
-					const fallbackTrip = await db.query.deliveryTrips.findFirst({
-						where: inArray(deliveryTrips.status, [
-							"active",
-							"out_for_delivery",
-							"loaded",
-							"ready_for_loading",
-							"pending",
-							"in_progress",
-							"dispatched",
-							"assigned",
-							"ready_for_dispatch",
-						]),
+				// 1. Try driver-specific trips first (prioritize active/out_for_delivery/dispatched)
+				if (tripSqlConditions.length > 0) {
+					// 1a. Try active dispatched trips first
+					trip = await db.query.deliveryTrips.findFirst({
+						where: and(
+							or(...tripSqlConditions),
+							inArray(deliveryTrips.status, [
+								"active",
+								"out_for_delivery",
+								"dispatched",
+								"in_progress",
+							]),
+						),
 						orderBy: [desc(deliveryTrips.created_at)],
 						with: {
 							stops: {
-								orderBy: (deliveryStops: any, { asc }: any) => [
-									asc(deliveryStops.sequence),
-								],
-								with: {
-									customer: true,
-								},
+								orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
+								with: { customer: true },
 							},
 						},
 					});
-					if (fallbackTrip && fallbackTrip.stops && fallbackTrip.stops.length > 0) {
-						trip = fallbackTrip;
+
+					// 1b. If no active trip, check loaded / ready / pending trips
+					if (!trip || !trip.stops || trip.stops.length === 0) {
+						trip = await db.query.deliveryTrips.findFirst({
+							where: and(
+								or(...tripSqlConditions),
+								inArray(deliveryTrips.status, [
+									"loaded",
+									"ready_for_loading",
+									"pending",
+									"assigned",
+									"ready_for_dispatch",
+								]),
+							),
+							orderBy: [desc(deliveryTrips.created_at)],
+							with: {
+								stops: {
+									orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
+									with: { customer: true },
+								},
+							},
+						});
 					}
 				}
 
-				// Fallback: Check directly assigned orders if no trip with stops is found
+				// If no driver-specific trip was found, check if orders are assigned directly to driver staff ID/UID and ready for dispatch or out for delivery
 				if (!trip || !trip.stops || trip.stops.length === 0) {
 					const assignedOrdersConditions = [];
 					if (numericStaffIds.length > 0) {
@@ -336,41 +373,37 @@ export const driverRouter = router({
 						assignedOrdersConditions.push(inArray(orders.user_uid, driverIds));
 					}
 
-					const directOrders = await db.query.orders.findMany({
-						where:
-							assignedOrdersConditions.length > 0
-								? and(
+					const directOrders =
+						assignedOrdersConditions.length > 0
+							? await db.query.orders.findMany({
+									where: and(
 										or(...assignedOrdersConditions),
 										inArray(orders.status, [
-											"pending",
-											"pending_review",
-											"confirmed",
 											"processing",
-											"packed",
+											"confirmed",
+											"pending",
 											"ready_for_dispatch",
 											"out_for_delivery",
 											"dispatched",
-											"assigned",
 											"in_transit",
+											"assigned",
+											"packed",
+											"loaded",
 										]),
-									)
-								: inArray(orders.status, [
-										"out_for_delivery",
-										"dispatched",
-										"ready_for_dispatch",
-										"packed",
-										"in_transit",
-									]),
-						orderBy: [desc(orders.created_at)],
-						with: {
-							customer: true,
-							orderItems: {
-								with: {
-									product: true,
-								},
-							},
-						},
-					});
+										sql`${orders.finance_status} IS DISTINCT FROM 'driver_collected'`,
+										sql`${orders.driver_collected_at} IS NULL`,
+									),
+									orderBy: [desc(orders.created_at)],
+									with: {
+										customer: true,
+										orderItems: {
+											with: {
+												product: true,
+											},
+										},
+									},
+								})
+							: [];
 
 					if (directOrders.length > 0) {
 						// Group orders by customer
@@ -393,11 +426,45 @@ export const driverRouter = router({
 							const formattedOrderIds = orderIdList
 								.map((id) => `ORD-${id}`)
 								.join(", ");
-							const totalAmount = ords.reduce(
-								(sum, o) => sum + Number(o.total_amount || 0),
+							const allItems = ords.flatMap((o) => o.orderItems || []);
+							const stopSubtotal = ords.reduce(
+								(sum, o) =>
+									sum +
+									(o.orderItems || []).reduce(
+										(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+										0,
+									),
 								0,
 							);
-							const allItems = ords.flatMap((o) => o.orderItems || []);
+							const stopDiscount = ords.reduce(
+								(sum, o) => sum + Number(o.discount_amount || 0),
+								0,
+							);
+							const stopDiscountReason =
+								Array.from(
+									new Set(
+										ords
+											.map((o) => o.discount_reason)
+											.filter(Boolean),
+									),
+								).join("; ") || null;
+
+							const totalAmount = ords.reduce((sum, o) => {
+								const itSubtotal = (o.orderItems || []).reduce(
+									(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+									0,
+								);
+								const disc = Number(o.discount_amount || 0);
+								const rawTotal = Number(o.total_amount || 0);
+								if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+									return sum + Math.max(0, itSubtotal - disc);
+								}
+								return sum + rawTotal;
+							}, 0);
+
+							const stopDate = firstOrd.created_at
+								? new Date(firstOrd.created_at).toISOString().split("T")[0]
+								: new Date().toISOString().split("T")[0];
 
 							virtualStops.push({
 								id: firstOrd.id,
@@ -405,22 +472,44 @@ export const driverRouter = router({
 								status: seq === 1 ? "next" : "pending",
 								rawStatus: firstOrd.status,
 								time: "--:--",
+								date: stopDate,
+								created_at: firstOrd.created_at
+									? String(firstOrd.created_at)
+									: undefined,
 								address: cust?.address || firstOrd.shipping_address || "N/A",
 								customerName: cust?.name || "Customer",
 								phone: cust?.phone || null,
 								orderId: formattedOrderIds,
 								orderIds: orderIdList,
 								ordersCount: ords.length,
-								orders: ords.map((o) => ({
-									id: o.id,
-									total_amount: Number(o.total_amount || 0),
-									status: o.status,
-									itemsCount: o.orderItems?.length || 0,
-								})),
+								orders: ords.map((o) => {
+									const itSubtotal = (o.orderItems || []).reduce(
+										(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+										0,
+									);
+									const disc = Number(o.discount_amount || 0);
+									let net = Number(o.total_amount || 0);
+									if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+										net = Math.max(0, itSubtotal - disc);
+									}
+									return {
+										id: o.id,
+										total_amount: net,
+										subtotal: itSubtotal,
+										discount_amount: disc,
+										discount_reason: o.discount_reason || null,
+										status: o.status,
+										itemsCount: o.orderItems?.length || 0,
+									};
+								}),
+								subtotal: stopSubtotal,
+								discountAmount: stopDiscount,
+								discountReason: stopDiscountReason,
 								amountToCollect: totalAmount,
 								packages: allItems.length > 0 ? allItems.length : ords.length,
 								orderItems: allItems.map((item) => ({
 									id: item.id,
+									order_id: item.order_id,
 									product_id: item.product_id,
 									name: item.product?.name || "Product",
 									qty: item.quantity,
@@ -446,6 +535,9 @@ export const driverRouter = router({
 							contactName: firstStop.customerName,
 							contactPhone: firstStop.phone || "N/A",
 							paymentType: "Cash on Delivery / UPI",
+							subtotal: firstStop.subtotal,
+							discountAmount: firstStop.discountAmount,
+							discountReason: firstStop.discountReason,
 							amountToCollect: firstStop.amountToCollect,
 							packages: firstStop.packages,
 							estimatedDuration: "~15 min",
@@ -466,10 +558,27 @@ export const driverRouter = router({
 							batteryLevel: null as number | null,
 							currentLocation: null as string | null,
 							assignedOrders: directOrders.length,
-							delivered: 0,
-							pending: directOrders.length,
-							codCollected: 0,
-							successfulCollections: 0,
+							delivered: directOrders.filter(
+								(o) => o.status === "delivered" || o.status === "completed",
+							).length,
+							pending: directOrders.filter(
+								(o) => o.status !== "delivered" && o.status !== "completed",
+							).length,
+							codCollected: directOrders
+								.filter(
+									(o) => o.status === "delivered" || o.status === "completed",
+								)
+								.reduce(
+									(sum, o) =>
+										sum +
+										Number(
+											o.driver_collected_amount || (o as any).total_amount || 0,
+										),
+									0,
+								),
+							successfulCollections: directOrders.filter(
+								(o) => o.status === "delivered" || o.status === "completed",
+							).length,
 							returnsProcessed: 0,
 							returnRate: 0,
 							customerRating: 4.9,
@@ -542,15 +651,35 @@ export const driverRouter = router({
 						}),
 					customerIds.length > 0
 						? db.query.orders.findMany({
-								where: inArray(orders.customer_id, customerIds),
+								where: and(
+									inArray(orders.customer_id, customerIds),
+									inArray(orders.status, [
+										"processing",
+										"confirmed",
+										"pending",
+										"ready_for_dispatch",
+										"ready_for_loading",
+										"packed",
+										"loaded",
+										"out_for_delivery",
+										"in_transit",
+										"dispatched",
+										"delivered",
+										"completed",
+										"partially_delivered",
+										"failed",
+										"returned",
+									]),
+									trip.created_at
+										? lte(
+												orders.created_at,
+												new Date(new Date(trip.created_at).getTime() + 120_000),
+											)
+										: undefined,
+								),
 								orderBy: [desc(orders.created_at)],
-								columns: {
-									id: true,
-									customer_id: true,
-									total_amount: true,
-									status: true,
-								},
 								with: {
+									customer: true,
 									orderItems: {
 										columns: {
 											id: true,
@@ -578,11 +707,25 @@ export const driverRouter = router({
 						: null,
 				]);
 
-				const codCollected = collections.reduce(
+				const tripCash = collections.reduce(
 					(acc, curr) => acc + Number(curr.amount || 0),
 					0,
 				);
-				const successfulCollections = collections.length;
+				const ordersCash = ordersForStops
+					.filter((o) => o.status === "delivered" || o.status === "completed")
+					.reduce(
+						(acc, o) =>
+							acc +
+							Number(o.driver_collected_amount || (o as any).total_amount || 0),
+						0,
+					);
+				const codCollected = tripCash > 0 ? tripCash : ordersCash;
+				const successfulCollections = Math.max(
+					collections.length,
+					ordersForStops.filter(
+						(o) => o.status === "delivered" || o.status === "completed",
+					).length,
+				);
 
 				let nextDelivery: NextDelivery | null = null;
 				if (nextStop) {
@@ -590,10 +733,31 @@ export const driverRouter = router({
 						(o) => o.customer_id === nextStop.customer_id,
 					);
 					const pendingOrders = allMatchingOrders.filter(
-						(o) => o.status !== "delivered" && o.status !== "completed",
+						(o) =>
+							o.status !== "delivered" &&
+							o.status !== "completed" &&
+							o.status !== "cancelled" &&
+							o.status !== "returned" &&
+							o.finance_status !== "driver_collected" &&
+							!o.driver_collected_at,
 					);
-					const activeOrders =
-						pendingOrders.length > 0 ? pendingOrders : allMatchingOrders;
+					const isStopHandoverDone =
+						nextStop.status === "delivered" ||
+						nextStop.status === "completed" ||
+						nextStop.resolved_at != null ||
+						(allMatchingOrders.length > 0 &&
+							allMatchingOrders.every(
+								(o) =>
+									o.status === "delivered" ||
+									o.status === "completed" ||
+									o.finance_status === "driver_collected" ||
+									o.driver_collected_at != null,
+							));
+					const activeOrders = isStopHandoverDone
+						? allMatchingOrders
+						: pendingOrders.length > 0
+							? pendingOrders
+							: allMatchingOrders;
 
 					const activeOrder = activeOrders[0];
 					const orderIdList = activeOrders.map((o) => o.id);
@@ -603,11 +767,56 @@ export const driverRouter = router({
 							: activeOrder?.id
 								? `ORD-${activeOrder.id}`
 								: `ORD-${nextStop.id}`;
-					const totalAmount = activeOrders.reduce(
-						(sum, o) => sum + Number(o.total_amount || 0),
+					const allItems = activeOrders.flatMap((o) => o.orderItems || []);
+					const stopSubtotal = activeOrders.reduce(
+						(sum, o) =>
+							sum +
+							(o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							),
 						0,
 					);
-					const allItems = activeOrders.flatMap((o) => o.orderItems || []);
+					const stopDiscount = activeOrders.reduce(
+						(sum, o) => sum + Number(o.discount_amount || 0),
+						0,
+					);
+					const stopDiscountReason =
+						Array.from(
+							new Set(
+								activeOrders
+									.map((o) => o.discount_reason)
+									.filter(Boolean),
+							),
+						).join("; ") || null;
+
+					const totalAmount = activeOrders.reduce((sum, o) => {
+						const itSubtotal = (o.orderItems || []).reduce(
+							(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+							0,
+						);
+						const disc = Number(o.discount_amount || 0);
+						const rawTotal = Number(o.total_amount || 0);
+						if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+							return sum + Math.max(0, itSubtotal - disc);
+						}
+						return sum + rawTotal;
+					}, 0);
+
+					const resolvedCustName =
+						nextStop.customer?.name ||
+						activeOrder?.customer?.name ||
+						"Customer";
+					const resolvedCustPhone =
+						nextStop.customer?.phone ||
+						activeOrder?.customer?.phone ||
+						(activeOrder as any)?.customer_phone ||
+						"N/A";
+					const resolvedCustAddress =
+						nextStop.customer?.address ||
+						activeOrder?.customer?.address ||
+						(activeOrder as any)?.shipping_address ||
+						"N/A";
 
 					nextDelivery = {
 						id: `CUST-${nextStop.customer_id}`,
@@ -615,20 +824,37 @@ export const driverRouter = router({
 						orderId: formattedOrderIds,
 						orderIds: orderIdList,
 						ordersCount: activeOrders.length,
-						orders: activeOrders.map((o) => ({
-							id: o.id,
-							total_amount: Number(o.total_amount || 0),
-							status: o.status,
-							itemsCount: o.orderItems?.length || 0,
-						})),
+						orders: activeOrders.map((o) => {
+							const itSubtotal = (o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							);
+							const disc = Number(o.discount_amount || 0);
+							let net = Number(o.total_amount || 0);
+							if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+								net = Math.max(0, itSubtotal - disc);
+							}
+							return {
+								id: o.id,
+								total_amount: net,
+								subtotal: itSubtotal,
+								discount_amount: disc,
+								discount_reason: o.discount_reason || null,
+								status: o.status,
+								itemsCount: o.orderItems?.length || 0,
+							};
+						}),
 						stop_id: nextStop.id,
-						customerName: nextStop.customer?.name ?? "Customer",
-						phone: nextStop.customer?.phone ?? "N/A",
-						address: nextStop.customer?.address ?? "N/A",
+						customerName: resolvedCustName,
+						phone: resolvedCustPhone,
+						address: resolvedCustAddress,
 						landmark: "",
-						contactName: nextStop.customer?.name ?? "Customer",
-						contactPhone: nextStop.customer?.phone ?? "N/A",
+						contactName: resolvedCustName,
+						contactPhone: resolvedCustPhone,
 						paymentType: "Cash on Delivery / UPI",
+						subtotal: stopSubtotal,
+						discountAmount: stopDiscount,
+						discountReason: stopDiscountReason,
 						amountToCollect: totalAmount,
 						packages: allItems.length > 0 ? allItems.length : 1,
 						estimatedDuration: "~15 min",
@@ -638,6 +864,7 @@ export const driverRouter = router({
 						items:
 							allItems.map((item) => ({
 								id: item.product_id ?? 0,
+								order_id: item.order_id,
 								name: item.product?.name ?? "Product",
 								quantity: item.quantity,
 								price: Number(item.price || 0),
@@ -645,67 +872,153 @@ export const driverRouter = router({
 					};
 				}
 
-				// Build route stops safely using only data already loaded from the trip query
+				// Build route stops safely using data loaded from trip query and ordersForStops
 				const routeStops = trip.stops.map((s: any, idx: number) => {
 					const allMatchingOrders = ordersForStops.filter(
 						(order) => order.customer_id === s.customer_id,
 					);
 					const pendingOrders = allMatchingOrders.filter(
-						(o) => o.status !== "delivered" && o.status !== "completed",
+						(o) =>
+							o.status !== "delivered" &&
+							o.status !== "completed" &&
+							o.status !== "cancelled" &&
+							o.status !== "returned" &&
+							o.finance_status !== "driver_collected" &&
+							!o.driver_collected_at,
 					);
-					const matchingOrders =
-						s.status === "delivered" || pendingOrders.length === 0
-							? allMatchingOrders
-							: pendingOrders;
+					const isStopHandoverDone =
+						s.status === "delivered" ||
+						s.status === "completed" ||
+						s.resolved_at != null ||
+						(allMatchingOrders.length > 0 &&
+							allMatchingOrders.every(
+								(o) =>
+									o.status === "delivered" ||
+									o.status === "completed" ||
+									o.finance_status === "driver_collected" ||
+									o.driver_collected_at != null,
+							));
+					const matchingOrders = isStopHandoverDone
+						? allMatchingOrders
+						: pendingOrders.length > 0
+							? pendingOrders
+							: allMatchingOrders;
 
+					const matchingOrder = matchingOrders[0];
 					const orderIdList = matchingOrders.map((o) => o.id);
 					const formattedOrderIds =
 						orderIdList.length > 0
 							? orderIdList.map((id) => `ORD-${id}`).join(", ")
 							: `ORD-${s.id || 460 + idx}`;
-					const totalAmount = matchingOrders.reduce(
-						(sum, o) => sum + Number(o.total_amount || 0),
+					const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+
+					const stopSubtotal = matchingOrders.reduce(
+						(sum, o) =>
+							sum +
+							(o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							),
 						0,
 					);
-					const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+					const stopDiscount = matchingOrders.reduce(
+						(sum, o) => sum + Number(o.discount_amount || 0),
+						0,
+					);
+					const stopDiscountReason =
+						Array.from(
+							new Set(
+								matchingOrders
+									.map((o) => o.discount_reason)
+									.filter(Boolean),
+							),
+						).join("; ") || null;
+
+					const totalAmount = matchingOrders.reduce((sum, o) => {
+						const itSubtotal = (o.orderItems || []).reduce(
+							(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+							0,
+						);
+						const disc = Number(o.discount_amount || 0);
+						const rawTotal = Number(o.total_amount || 0);
+						if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+							return sum + Math.max(0, itSubtotal - disc);
+						}
+						return sum + rawTotal;
+					}, 0);
+
+					const resolvedCustName =
+						s.customer?.name || matchingOrder?.customer?.name || "Customer";
+					const resolvedCustPhone =
+						s.customer?.phone ||
+						matchingOrder?.customer?.phone ||
+						(matchingOrder as any)?.customer_phone ||
+						null;
+					const resolvedCustAddress =
+						s.customer?.address ||
+						matchingOrder?.customer?.address ||
+						(matchingOrder as any)?.shipping_address ||
+						"N/A";
 
 					return {
 						id: s.id,
 						trip_id: trip.id,
-						status:
-							s.status === "delivered" || s.status === "completed"
-								? "completed"
-								: s.id === nextStop?.id
-									? "next"
-									: "pending",
-						rawStatus: s.status,
-						time:
-							s.status === "delivered" || s.status === "completed"
-								? "Completed"
-								: "--:--",
-						address: s.customer?.address ?? "N/A",
-						customerName: s.customer?.name ?? "Customer",
-						phone: s.customer?.phone ?? null,
+						status: isStopHandoverDone
+							? "completed"
+							: s.id === nextStop?.id
+								? "next"
+								: "pending",
+						rawStatus: isStopHandoverDone ? "delivered" : s.status,
+						time: isStopHandoverDone ? "Completed" : "--:--",
+						address: resolvedCustAddress,
+						customerName: resolvedCustName,
+						phone: resolvedCustPhone,
 						orderId: formattedOrderIds,
 						orderIds: orderIdList,
 						ordersCount: matchingOrders.length,
-						orders: matchingOrders.map((o) => ({
-							id: o.id,
-							total_amount: Number(o.total_amount || 0),
-							status: o.status,
-							itemsCount: o.orderItems?.length || 0,
-						})),
+						orders: matchingOrders.map((o) => {
+							const itSubtotal = (o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							);
+							const disc = Number(o.discount_amount || 0);
+							let net = Number(o.total_amount || 0);
+							if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+								net = Math.max(0, itSubtotal - disc);
+							}
+							return {
+								id: o.id,
+								total_amount: net,
+								subtotal: itSubtotal,
+								discount_amount: disc,
+								discount_reason: o.discount_reason || null,
+								status: o.status,
+								itemsCount: o.orderItems?.length || 0,
+							};
+						}),
+						subtotal: stopSubtotal,
+						discountAmount: stopDiscount,
+						discountReason: stopDiscountReason,
 						amountToCollect: totalAmount,
 						packages: allItems.length > 0 ? allItems.length : 1,
 						orderItems:
 							allItems.map((item) => ({
 								id: item.id,
+								order_id: item.order_id,
 								product_id: item.product_id,
 								name: item.product?.name ?? "Product",
 								qty: item.quantity,
 								price: Number(item.price || 0),
 							})) || [],
 					};
+				});
+
+				// Filter out stops that have no sales orders / items (e.g. empty waypoints with ₹0)
+				const validRouteStops = routeStops.filter((s: any) => {
+					if (s.ordersCount > 0 || (s.orders && s.orders.length > 0)) return true;
+					if ((Number(s.amountToCollect) || 0) > 0 || (s.orderItems && s.orderItems.length > 0)) return true;
+					if (s.status === "completed" || s.rawStatus === "delivered") return true;
+					return false;
 				});
 
 				// Vehicle status for the active trip (if a vehicle is assigned)
@@ -739,7 +1052,7 @@ export const driverRouter = router({
 						: null,
 					rating: 4.9,
 					nextDelivery,
-					routeStops,
+					routeStops: validRouteStops,
 					deliveryHistory: [] as DeliveryHistoryEntry[],
 					returnHistory: [] as ReturnHistoryEntry[],
 					notifications: [] as DriverNotification[],
@@ -878,6 +1191,7 @@ export const driverRouter = router({
 			const userName = ctx.user?.name;
 
 			const sqlConditions = [];
+			const emailPrefix = userEmail?.split("@")[0];
 			if (driverIds.length > 0) {
 				sqlConditions.push(inArray(deliveryTrips.driver_id, driverIds));
 			}
@@ -889,6 +1203,11 @@ export const driverRouter = router({
 			if (userName) {
 				sqlConditions.push(
 					sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userName}))`,
+				);
+			}
+			if (emailPrefix) {
+				sqlConditions.push(
+					sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${emailPrefix}))`,
 				);
 			}
 
@@ -904,19 +1223,24 @@ export const driverRouter = router({
 				"ready_for_dispatch",
 			];
 
-			// 1. Try driver-specific trips first
+			// 1. Try driver-specific trips first (prioritizing active/dispatched)
 			if (sqlConditions.length > 0) {
 				trips = await db.query.deliveryTrips.findMany({
 					where: and(
 						or(...sqlConditions),
 						inArray(deliveryTrips.status, allowedStatuses),
 					),
-					orderBy: [desc(deliveryTrips.created_at)],
+					orderBy: [
+						sql`CASE 
+							WHEN ${deliveryTrips.status} IN ('active', 'out_for_delivery', 'dispatched', 'in_progress') THEN 1 
+							WHEN ${deliveryTrips.status} = 'loaded' THEN 2 
+							ELSE 3 
+						END`,
+						desc(deliveryTrips.created_at),
+					],
 					with: {
 						stops: {
-							orderBy: (deliveryStops: any, { asc }: any) => [
-								asc(deliveryStops.sequence),
-							],
+							orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
 							with: {
 								customer: true,
 							},
@@ -925,27 +1249,7 @@ export const driverRouter = router({
 				});
 			}
 
-			// 2. Fallback: If no driver-specific trips with stops exist, fetch any active dispatched trip
-			const driverStopsCount = trips.reduce((acc, t) => acc + (t.stops?.length || 0), 0);
-			if (driverStopsCount === 0) {
-				const fallbackTrips = await db.query.deliveryTrips.findMany({
-					where: inArray(deliveryTrips.status, ["active", "out_for_delivery", "loaded", "in_progress", "dispatched"]),
-					orderBy: [desc(deliveryTrips.created_at)],
-					with: {
-						stops: {
-							orderBy: (deliveryStops: any, { asc }: any) => [
-								asc(deliveryStops.sequence),
-							],
-							with: {
-								customer: true,
-							},
-						},
-					},
-				});
-				trips = fallbackTrips;
-			}
-
-			// Collect all stops across trips
+			// Collect all stops across driver's trips
 			const allStops: any[] = [];
 			for (const trip of trips) {
 				if (trip.stops && trip.stops.length > 0) {
@@ -955,29 +1259,49 @@ export const driverRouter = router({
 				}
 			}
 
-			// Fallback to directly assigned / active orders if no trip stops found
+			// If no trip stops found, check if orders are directly assigned to driver staff ID/UID and ready for dispatch or out for delivery
 			if (allStops.length === 0) {
-				const directOrders = await db.query.orders.findMany({
-					where: inArray(orders.status, [
-						"out_for_delivery",
-						"dispatched",
-						"ready_for_dispatch",
-						"packed",
-						"in_transit",
-						"processing",
-						"confirmed",
-						"pending",
-					]),
-					orderBy: [desc(orders.created_at)],
-					with: {
-						customer: true,
-						orderItems: {
-							with: {
-								product: true,
-							},
-						},
-					},
-				});
+				const assignedOrdersConditions = [];
+				if (numericStaffIds.length > 0) {
+					assignedOrdersConditions.push(
+						inArray(orders.driver_id, numericStaffIds),
+					);
+				}
+				if (driverIds.length > 0) {
+					assignedOrdersConditions.push(inArray(orders.user_uid, driverIds));
+				}
+
+				const directOrders =
+					assignedOrdersConditions.length > 0
+						? await db.query.orders.findMany({
+								where: and(
+									or(...assignedOrdersConditions),
+									inArray(orders.status, [
+										"processing",
+										"confirmed",
+										"pending",
+										"ready_for_dispatch",
+										"out_for_delivery",
+										"dispatched",
+										"in_transit",
+										"assigned",
+										"packed",
+										"loaded",
+									]),
+									sql`${orders.finance_status} IS DISTINCT FROM 'driver_collected'`,
+									sql`${orders.driver_collected_at} IS NULL`,
+								),
+								orderBy: [desc(orders.created_at)],
+								with: {
+									customer: true,
+									orderItems: {
+										with: {
+											product: true,
+										},
+									},
+								},
+							})
+						: [];
 
 				if (directOrders.length === 0) return [];
 
@@ -1000,11 +1324,46 @@ export const driverRouter = router({
 					const formattedOrderIds = orderIdList
 						.map((id) => `ORD-${id}`)
 						.join(", ");
-					const totalAmount = ords.reduce(
-						(sum, o) => sum + Number(o.total_amount || 0),
+					const stopSubtotal = ords.reduce(
+						(sum, o) =>
+							sum +
+							(o.orderItems || []).reduce(
+								(s, it) =>
+									s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							),
 						0,
 					);
+					const stopDiscount = ords.reduce(
+						(sum, o) => sum + Number(o.discount_amount || 0),
+						0,
+					);
+					const stopDiscountReason =
+						Array.from(
+							new Set(
+								ords
+									.map((o) => o.discount_reason)
+									.filter(Boolean),
+							),
+						).join("; ") || null;
+
+					const totalAmount = ords.reduce((sum, o) => {
+						const itSubtotal = (o.orderItems || []).reduce(
+							(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+							0,
+						);
+						const disc = Number(o.discount_amount || 0);
+						const rawTotal = Number(o.total_amount || 0);
+						if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+							return sum + Math.max(0, itSubtotal - disc);
+						}
+						return sum + rawTotal;
+					}, 0);
 					const allItems = ords.flatMap((o) => o.orderItems || []);
+
+					const stopDate = firstOrd.created_at
+						? new Date(firstOrd.created_at).toISOString().split("T")[0]
+						: new Date().toISOString().split("T")[0];
 
 					virtualStops.push({
 						id: firstOrd.id,
@@ -1012,22 +1371,44 @@ export const driverRouter = router({
 						status: seq === 1 ? "next" : "pending",
 						rawStatus: firstOrd.status,
 						time: "--:--",
+						date: stopDate,
+						created_at: firstOrd.created_at
+							? String(firstOrd.created_at)
+							: undefined,
 						address: cust?.address || firstOrd.shipping_address || "N/A",
 						customerName: cust?.name || "Customer",
 						phone: cust?.phone || null,
 						orderId: formattedOrderIds,
 						orderIds: orderIdList,
 						ordersCount: ords.length,
-						orders: ords.map((o) => ({
-							id: o.id,
-							total_amount: Number(o.total_amount || 0),
-							status: o.status,
-							itemsCount: o.orderItems?.length || 0,
-						})),
+						orders: ords.map((o) => {
+							const itSubtotal = (o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							);
+							const disc = Number(o.discount_amount || 0);
+							let net = Number(o.total_amount || 0);
+							if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+								net = Math.max(0, itSubtotal - disc);
+							}
+							return {
+								id: o.id,
+								total_amount: net,
+								subtotal: itSubtotal,
+								discount_amount: disc,
+								discount_reason: o.discount_reason || null,
+								status: o.status,
+								itemsCount: o.orderItems?.length || 0,
+							};
+						}),
+						subtotal: stopSubtotal,
+						discountAmount: stopDiscount,
+						discountReason: stopDiscountReason,
 						amountToCollect: totalAmount,
 						packages: allItems.length > 0 ? allItems.length : ords.length,
 						orderItems: allItems.map((item) => ({
 							id: item.id,
+							order_id: item.order_id,
 							product_id: item.product_id,
 							name: item.product?.name || "Product",
 							qty: item.quantity,
@@ -1045,95 +1426,249 @@ export const driverRouter = router({
 			const ordersForStops =
 				customerIds.length > 0
 					? await db.query.orders.findMany({
-							where: inArray(orders.customer_id, customerIds),
-							columns: {
-								id: true,
-								customer_id: true,
-								total_amount: true,
-								status: true,
-							},
+							where: and(
+								inArray(orders.customer_id, customerIds),
+								inArray(orders.status, [
+									"processing",
+									"confirmed",
+									"pending",
+									"ready_for_dispatch",
+									"ready_for_loading",
+									"packed",
+									"loaded",
+									"out_for_delivery",
+									"in_transit",
+									"dispatched",
+									"delivered",
+									"completed",
+									"partially_delivered",
+									"failed",
+									"returned",
+								]),
+							),
 							with: {
+								customer: true,
 								orderItems: {
-									columns: {
-										id: true,
-										order_id: true,
-										product_id: true,
-										quantity: true,
-										price: true,
-									},
 									with: {
-										product: {
-											columns: {
-												id: true,
-												name: true,
-											},
-										},
+										product: true,
 									},
 								},
 							},
 						})
 					: [];
 
-			return allStops.map((s: any, idx: number) => {
-				const allMatchingOrders = ordersForStops.filter(
-					(order) => order.customer_id === s.customer_id,
-				);
-				const pendingOrders = allMatchingOrders.filter(
-					(o) => o.status !== "delivered" && o.status !== "completed",
-				);
-				const matchingOrders =
-					s.status === "delivered" || pendingOrders.length === 0
+			const routeStops = await Promise.all(
+				allStops.map(async (s: any, idx: number) => {
+					const allMatchingOrders = ordersForStops.filter(
+						(order) => order.customer_id === s.customer_id,
+					);
+					const pendingOrders = allMatchingOrders.filter(
+						(o) =>
+							o.status !== "delivered" &&
+							o.status !== "completed" &&
+							o.status !== "cancelled" &&
+							o.status !== "returned" &&
+							o.finance_status !== "driver_collected" &&
+							!o.driver_collected_at,
+					);
+					const isStopHandoverDone =
+						s.status === "delivered" ||
+						s.status === "completed" ||
+						s.resolved_at != null ||
+						(allMatchingOrders.length > 0 &&
+							allMatchingOrders.every(
+								(o) =>
+									o.status === "delivered" ||
+									o.status === "completed" ||
+									o.finance_status === "driver_collected" ||
+									o.driver_collected_at != null,
+							));
+					const matchingOrders = isStopHandoverDone
 						? allMatchingOrders
-						: pendingOrders;
+						: pendingOrders.length > 0
+							? pendingOrders
+							: allMatchingOrders;
 
-				const orderIdList = matchingOrders.map((o) => o.id);
-				const formattedOrderIds =
-					orderIdList.length > 0
-						? orderIdList.map((id) => `ORD-${id}`).join(", ")
-						: `ORD-${s.order_id || 460 + idx}`;
-				const totalAmount = matchingOrders.reduce(
-					(sum, o) => sum + Number(o.total_amount || 0),
-					0,
-				);
-				const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+					const matchingOrder = matchingOrders[0];
+					const orderIdList = matchingOrders.map((o) => o.id);
+					const formattedOrderIds =
+						orderIdList.length > 0
+							? orderIdList.map((id) => `ORD-${id}`).join(", ")
+							: `ORD-${s.order_id || 460 + idx}`;
+					const stopSubtotal = matchingOrders.reduce(
+						(sum, o) =>
+							sum +
+							(o.orderItems || []).reduce(
+								(s, it) =>
+									s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							),
+						0,
+					);
+					const stopDiscount = matchingOrders.reduce(
+						(sum, o) => sum + Number(o.discount_amount || 0),
+						0,
+					);
+					const stopDiscountReason =
+						Array.from(
+							new Set(
+								matchingOrders
+									.map((o) => o.discount_reason)
+									.filter(Boolean),
+							),
+						).join("; ") || null;
 
-				return {
-					id: s.id,
-					trip_id: s.trip_id,
-					status:
-						s.status === "delivered" || s.status === "completed"
+					const totalAmount = matchingOrders.reduce((sum, o) => {
+						const itSubtotal = (o.orderItems || []).reduce(
+							(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+							0,
+						);
+						const disc = Number(o.discount_amount || 0);
+						const rawTotal = Number(o.total_amount || 0);
+						if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+							return sum + Math.max(0, itSubtotal - disc);
+						}
+						return sum + rawTotal;
+					}, 0);
+					const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+
+					// Check proof of delivery for edited doorstep items
+					let podDeliveredItems: any[] = [];
+					let podCollectedTotal = 0;
+					try {
+						const [pod] = await db
+							.select()
+							.from(proofOfDeliveries)
+							.where(
+								or(
+									eq(proofOfDeliveries.trip_stop_id, s.id),
+									matchingOrder
+										? eq(proofOfDeliveries.order_id, matchingOrder.id)
+										: undefined,
+								),
+							)
+							.orderBy(desc(proofOfDeliveries.created_at))
+							.limit(1);
+
+						if (pod?.notes) {
+							const p = JSON.parse(pod.notes);
+							if (
+								Array.isArray(p.deliveredItems) &&
+								p.deliveredItems.length > 0
+							) {
+								podDeliveredItems = p.deliveredItems.map((it: any) => ({
+									id: it.id || Math.random(),
+									product_id: it.productId || it.id,
+									name: it.name || it.productName || "Delivered Item",
+									qty: Number(it.qty ?? it.quantity ?? 1),
+									price: Number(it.price || it.unitPrice || 0),
+								}));
+							}
+							if (p.totalCollected || p.cashAmount || p.onlineAmount) {
+								podCollectedTotal = Number(
+									p.totalCollected ||
+										Number(p.cashAmount || 0) + Number(p.onlineAmount || 0),
+								);
+							}
+						}
+					} catch (e) {}
+
+					const resolvedOrderItems =
+						podDeliveredItems.length > 0
+							? podDeliveredItems
+							: allItems.map((item) => ({
+									id: item.id,
+									order_id: item.order_id,
+									product_id: item.product_id,
+									name: item.product?.name ?? "Product",
+									qty: item.quantity,
+									price: Number(item.price || 0),
+								}));
+
+					const resolvedCustName =
+						s.customer?.name || matchingOrder?.customer?.name || "Customer";
+					const resolvedCustPhone =
+						s.customer?.phone ||
+						matchingOrder?.customer?.phone ||
+						(matchingOrder as any)?.customer_phone ||
+						"N/A";
+					const resolvedCustAddress =
+						s.customer?.address ||
+						matchingOrder?.customer?.address ||
+						(matchingOrder as any)?.shipping_address ||
+						"N/A";
+
+					const calculatedItemsSum = resolvedOrderItems.reduce(
+						(sum: number, it: any) =>
+							sum + Math.round(Number(it.price || 0) * Number(it.qty || 0)),
+						0,
+					);
+					const finalAmountToCollect =
+						podCollectedTotal ||
+						(totalAmount > 0
+							? totalAmount
+							: Math.max(0, calculatedItemsSum - stopDiscount));
+
+					const stopRawDate = s.created_at || matchingOrder?.created_at;
+					const stopDate = stopRawDate
+						? new Date(stopRawDate).toISOString().split("T")[0]
+						: new Date().toISOString().split("T")[0];
+
+					return {
+						id: s.id,
+						trip_id: s.trip_id,
+						status: isStopHandoverDone
 							? "completed"
 							: idx === 0
 								? "next"
 								: "pending",
-					rawStatus: s.status,
-					time:
-						s.status === "delivered" || s.status === "completed"
-							? "Completed"
-							: "--:--",
-					customerName: s.customer?.name ?? "Customer",
-					address: s.customer?.address ?? "N/A",
-					phone: s.customer?.phone ?? "N/A",
-					orderId: formattedOrderIds,
-					orderIds: orderIdList,
-					ordersCount: matchingOrders.length,
-					orders: matchingOrders.map((o) => ({
-						id: o.id,
-						total_amount: Number(o.total_amount || 0),
-						status: o.status,
-						itemsCount: o.orderItems?.length || 0,
-					})),
-					amountToCollect: totalAmount,
-					packages: allItems.length > 0 ? allItems.length : 1,
-					orderItems:
-						allItems.map((item) => ({
-							id: item.id,
-							product_id: item.product_id,
-							name: item.product?.name ?? "Product",
-							qty: item.quantity,
-							price: Number(item.price || 0),
-						})) || [],
-				};
+						rawStatus: isStopHandoverDone ? "delivered" : s.status,
+						time: isStopHandoverDone ? "Completed" : "--:--",
+						date: stopDate,
+						created_at: stopRawDate ? String(stopRawDate) : undefined,
+						customerName: resolvedCustName,
+						address: resolvedCustAddress,
+						phone: resolvedCustPhone,
+						orderId: formattedOrderIds,
+						orderIds: orderIdList,
+						ordersCount: matchingOrders.length,
+						orders: matchingOrders.map((o) => {
+							const itSubtotal = (o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							);
+							const disc = Number(o.discount_amount || 0);
+							let net = Number(o.total_amount || 0);
+							if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+								net = Math.max(0, itSubtotal - disc);
+							}
+							return {
+								id: o.id,
+								total_amount: net,
+								subtotal: itSubtotal,
+								discount_amount: disc,
+								discount_reason: o.discount_reason || null,
+								status: o.status,
+								itemsCount: o.orderItems?.length || 0,
+							};
+						}),
+						subtotal: stopSubtotal,
+						discountAmount: stopDiscount,
+						discountReason: stopDiscountReason,
+						amountToCollect: finalAmountToCollect,
+						packages:
+							resolvedOrderItems.length > 0 ? resolvedOrderItems.length : 1,
+						orderItems: resolvedOrderItems,
+					};
+				}),
+			);
+
+			// Filter out empty waypoints with no orders from sales person (₹0 bills)
+			return routeStops.filter((s: any) => {
+				if (s.ordersCount > 0 || (s.orders && s.orders.length > 0)) return true;
+				if ((Number(s.amountToCollect) || 0) > 0 || (s.orderItems && s.orderItems.length > 0)) return true;
+				if (s.status === "completed" || s.rawStatus === "delivered") return true;
+				return false;
 			});
 		} catch (error) {
 			console.warn("[getRouteStops] Safe fallback on error:", error);
@@ -1141,125 +1676,300 @@ export const driverRouter = router({
 		}
 	}),
 
-	getDeliveryHistory: protectedProcedure.query(async ({ ctx }) => {
-		const { ids: driverIds } = await getDriverIdentifiers(ctx);
-		const trips =
-			driverIds.length > 0
-				? await db.query.deliveryTrips.findMany({
-						where: inArray(deliveryTrips.driver_id, driverIds),
-						orderBy: [desc(deliveryTrips.created_at)],
-						limit: 25,
-						with: {
-							route: true,
-							vehicle: true,
-							driver: true,
-							stops: {
-								with: {
-									customer: true,
-								},
-							},
-							collections: true,
-						},
-					})
-				: [];
+	getDeliveryHistory: protectedProcedure
+		.input(
+			z
+				.object({
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const { ids: driverIds } = await getDriverIdentifiers(ctx);
+			const conditions: any[] = [];
 
-		if (!trips || trips.length === 0) return [];
-
-		return trips.map((t: any) => {
-			let totalCash = 0;
-			let totalOnline = 0;
-
-			if (t.collections && t.collections.length > 0) {
-				for (const c of t.collections) {
-					const amt = Number(c.amount || 0);
-					if (c.payment_method?.toLowerCase().includes("cash")) {
-						totalCash += amt;
-					} else {
-						totalOnline += amt;
-					}
-				}
+			if (driverIds.length > 0) {
+				conditions.push(inArray(deliveryTrips.driver_id, driverIds));
 			}
 
-			const stops = (t.stops || []).map((s: any, idx: number) => {
-				const stopCollections = (t.collections || []).filter(
-					(c: any) => c.trip_id === t.id,
+			if (input?.startDate) {
+				conditions.push(
+					gte(
+						deliveryTrips.created_at,
+						new Date(`${input.startDate}T00:00:00`),
+					),
 				);
-				let cash = 0;
-				let online = 0;
-				for (const col of stopCollections) {
-					const amt = Number(col.amount || 0);
-					if (col.payment_method?.toLowerCase().includes("cash")) {
-						cash += amt;
-					} else {
-						online += amt;
-					}
-				}
+			}
+			if (input?.endDate) {
+				conditions.push(
+					lte(deliveryTrips.created_at, new Date(`${input.endDate}T23:59:59`)),
+				);
+			}
 
-				const isDelivered =
-					s.status === "delivered" || s.status === "completed";
-
-				return {
-					stopId: s.id,
-					sequence: idx + 1,
-					customerName: s.customer?.name || "Customer",
-					customerPhone: s.customer?.phone || "N/A",
-					address: s.customer?.address || "N/A",
-					orderRef: `ORD-${s.customer_id ? s.customer_id * 10 + 440 : s.id}`,
-					status: isDelivered
-						? "Delivered"
-						: s.status === "failed"
-							? "Failed"
-							: "Pending",
-					cashCollected: cash,
-					onlineCollected: online,
-					deliveredAt: isDelivered
-						? s.resolved_at
-							? new Date(s.resolved_at).toLocaleTimeString()
-							: new Date().toLocaleTimeString()
-						: "—",
-				};
+			const trips = await db.query.deliveryTrips.findMany({
+				where: conditions.length > 0 ? and(...conditions) : undefined,
+				orderBy: [desc(deliveryTrips.created_at)],
+				limit: 100,
+				with: {
+					route: true,
+					vehicle: true,
+					driver: true,
+					stops: {
+						with: {
+							customer: true,
+						},
+					},
+					collections: true,
+				},
 			});
 
-			const completedStops = stops.filter(
-				(s: any) => s.status === "Delivered",
-			).length;
-			const totalStops = stops.length;
-			const isTripCompleted =
-				(completedStops === totalStops && totalStops > 0) ||
-				t.status === "completed";
+			if (!trips || trips.length === 0) return [];
 
-			totalCash = stops.reduce(
-				(acc: number, st: any) => acc + st.cashCollected,
-				0,
-			);
-			totalOnline = stops.reduce(
-				(acc: number, st: any) => acc + st.onlineCollected,
-				0,
-			);
+			return Promise.all(
+				trips.map(async (t: any) => {
+					const rawStops = await Promise.all(
+						(t.stops || []).map(async (s: any, idx: number) => {
+							const isDelivered =
+								s.status === "delivered" || s.status === "completed";
 
-			return {
-				id: t.id,
-				tripNumber: `TRIP-#${t.id}`,
-				routeName: t.route?.name || `Route #${t.id}`,
-				vehiclePlate: t.vehicle?.registration_number || "MP04AB1234",
-				driverName: t.driver?.name || ctx.user?.name || "Rajesh Kumar",
-				status: isTripCompleted
-					? "Completed"
-					: t.status === "cancelled"
-						? "Cancelled"
-						: "In Progress",
-				date: t.created_at
-					? new Date(t.created_at).toLocaleDateString()
-					: new Date().toLocaleDateString(),
-				totalStops,
-				completedStops,
-				totalCashCollected: totalCash,
-				totalOnlineCollected: totalOnline,
-				totalCollected: totalCash + totalOnline,
-				stops,
-			};
-		});
-	}),
+							let cash = 0;
+							let online = 0;
+
+							// If stop is delivered, match specific collections for this stop
+							if (isDelivered) {
+								const stopCollections = (t.collections || []).filter(
+									(c: any) =>
+										c.reference_number === `STOP-${s.id}` ||
+										c.reference_number === String(s.id) ||
+										(s.order_id &&
+											(c.reference_number === `ORD-${s.order_id}` ||
+												c.reference_number === String(s.order_id))),
+								);
+								for (const col of stopCollections) {
+									const amt = Number(col.amount || 0);
+									if (col.payment_method?.toLowerCase().includes("cash")) {
+										cash += amt;
+									} else {
+										online += amt;
+									}
+								}
+							}
+
+							// Fetch POD notes / items if available
+							let deliveredItems: any[] = [];
+							let initialItems: any[] = [];
+							let stopDiscountAmount = 0;
+							let stopDiscountReason = "";
+							let stopExtraCharges = 0;
+							let stopExtraChargesReason = "";
+							try {
+								const [pod] = await db
+									.select()
+									.from(proofOfDeliveries)
+									.where(
+										or(
+											eq(proofOfDeliveries.trip_stop_id, s.id),
+											s.customer_id
+												? eq(proofOfDeliveries.order_id, s.customer_id)
+												: undefined,
+										),
+									)
+									.orderBy(desc(proofOfDeliveries.created_at))
+									.limit(1);
+
+								if (pod?.notes) {
+									const p = JSON.parse(pod.notes);
+									if (
+										Array.isArray(p.deliveredItems) &&
+										p.deliveredItems.length > 0
+									) {
+										deliveredItems = p.deliveredItems.map((it: any) => ({
+											id: it.id || Math.random(),
+											name: it.name || it.productName || "Delivered Item",
+											qty: Number(it.qty ?? it.quantity ?? 1),
+											price: Number(it.price || it.unitPrice || 0),
+										}));
+									}
+									if (p.discountAmount || p.discountReason) {
+										stopDiscountAmount = Number(p.discountAmount || 0);
+										stopDiscountReason = String(p.discountReason || "");
+									}
+									if (p.extraCharges || p.extraChargesReason) {
+										stopExtraCharges = Number(p.extraCharges || 0);
+										stopExtraChargesReason = String(p.extraChargesReason || "");
+									}
+									if (isDelivered && (p.cashAmount !== undefined || p.onlineAmount !== undefined)) {
+										const pCash = Number(p.cashAmount || 0);
+										const pOnline = Number(p.onlineAmount || 0);
+										if (pCash > 0 || pOnline > 0 || (cash === 0 && online === 0)) {
+											cash = pCash;
+											online = pOnline;
+										}
+									}
+								}
+							} catch (e) {}
+
+							// Fallback: If no POD deliveredItems, query real orderItems for this customer/stop
+							if (deliveredItems.length === 0 && s.customer_id) {
+								try {
+									const custOrder = await db.query.orders.findFirst({
+										where: eq(orders.customer_id, s.customer_id),
+										orderBy: [desc(orders.created_at)],
+										with: {
+											orderItems: {
+												with: {
+													product: true,
+												},
+											},
+										},
+									});
+
+									if (
+										custOrder?.orderItems &&
+										custOrder.orderItems.length > 0
+									) {
+										deliveredItems = custOrder.orderItems.map((oi: any) => ({
+											id: oi.id,
+											name: oi.product?.name || `Product #${oi.product_id}`,
+											qty: Number(oi.quantity || 1),
+											price: Number(oi.price || 0),
+										}));
+									}
+									if (custOrder?.discount_amount && stopDiscountAmount === 0) {
+										stopDiscountAmount = Number(custOrder.discount_amount || 0);
+										stopDiscountReason = String(custOrder.discount_reason || "");
+									}
+									if (custOrder?.other_charges && stopExtraCharges === 0) {
+										stopExtraCharges = Number(custOrder.other_charges || 0);
+										stopExtraChargesReason = String(custOrder.other_charges_reason || "");
+									}
+									if (isDelivered && cash === 0 && online === 0 && custOrder?.driver_collected_amount) {
+										cash = Number(custOrder.driver_collected_amount || 0);
+									}
+								} catch (e) {}
+							}
+
+							// Crucial: Only actually delivered stops have collections!
+							if (!isDelivered) {
+								cash = 0;
+								online = 0;
+							}
+
+							// Calculate initial dispatched items
+							initialItems = deliveredItems.map((it: any) => ({ ...it }));
+
+							return {
+								stopId: s.id,
+								sequence: idx + 1,
+								customerName: s.customer?.name || "Customer",
+								customerPhone: s.customer?.phone || "N/A",
+								address: s.customer?.address || "N/A",
+								orderRef: `ORD-${s.customer_id ? s.customer_id * 10 + 440 : s.id}`,
+								status: isDelivered
+									? "Delivered"
+									: s.status === "failed"
+										? "Failed"
+										: "Pending",
+								cashCollected: cash,
+								onlineCollected: online,
+								discountAmount: stopDiscountAmount,
+								discountReason: stopDiscountReason,
+								extraCharges: stopExtraCharges,
+								extraChargesReason: stopExtraChargesReason,
+								deliveredAt: isDelivered
+									? s.resolved_at
+										? new Date(s.resolved_at).toLocaleTimeString()
+										: new Date().toLocaleTimeString()
+									: "—",
+								items: deliveredItems,
+								deliveredItems,
+								initialItems,
+							};
+						}),
+					);
+
+					// Exclude ghost / 0-amount bills that have no collections, no order items, and are not delivered
+					const stops = rawStops
+						.filter((st: any) => {
+							const hasMoney =
+								(Number(st.cashCollected) || 0) > 0 ||
+								(Number(st.onlineCollected) || 0) > 0;
+							const hasItems =
+								Array.isArray(st.deliveredItems) &&
+								st.deliveredItems.some(
+									(it: any) =>
+										Number(it.price || 0) > 0 && Number(it.qty || 0) > 0,
+								);
+							const isDelivered = st.status === "Delivered";
+							return hasMoney || hasItems || isDelivered;
+						})
+						.map((st: any, idx: number) => ({
+							...st,
+							sequence: idx + 1,
+						}));
+
+					const deliveredStops = stops.filter(
+						(s: any) => s.status === "Delivered",
+					);
+					const completedStops = deliveredStops.length;
+					const totalStops = stops.length;
+					const isTripCompleted =
+						(completedStops === totalStops && totalStops > 0) ||
+						t.status === "completed";
+
+					const sumStopCash = deliveredStops.reduce(
+						(acc: number, st: any) => acc + (Number(st.cashCollected) || 0),
+						0,
+					);
+					const sumStopOnline = deliveredStops.reduce(
+						(acc: number, st: any) => acc + (Number(st.onlineCollected) || 0),
+						0,
+					);
+
+					let totalCash = sumStopCash;
+					let totalOnline = sumStopOnline;
+
+					// If stops had 0 recorded collections but trip-level collections exist,
+					// use trip collections summed ONCE without duplicating per stop
+					if (totalCash === 0 && totalOnline === 0 && t.collections && t.collections.length > 0) {
+						totalCash = (t.collections || [])
+							.filter((c: any) => c.payment_method?.toLowerCase().includes("cash"))
+							.reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
+						totalOnline = (t.collections || [])
+							.filter((c: any) => !c.payment_method?.toLowerCase().includes("cash"))
+							.reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
+
+						if (deliveredStops.length === 1) {
+							deliveredStops[0].cashCollected = totalCash;
+							deliveredStops[0].onlineCollected = totalOnline;
+						}
+					}
+
+					return {
+						id: t.id,
+						tripNumber: `TRIP-#${t.id}`,
+						routeName: t.route?.name || `Route #${t.id}`,
+						vehiclePlate: t.vehicle?.registration_number || "MP04AB1234",
+						driverName: t.driver?.name || ctx.user?.name || "Rajesh Kumar",
+						status: isTripCompleted
+							? "Completed"
+							: t.status === "cancelled"
+								? "Cancelled"
+								: "In Progress",
+						date: t.created_at
+							? new Date(t.created_at).toLocaleDateString()
+							: new Date().toLocaleDateString(),
+						totalStops,
+						completedStops,
+						totalCashCollected: totalCash,
+						totalOnlineCollected: totalOnline,
+						totalCollected: totalCash + totalOnline,
+						stops,
+					};
+				}),
+			);
+		}),
 
 	updateStopStatus: protectedProcedure
 		.input(
@@ -1307,19 +2017,39 @@ export const driverRouter = router({
 			z.object({
 				trip_id: z.number(),
 				stop_id: z.number(),
-				cashAmount: z.number(),
-				onlineAmount: z.number(),
+				cashAmount: z.coerce.number(),
+				onlineAmount: z.coerce.number(),
 				deliveryNotes: z.string().optional(),
 				damagedOrReturnedItems: z
 					.array(
 						z.object({
-							id: z.number(),
+							id: z.coerce.number().optional(),
+							product_id: z.coerce.number().optional(),
 							name: z.string(),
-							qty: z.number(),
-							reason: z.string(),
+							qty: z.coerce.number(),
+							price: z.coerce.number().optional(),
+							reason: z.string().optional(),
 						}),
 					)
 					.optional(),
+				deliveredItems: z
+					.array(
+						z.object({
+							id: z.coerce.number().optional(),
+							product_id: z.coerce.number().optional(),
+							name: z.string(),
+							qty: z.coerce.number(),
+							price: z.coerce.number(),
+							isVanStock: z.boolean().optional(),
+						}),
+					)
+					.optional(),
+				order_id: z.coerce.number().optional(),
+				selected_order_ids: z.array(z.coerce.number()).optional(),
+				discountAmount: z.coerce.number().optional(),
+				discountReason: z.string().optional(),
+				extraCharges: z.coerce.number().optional(),
+				extraChargesReason: z.string().optional(),
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
@@ -1369,48 +2099,347 @@ export const driverRouter = router({
 					}
 				}
 
-				// Update trip stop status
-				if (input.stop_id) {
-					await db
-						.update(tripStops)
-						.set({
-							status: "delivered",
-							comments:
-								input.deliveryNotes || "Delivered live at customer stop",
-							resolved_at: new Date(),
-						})
-						.where(eq(tripStops.id, input.stop_id));
-				}
+				const hasReturns =
+					input.damagedOrReturnedItems &&
+					input.damagedOrReturnedItems.length > 0;
+				const formattedComments = hasReturns
+					? `${input.deliveryNotes ? input.deliveryNotes + " | " : ""}Returned/Rejected: ${input.damagedOrReturnedItems?.map((i) => `${i.name} (x${i.qty} - ${i.reason || "Returned"})`).join(", ")}`
+					: input.deliveryNotes || "Delivered live at customer stop";
 
-				// Find associated order and sync its status & finance status
-				let orderIdToUpdate: number | null = null;
+				// Resolve customer id if available from stop
+				let stopCustomerId: number | null = null;
 				if (input.stop_id) {
 					const stopObj = await db.query.tripStops?.findFirst({
 						where: eq(tripStops.id, input.stop_id),
 					});
 					if (stopObj?.customer_id) {
-						const matchingOrder = await db.query.orders?.findFirst({
-							where: eq(orders.customer_id, stopObj.customer_id),
-							orderBy: [desc(orders.created_at)],
-						});
-						if (matchingOrder) {
-							orderIdToUpdate = matchingOrder.id;
-						}
+						stopCustomerId = stopObj.customer_id;
 					}
 				}
 
-				if (orderIdToUpdate) {
-					const totalCollected = input.cashAmount + input.onlineAmount;
+				// Find associated order(s) and sync status & finance status
+				const targetOrderIds: number[] = [];
+				if (input.selected_order_ids && input.selected_order_ids.length > 0) {
+					for (const id of input.selected_order_ids) {
+						const num = Number(id);
+						if (!Number.isNaN(num) && num > 0) {
+							targetOrderIds.push(num);
+						}
+					}
+				} else if (input.order_id) {
+					targetOrderIds.push(Number(input.order_id));
+				} else if (stopCustomerId) {
+					const custOrders = await db.query.orders?.findMany({
+						where: and(
+							eq(orders.customer_id, stopCustomerId),
+							inArray(orders.status, [
+								"processing",
+								"confirmed",
+								"pending",
+								"ready_for_dispatch",
+								"ready_for_loading",
+								"packed",
+								"loaded",
+								"out_for_delivery",
+								"in_transit",
+								"dispatched",
+								"assigned",
+							]),
+							sql`${orders.finance_status} IS DISTINCT FROM 'driver_collected'`,
+							sql`${orders.driver_collected_at} IS NULL`,
+						),
+					});
+					if (custOrders && custOrders.length > 0) {
+						for (const co of custOrders) {
+							targetOrderIds.push(co.id);
+						}
+					}
+				}
+				if (targetOrderIds.length === 0 && input.stop_id) {
+					const directOrder = await db.query.orders?.findFirst({
+						where: eq(orders.id, input.stop_id),
+					});
+					if (directOrder) {
+						targetOrderIds.push(directOrder.id);
+					}
+				}
+
+				const uniqueOrderIds = Array.from(new Set(targetOrderIds));
+				let orderIdToUpdate: number | null = uniqueOrderIds[0] || input.order_id || null;
+
+				if (uniqueOrderIds.length > 0) {
+					const orderUpdatePayload: any = {
+						status: "completed",
+						finance_status: "driver_collected",
+						driver_collected_amount: String(input.cashAmount),
+						driver_collected_at: new Date(),
+						delivery_time: new Date(),
+						total_amount: String(input.cashAmount + input.onlineAmount),
+					};
+					if (input.discountAmount !== undefined && input.discountAmount > 0) {
+						orderUpdatePayload.discount_amount = String(input.discountAmount);
+						if (input.discountReason) {
+							orderUpdatePayload.discount_reason = input.discountReason;
+						}
+					}
+					if (input.extraCharges !== undefined && input.extraCharges > 0) {
+						orderUpdatePayload.other_charges = String(input.extraCharges);
+						if (input.extraChargesReason) {
+							orderUpdatePayload.other_charges_reason = input.extraChargesReason;
+						}
+					}
 					await db
 						.update(orders)
+						.set(orderUpdatePayload)
+						.where(inArray(orders.id, uniqueOrderIds));
+				}
+
+				// Check if other orders for this customer / stop remain unsubmitted
+				let remainingPendingOrders: any[] = [];
+				if (stopCustomerId) {
+					remainingPendingOrders =
+						(await db.query.orders?.findMany({
+							where: and(
+								eq(orders.customer_id, stopCustomerId),
+								uniqueOrderIds.length > 0
+									? notInArray(orders.id, uniqueOrderIds)
+									: undefined,
+								inArray(orders.status, [
+									"processing",
+									"confirmed",
+									"pending",
+									"ready_for_dispatch",
+									"ready_for_loading",
+									"packed",
+									"loaded",
+									"out_for_delivery",
+									"in_transit",
+									"dispatched",
+									"assigned",
+								]),
+								sql`${orders.finance_status} IS DISTINCT FROM 'driver_collected'`,
+								sql`${orders.driver_collected_at} IS NULL`,
+							),
+						})) || [];
+				}
+
+				// Update trip stop status: if partial orders remain unsubmitted, keep stop in_progress/pending
+				if (input.stop_id) {
+					const isFullyCompleted = remainingPendingOrders.length === 0;
+					const stopStatus = isFullyCompleted ? "delivered" : "in_progress";
+					const partialNote =
+						remainingPendingOrders.length > 0
+							? ` | Partial Handover: Delivered [${uniqueOrderIds.map((id) => `ORD-${id}`).join(", ")}] | Remaining Pending: [${remainingPendingOrders.map((o) => `ORD-${o.id}`).join(", ")}]`
+							: "";
+
+					await db
+						.update(tripStops)
 						.set({
-							status: "completed",
-							finance_status: "driver_collected",
-							...(totalCollected > 0
-								? { total_amount: String(totalCollected) }
-								: {}),
-						} as any)
-						.where(eq(orders.id, orderIdToUpdate));
+							status: stopStatus,
+							comments: `${formattedComments}${partialNote}`,
+							resolved_at: isFullyCompleted ? new Date() : null,
+						})
+						.where(
+							or(
+								eq(tripStops.id, input.stop_id),
+								targetTripId && stopCustomerId
+									? and(
+											eq(tripStops.trip_id, targetTripId),
+											eq(tripStops.customer_id, stopCustomerId),
+										)
+									: undefined,
+							),
+						);
+				}
+
+				// Record proof of delivery with full returns, deliveredItems, and notes payload
+				if (input.stop_id) {
+					try {
+						const podNotes = JSON.stringify({
+							deliveryNotes: input.deliveryNotes || "",
+							returns: input.damagedOrReturnedItems || [],
+							deliveredItems: input.deliveredItems || [],
+							cashAmount: input.cashAmount,
+							onlineAmount: input.onlineAmount,
+							totalCollected: input.cashAmount + input.onlineAmount,
+							discountAmount: Number(input.discountAmount || 0),
+							discountReason: input.discountReason || "",
+							extraCharges: Number(input.extraCharges || 0),
+							extraChargesReason: input.extraChargesReason || "",
+							timestamp: new Date().toISOString(),
+						});
+						await db.insert(proofOfDeliveries).values({
+							trip_stop_id: input.stop_id,
+							order_id: orderIdToUpdate,
+							delivery_status: hasReturns ? "partial_return" : "delivered",
+							notes: podNotes,
+							delivered_at: new Date(),
+						});
+					} catch (podErr) {
+						console.warn(
+							"[submitDeliveryHandover] proofOfDeliveries record fallback:",
+							podErr,
+						);
+					}
+				}
+
+				// Record return in salesReturns and salesReturnItems if customer returned any items
+				// Also sync returned items to vehicle's active van stock plan if one exists
+				if (hasReturns && targetTripId) {
+					try {
+						const tripRecord = await db.query.deliveryTrips?.findFirst({
+							where: eq(deliveryTrips.id, targetTripId),
+						});
+						if (tripRecord?.vehicle_id) {
+							const activeVanPlan = await db.query.vanStockPlans?.findFirst({
+								where: and(
+									eq(vanStockPlans.vehicle_id, tripRecord.vehicle_id),
+									inArray(vanStockPlans.status, [
+										"DISPATCHED",
+										"ACTIVE",
+										"LOADED",
+										"RETURN_IN_PROGRESS",
+										"PENDING_RETURN_VERIFICATION",
+									]),
+								),
+								orderBy: [desc(vanStockPlans.created_at)],
+							});
+							if (activeVanPlan) {
+								for (const item of input.damagedOrReturnedItems || []) {
+									if (item.product_id && (Number(item.qty) || 0) > 0) {
+										const isDamaged = String(item.reason || "")
+											.toLowerCase()
+											.includes("damage");
+										const existingPlanItem =
+											await db.query.vanStockPlanItems?.findFirst({
+												where: and(
+													eq(vanStockPlanItems.plan_id, activeVanPlan.id),
+													eq(
+														vanStockPlanItems.product_id,
+														Number(item.product_id),
+													),
+												),
+											});
+										if (existingPlanItem) {
+											const currRet = Number(
+												existingPlanItem.returned_quantity || 0,
+											);
+											const currDam = Number(
+												existingPlanItem.damaged_return_quantity || 0,
+											);
+											await db
+												.update(vanStockPlanItems)
+												.set({
+													returned_quantity: (
+														currRet + Number(item.qty)
+													).toString(),
+													damaged_return_quantity: isDamaged
+														? (currDam + Number(item.qty)).toString()
+														: existingPlanItem.damaged_return_quantity,
+													return_reason_code:
+														item.reason || existingPlanItem.return_reason_code,
+													return_notes:
+														item.reason || existingPlanItem.return_notes,
+												})
+												.where(eq(vanStockPlanItems.id, existingPlanItem.id));
+										} else {
+											await db.insert(vanStockPlanItems).values({
+												plan_id: activeVanPlan.id,
+												product_id: Number(item.product_id),
+												is_additional: true,
+												planned_quantity: "0",
+												picked_quantity: "0",
+												packed_quantity: "0",
+												loaded_quantity: "0",
+												returned_quantity: String(item.qty),
+												damaged_return_quantity: isDamaged
+													? String(item.qty)
+													: "0",
+												return_reason_code: item.reason || "Delivery Return",
+												return_notes:
+													item.reason || "Customer Refused / Delivery Return",
+											});
+										}
+									}
+								}
+							}
+						}
+					} catch (vanErr) {
+						console.warn(
+							"[submitDeliveryHandover] van stock return sync fallback:",
+							vanErr,
+						);
+					}
+				}
+
+				if (hasReturns && orderIdToUpdate) {
+					try {
+						const orderRecord = await db.query.orders?.findFirst({
+							where: eq(orders.id, orderIdToUpdate),
+						});
+						if (orderRecord) {
+							const returnTotal = (input.damagedOrReturnedItems || []).reduce(
+								(acc, it) =>
+									acc + Number(it.price || 0) * (Number(it.qty) || 0),
+								0,
+							);
+							const [insertedReturn] = await db
+								.insert(salesReturns)
+								.values({
+									order_id: orderIdToUpdate,
+									customer_id: orderRecord.customer_id,
+									branch_id: orderRecord.branch_id || ctx.user?.branchId || 1,
+									total_amount: returnTotal.toFixed(2),
+									status: "pending",
+									user_uid: ctx.user?.id || "driver-1",
+								})
+								.returning();
+
+							if (insertedReturn) {
+								for (const item of input.damagedOrReturnedItems || []) {
+									if (item.product_id && (Number(item.qty) || 0) > 0) {
+										await db.insert(salesReturnItems).values({
+											return_id: insertedReturn.id,
+											product_id: Number(item.product_id),
+											quantity: Number(item.qty),
+											price: String(item.price || 0),
+											refund_amount: (
+												Number(item.price || 0) * Number(item.qty)
+											).toFixed(2),
+											condition: String(item.reason || "")
+												.toLowerCase()
+												.includes("damage")
+												? "damaged"
+												: "good",
+											reason:
+												item.reason || "Customer Refused / Delivery Return",
+										});
+									}
+								}
+							}
+						}
+					} catch (srErr) {
+						console.warn(
+							"[submitDeliveryHandover] salesReturns insertion fallback:",
+							srErr,
+						);
+					}
+				}
+
+				// Clean up any prior collection records for this specific stop on this trip before inserting fresh ones
+				if (input.stop_id && targetTripId) {
+					try {
+						await db
+							.delete(tripCollections)
+							.where(
+								and(
+									eq(tripCollections.trip_id, targetTripId),
+									eq(tripCollections.reference_number, `STOP-${input.stop_id}`),
+								),
+							);
+					} catch (delErr) {
+						console.warn("[submitDeliveryHandover] tripCollections cleanup fallback:", delErr);
+					}
 				}
 
 				// Create cash collection if cash > 0
@@ -1482,6 +2511,28 @@ export const driverRouter = router({
 						);
 					}
 				}
+				// Check if all stops for targetTripId are now completed/delivered and mark trip status as completed
+				if (targetTripId) {
+					const allStopsForTrip = await db.query.tripStops.findMany({
+						where: eq(tripStops.trip_id, targetTripId),
+					});
+					if (allStopsForTrip.length > 0) {
+						const allFinished = allStopsForTrip.every((s: any) =>
+							["delivered", "completed", "skipped", "failed"].includes(
+								s.status,
+							),
+						);
+						if (allFinished) {
+							await db
+								.update(deliveryTrips)
+								.set({
+									status: "completed",
+									end_time: new Date(),
+								})
+								.where(eq(deliveryTrips.id, targetTripId));
+						}
+					}
+				}
 			} catch (e) {
 				console.warn(
 					"[submitDeliveryHandover] Error executing database insert/update:",
@@ -1490,6 +2541,331 @@ export const driverRouter = router({
 			}
 
 			return { success: true };
+		}),
+
+	getVanStock: protectedProcedure
+		.input(
+			z
+				.object({
+					trip_id: z.number().optional(),
+					vehicle_id: z.number().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ input, ctx }) => {
+			try {
+				const { ids: driverIds } = await getDriverIdentifiers(ctx);
+				let targetTripId = input?.trip_id ?? null;
+				let vehiclePlate = "Assigned Vehicle";
+
+				// If trip_id not provided, find active trip for this driver
+				if (!targetTripId) {
+					const tripConditions = [];
+					if (driverIds.length > 0) {
+						tripConditions.push(inArray(deliveryTrips.driver_id, driverIds));
+					}
+					if (ctx.user?.email) {
+						tripConditions.push(
+							sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${ctx.user.email}))`,
+						);
+					}
+
+					const activeTrip = await db.query.deliveryTrips.findFirst({
+						where:
+							tripConditions.length > 0
+								? and(
+										or(...tripConditions),
+										inArray(deliveryTrips.status, [
+											"active",
+											"out_for_delivery",
+											"dispatched",
+											"in_progress",
+											"loaded",
+											"pending",
+										]),
+									)
+								: inArray(deliveryTrips.status, [
+										"active",
+										"out_for_delivery",
+										"dispatched",
+										"in_progress",
+										"loaded",
+										"pending",
+									]),
+						orderBy: [desc(deliveryTrips.created_at)],
+						with: {
+							vehicle: true,
+						},
+					});
+
+					if (activeTrip) {
+						targetTripId = activeTrip.id;
+						if (activeTrip.vehicle?.registration_number) {
+							vehiclePlate = activeTrip.vehicle.registration_number;
+						}
+					}
+				}
+
+				// If we have a targetTripId, find vehicle and plate if not already found
+				let targetVehicleId = input?.vehicle_id ?? null;
+				if (
+					targetTripId &&
+					(!targetVehicleId || vehiclePlate === "Assigned Vehicle")
+				) {
+					const tripObj = await db.query.deliveryTrips.findFirst({
+						where: eq(deliveryTrips.id, targetTripId),
+						with: { vehicle: true },
+					});
+					if (tripObj?.vehicle_id) targetVehicleId = tripObj.vehicle_id;
+					if (tripObj?.vehicle?.registration_number)
+						vehiclePlate = tripObj.vehicle.registration_number;
+				}
+
+				// 1. Gather all returned items from stops of this trip
+				const returnedItems: Array<{
+					id: number | string;
+					product_id?: number | null;
+					name: string;
+					qty: number;
+					price: number;
+					reason: string;
+					source: "customer_return";
+					customerName?: string;
+					stopId?: number;
+					stopSequence?: number;
+					returnedAt?: string;
+				}> = [];
+
+				// Also track if any van stock was re-delivered at subsequent stops
+				const redeliveredVanStockMap = new Map<string, number>();
+
+				if (targetTripId) {
+					// Find all stops for this trip
+					const stops = await db.query.tripStops.findMany({
+						where: eq(tripStops.trip_id, targetTripId),
+						orderBy: [asc(tripStops.sequence)],
+						with: {
+							customer: true,
+							proofOfDeliveries: true,
+						},
+					});
+
+					for (const stop of stops) {
+						for (const pod of stop.proofOfDeliveries || []) {
+							if (!pod.notes) continue;
+							try {
+								const parsed = JSON.parse(pod.notes);
+								// Collect returns
+								if (Array.isArray(parsed.returns)) {
+									for (let idx = 0; idx < parsed.returns.length; idx++) {
+										const ret = parsed.returns[idx];
+										const retQty = Number(ret.qty) || 0;
+										if (retQty > 0) {
+											returnedItems.push({
+												id: ret.id ? Number(ret.id) : `ret-${pod.id}-${idx}`,
+												product_id: ret.product_id
+													? Number(ret.product_id)
+													: undefined,
+												name: String(ret.name || "Returned Item"),
+												qty: retQty,
+												price: Number(ret.price) || 0,
+												reason: String(
+													ret.reason || "Customer Refused / Damaged",
+												),
+												source: "customer_return",
+												customerName:
+													stop.customer?.name ||
+													`Customer (Stop #${stop.sequence})`,
+												stopId: stop.id,
+												stopSequence: stop.sequence,
+												returnedAt: pod.delivered_at
+													? new Date(pod.delivered_at).toISOString()
+													: undefined,
+											});
+										}
+									}
+								}
+
+								// Collect van stock re-delivered
+								if (Array.isArray(parsed.deliveredItems)) {
+									for (const d of parsed.deliveredItems) {
+										if (d.isVanStock || String(d.name).includes("Van Stock")) {
+											const cleanName = String(d.name)
+												.replace(/\s*\(Van Stock\)\s*/gi, "")
+												.trim()
+												.toLowerCase();
+											const dQty = Number(d.qty) || 0;
+											redeliveredVanStockMap.set(
+												cleanName,
+												(redeliveredVanStockMap.get(cleanName) || 0) + dQty,
+											);
+										}
+									}
+								}
+							} catch {
+								// Ignore invalid JSON notes
+							}
+						}
+					}
+				}
+
+				// 2. Gather any buffer stock allocated by putter for this vehicle
+				const bufferStockItems: Array<{
+					id: number | string;
+					product_id?: number | null;
+					name: string;
+					qty: number;
+					price: number;
+					reason: string;
+					source: "allocated_buffer";
+					customerName?: string;
+					stopId?: number;
+					stopSequence?: number;
+					returnedAt?: string;
+				}> = [];
+
+				if (targetVehicleId) {
+					try {
+						// Query stock adjustments for this vehicle
+						const adjustments = await db.query.stockAdjustments.findMany({
+							where: and(
+								eq(stockAdjustments.adjustment_type, "van_stock_transfer"),
+								ilike(stockAdjustments.reason, `%Vehicle #${targetVehicleId}%`),
+							),
+							with: {
+								product: true,
+							},
+							orderBy: [desc(stockAdjustments.created_at)],
+						});
+
+						for (const adj of adjustments) {
+							const loadedQty = Math.abs(Number(adj.quantity) || 0);
+							if (loadedQty > 0 && adj.product) {
+								bufferStockItems.push({
+									id: `buf-${adj.id}`,
+									product_id: adj.product_id,
+									name: adj.product.name,
+									qty: loadedQty,
+									price: Number(adj.product.base_selling_price) || 0,
+									reason: "Warehouse Buffer Stock",
+									source: "allocated_buffer",
+								});
+							}
+						}
+					} catch (e) {
+						console.warn("[getVanStock] buffer stock query fallback:", e);
+					}
+				}
+
+				// 2b. Query modern approved & dispatched van stock plans for this vehicle / driver
+				try {
+					const planConditions: any[] = [
+						sql`${vanStockPlans.status} IN ('DISPATCHED', 'RETURN_IN_PROGRESS', 'PENDING_RETURN_VERIFICATION', 'COMPLETED')`,
+					];
+
+					const targetClauses: any[] = [];
+					if (targetVehicleId) {
+						targetClauses.push(eq(vanStockPlans.vehicle_id, targetVehicleId));
+					}
+					if (driverIds.length > 0) {
+						targetClauses.push(inArray(vanStockPlans.driver_id, driverIds));
+					}
+					if (ctx.user?.email) {
+						targetClauses.push(
+							sql`LOWER(TRIM(${vanStockPlans.driver_id})) = LOWER(TRIM(${ctx.user.email}))`,
+						);
+					}
+					if (targetClauses.length > 0) {
+						planConditions.push(or(...targetClauses));
+					}
+
+					const activePlans = await db.query.vanStockPlans.findMany({
+						where: and(...planConditions),
+						orderBy: [desc(vanStockPlans.dispatched_at), desc(vanStockPlans.id)],
+						limit: 5,
+						with: {
+							items: {
+								with: {
+									product: true,
+								},
+							},
+						},
+					});
+
+					for (const plan of activePlans) {
+						for (const item of plan.items) {
+							const loadedNum = Number(item.loaded_quantity || 0);
+							const verifiedNum = Number(item.verified_quantity || 0);
+							const packedNum = Number(item.packed_quantity || 0);
+							const pickedNum = Number(item.picked_quantity || 0);
+							const plannedNum = Number(item.planned_quantity || 0);
+							const loadedQty = loadedNum > 0 ? loadedNum : (verifiedNum > 0 ? verifiedNum : (packedNum > 0 ? packedNum : (pickedNum > 0 ? pickedNum : plannedNum)));
+							if (loadedQty > 0 && item.product) {
+								bufferStockItems.push({
+									id: `vsp-${item.id}`,
+									product_id: item.product_id,
+									name: item.product.name,
+									qty: loadedQty,
+									price: Number(item.product.price || item.product.base_selling_price || 0),
+									reason: `Van Stock (${plan.plan_code})`,
+									source: "allocated_buffer",
+								});
+							}
+						}
+					}
+				} catch (e) {
+					console.warn("[getVanStock] vanStockPlans query error:", e);
+				}
+
+				// 3. Deduct any re-delivered items from returned / buffer items
+				const consolidatedItems = [...returnedItems, ...bufferStockItems]
+					.map((item) => {
+						const key = item.name.toLowerCase().trim();
+						const alreadyDelivered = redeliveredVanStockMap.get(key) || 0;
+						const remainingQty = Math.max(0, item.qty - alreadyDelivered);
+						if (alreadyDelivered > 0) {
+							redeliveredVanStockMap.set(
+								key,
+								Math.max(0, alreadyDelivered - item.qty),
+							);
+						}
+						return {
+							...item,
+							availableQty: remainingQty,
+						};
+					})
+					.filter((item) => item.availableQty > 0);
+
+				const totalQty = consolidatedItems.reduce(
+					(acc, i) => acc + i.availableQty,
+					0,
+				);
+				const totalValue = consolidatedItems.reduce(
+					(acc, i) => acc + i.price * i.availableQty,
+					0,
+				);
+
+				return {
+					tripId: targetTripId,
+					vehiclePlate,
+					items: consolidatedItems,
+					returnedCount: returnedItems.length,
+					bufferCount: bufferStockItems.length,
+					totalQty,
+					totalValue,
+				};
+			} catch (e) {
+				console.warn("[getVanStock] unexpected error:", e);
+				return {
+					tripId: null,
+					vehiclePlate: "Assigned Vehicle",
+					items: [],
+					returnedCount: 0,
+					bufferCount: 0,
+					totalQty: 0,
+					totalValue: 0,
+				};
+			}
 		}),
 
 	getSupportTickets: protectedProcedure.query(async ({ ctx }) => {
@@ -1534,4 +2910,329 @@ export const driverRouter = router({
 			},
 		];
 	}),
+
+	lookupOrderByScan: protectedProcedure
+		.input(
+			z.object({
+				code: z.string().min(1, "Please provide a barcode or QR code"),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const rawCode = input.code.trim();
+			if (!rawCode) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Invalid or empty scan code",
+				});
+			}
+
+			// Try to parse JSON if QR contains a JSON payload
+			let pkgCode = rawCode;
+			let orderNum: number | null = null;
+
+			if (rawCode.startsWith("{") && rawCode.endsWith("}")) {
+				try {
+					const parsed = JSON.parse(rawCode);
+					if (parsed.pkg || parsed.packageNumber || parsed.package_number) {
+						pkgCode = String(
+							parsed.pkg || parsed.packageNumber || parsed.package_number,
+						).trim();
+					}
+					if (
+						parsed.orderId ||
+						parsed.order_id ||
+						parsed.orderRef ||
+						parsed.order
+					) {
+						const o = String(
+							parsed.orderId ||
+								parsed.order_id ||
+								parsed.orderRef ||
+								parsed.order,
+						);
+						const num = Number.parseInt(o.replace(/\D/g, ""), 10);
+						if (!Number.isNaN(num)) orderNum = num;
+					}
+				} catch {
+					// Not valid JSON, continue with string search
+				}
+			}
+
+			// 1. Try finding package by package_number (case-insensitive)
+			let foundPackage: any = null;
+			let targetOrderId: number | null = orderNum;
+
+			const packageResults = await db
+				.select()
+				.from(packages)
+				.where(
+					sql`LOWER(TRIM(${packages.package_number})) = LOWER(TRIM(${pkgCode}))`,
+				)
+				.limit(1);
+
+			if (packageResults.length > 0) {
+				foundPackage = packageResults[0];
+				targetOrderId = foundPackage.order_id;
+			}
+
+			// 2. If not found by package_number, check if code is an order ref: "ORD-123", "ORD123", or pure digits "123"
+			if (!targetOrderId) {
+				const cleaned = rawCode.toUpperCase();
+				if (
+					cleaned.startsWith("ORD-") ||
+					cleaned.startsWith("ORD") ||
+					/^\d+$/.test(cleaned)
+				) {
+					const num = Number.parseInt(cleaned.replace(/\D/g, ""), 10);
+					if (!Number.isNaN(num)) {
+						targetOrderId = num;
+					}
+				}
+			}
+
+			// 3. Fallback partial package number search
+			if (!targetOrderId) {
+				const partialPackages = await db
+					.select()
+					.from(packages)
+					.where(ilike(packages.package_number, `%${rawCode}%`))
+					.limit(1);
+
+				if (partialPackages.length > 0) {
+					foundPackage = partialPackages[0];
+					targetOrderId = foundPackage.order_id;
+				}
+			}
+
+			if (!targetOrderId) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: `No package or order found matching code: "${rawCode}"`,
+				});
+			}
+
+			// Query full order
+			const [orderRow] = await db
+				.select()
+				.from(orders)
+				.where(eq(orders.id, targetOrderId))
+				.limit(1);
+
+			if (!orderRow) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: `Order #${targetOrderId} not found for scanned code.`,
+				});
+			}
+
+			// If package wasn't found before, look up package by order_id
+			if (!foundPackage) {
+				const [pkg] = await db
+					.select()
+					.from(packages)
+					.where(eq(packages.order_id, targetOrderId))
+					.orderBy(desc(packages.created_at))
+					.limit(1);
+				if (pkg) foundPackage = pkg;
+			}
+
+			// Fetch Customer
+			let customerRow: any = null;
+			if (orderRow.customer_id) {
+				const [c] = await db
+					.select()
+					.from(customers)
+					.where(eq(customers.id, orderRow.customer_id))
+					.limit(1);
+				customerRow = c;
+			}
+
+			// Fetch Items with Products
+			const itemsData = await db
+				.select({
+					id: orderItems.id,
+					productId: orderItems.product_id,
+					quantity: orderItems.quantity,
+					price: orderItems.price,
+					cgstRate: orderItems.cgst_rate,
+					sgstRate: orderItems.sgst_rate,
+					cgstAmount: orderItems.cgst_amount,
+					sgstAmount: orderItems.sgst_amount,
+					name: products.name,
+					sku: products.sku,
+					unit: products.unit,
+				})
+				.from(orderItems)
+				.leftJoin(products, eq(orderItems.product_id, products.id))
+				.where(eq(orderItems.order_id, targetOrderId));
+
+			// Fetch Packed by staff name
+			let packedByName = "Warehouse Staff";
+			if (foundPackage?.packed_by) {
+				const [st] = await db
+					.select({ name: staff.name })
+					.from(staff)
+					.where(eq(staff.id, foundPackage.packed_by))
+					.limit(1);
+				if (st?.name) packedByName = st.name;
+			}
+
+			// Fetch Assigned Driver staff name
+			let driverName = "Unassigned";
+			if (orderRow.driver_id) {
+				const [dSt] = await db
+					.select({ name: staff.name })
+					.from(staff)
+					.where(eq(staff.id, orderRow.driver_id))
+					.limit(1);
+				if (dSt?.name) driverName = dSt.name;
+			}
+
+			// Fetch Payment Method name
+			let paymentMethodName = "Cash on Delivery";
+			if (orderRow.payment_method_id) {
+				const [pm] = await db
+					.select({ name: paymentMethods.name })
+					.from(paymentMethods)
+					.where(eq(paymentMethods.id, orderRow.payment_method_id))
+					.limit(1);
+				if (pm?.name) paymentMethodName = pm.name;
+			}
+
+			// Fetch Route & Trip Info if available
+			let routeName: string | null = null;
+			let vehiclePlate: string | null = null;
+			let tripId: number | null = null;
+			let tripStatus: string | null = null;
+			if (orderRow.customer_id) {
+				try {
+					const [stop] = await db
+						.select({
+							tripId: deliveryTrips.id,
+							tripStatus: deliveryTrips.status,
+							routeName: deliveryRoutes.name,
+							vehiclePlate: vehicles.registration_number,
+						})
+						.from(tripStops)
+						.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+						.leftJoin(
+							deliveryRoutes,
+							eq(deliveryRoutes.id, deliveryTrips.route_id),
+						)
+						.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
+						.where(
+							and(
+								eq(tripStops.customer_id, orderRow.customer_id),
+								inArray(deliveryTrips.status, ["pending", "active"]),
+							),
+						)
+						.limit(1);
+
+					if (stop) {
+						tripId = stop.tripId;
+						tripStatus = stop.tripStatus;
+						routeName = stop.routeName;
+						vehiclePlate = stop.vehiclePlate;
+					}
+				} catch {
+					// Fallback ignored
+				}
+			}
+
+			// Calculate item subtotals and overall bill
+			const items = itemsData.map((it) => {
+				const qty = Number(it.quantity || 0);
+				const rate = Number(it.price || 0);
+				const itemTotal = Math.round(qty * rate * 100) / 100;
+				return {
+					id: it.id,
+					productId: it.productId,
+					name: it.name || `Product #${it.productId}`,
+					sku: it.sku || "N/A",
+					unit: it.unit || "PCS",
+					quantity: qty,
+					price: rate,
+					itemTotal,
+					cgstRate: Number(it.cgstRate || 0),
+					sgstRate: Number(it.sgstRate || 0),
+				};
+			});
+
+			const subtotal = items.reduce((acc, it) => acc + it.itemTotal, 0);
+			const discountAmount = Number(orderRow.discount_amount || 0);
+			const otherCharges = Number(orderRow.other_charges || 0);
+			const cgstAmount = Number(orderRow.cgst_amount || 0);
+			const sgstAmount = Number(orderRow.sgst_amount || 0);
+			const igstAmount = Number(orderRow.igst_amount || 0);
+			const totalTax = cgstAmount + sgstAmount + igstAmount;
+			let finalOrderTotal = Number(orderRow.total_amount || 0);
+			if (discountAmount > 0 && Math.abs(finalOrderTotal - subtotal) < 0.01) {
+				finalOrderTotal = Math.max(0, subtotal - discountAmount + otherCharges + totalTax);
+			} else if (!finalOrderTotal) {
+				finalOrderTotal = Math.max(0, subtotal - discountAmount + otherCharges + totalTax);
+			}
+			const totalAmount = Math.round(finalOrderTotal * 100) / 100;
+
+			// Determine payment status
+			const isDeliveredOrComplete =
+				orderRow.status === "completed" ||
+				orderRow.status === "delivered" ||
+				orderRow.finance_status === "verified" ||
+				(Number(orderRow.driver_collected_amount || 0) >= totalAmount &&
+					totalAmount > 0);
+
+			return {
+				success: true,
+				order: {
+					id: orderRow.id,
+					orderNumber: `ORD-${orderRow.id}`,
+					status: orderRow.status || "pending",
+					createdAt: orderRow.created_at,
+					subtotal: Math.round(subtotal * 100) / 100,
+					discountAmount,
+					discountReason: orderRow.discount_reason,
+					otherCharges,
+					otherChargesReason: orderRow.other_charges_reason,
+					cgstAmount,
+					sgstAmount,
+					igstAmount,
+					totalTax,
+					totalAmount: Math.round(totalAmount * 100) / 100,
+					paymentMethod: paymentMethodName,
+					paymentStatus: isDeliveredOrComplete
+						? "Paid"
+						: "Pending Collection / COD",
+					isPaid: isDeliveredOrComplete,
+					driverCollectedAmount: Number(orderRow.driver_collected_amount || 0),
+					financeStatus: orderRow.finance_status || "pending_collection",
+				},
+				customer: {
+					id: customerRow?.id ?? null,
+					name: customerRow?.name || "Customer",
+					phone: customerRow?.phone || "N/A",
+					email: customerRow?.email || "",
+					address: customerRow?.address || "Delivery Address on File",
+					city: customerRow?.city || "",
+					pincode: customerRow?.pincode || "",
+				},
+				package: {
+					packageNumber:
+						foundPackage?.package_number || `PKG-ORD-${orderRow.id}`,
+					status: foundPackage?.status || "packed",
+					weight: foundPackage?.weight ? Number(foundPackage.weight) : null,
+					dimensions: foundPackage?.dimensions || "Standard Box",
+					packedBy: packedByName,
+					packedAt: foundPackage?.packed_at || null,
+					notes: foundPackage?.notes || null,
+				},
+				items,
+				deliveryInfo: {
+					driverName,
+					routeName: routeName || "Direct Dispatch",
+					vehiclePlate: vehiclePlate || "N/A",
+					tripId,
+					tripStatus,
+				},
+			};
+		}),
 });

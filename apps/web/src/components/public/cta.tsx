@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { motion } from "framer-motion";
@@ -76,7 +76,7 @@ export function CTA() {
 								className="border-white text-white hover:bg-white/10"
 								asChild
 							>
-								<Link href="/product">See How It Works</Link>
+								<Link href="/features">See How It Works</Link>
 							</Button>
 						</motion.div>
 					</div>
