@@ -410,26 +410,16 @@ export function AppLayout({
 			<NetworkStatusBanner />
 
 			{/* Top Navbar */}
-			<header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-border/40 border-b bg-background/80 px-2 backdrop-blur-xl transition-all sm:px-4">
-				<Button
-					variant="ghost"
-					size="icon"
-					className="h-9 w-9 shrink-0 rounded-full transition-colors hover:bg-accent/50 md:hidden"
-					onClick={() => setMobileMenuOpen(true)}
-				>
-					<MenuIcon className="h-5 w-5" />
-					<span className="sr-only">Open Menu</span>
-				</Button>
-
+			<header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-border/40 border-b bg-background/80 px-2.5 backdrop-blur-xl transition-all sm:px-4">
 				<Link
 					href="/"
-					className="group flex shrink-0 items-center gap-2 md:w-[240px] transition-opacity hover:opacity-90 cursor-pointer"
+					className="group flex shrink-0 items-center gap-2.5 md:w-[240px] transition-opacity hover:opacity-90 cursor-pointer"
 					title="Go to Home"
 				>
 					<img
 						src="/logo.jpg"
 						alt="Evaluna"
-						className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
+						className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 					/>
 					<span className="hidden bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-base text-transparent tracking-tight sm:text-lg md:inline-block">
 						Evaluna
@@ -676,7 +666,7 @@ export function AppLayout({
 									<img
 										src="/logo.jpg"
 										alt="Evaluna"
-										className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
+										className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 									/>
 									<span className="font-bold text-lg tracking-tight">
 										Evaluna
