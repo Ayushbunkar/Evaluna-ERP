@@ -14,6 +14,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { PublicHeader } from "@/components/layout/PublicHeader";
+import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 
 // ── Photographic Curation (High-Resolution Architectural & Spatial Series) ──
 const IMAGERY = {
@@ -279,7 +280,7 @@ export default function HomePage() {
 									build clarity into complex human operations.
 								</p>
 
-								<div className="flex flex-col items-stretch gap-3 pt-2 sm:flex-row sm:items-center sm:gap-4">
+								<div className="flex flex-col items-stretch gap-3 pt-2 sm:flex-row sm:items-center sm:gap-4 sm:flex-wrap">
 									<Link
 										href="/#philosophy"
 										className="group inline-flex items-center justify-center space-x-3 bg-[#111111] px-6 py-3.5 font-mono text-[#F7F7F4] text-xs uppercase tracking-wider transition-transform duration-200 hover:scale-[1.02] dark:bg-[#F5F5F2] dark:text-[#080808]"
@@ -293,6 +294,7 @@ export default function HomePage() {
 									>
 										<span>Direct Inquiry</span>
 									</Link>
+									<PwaInstallButton />
 								</div>
 							</motion.div>
 						</div>
