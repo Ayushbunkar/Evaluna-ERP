@@ -111,7 +111,7 @@ export default function PackerHistoryPage() {
 	);
 
 	return (
-		<PageTransition className="container mx-auto space-y-6">
+		<PageTransition className="flex w-full min-w-0 max-w-full flex-col gap-4 sm:gap-6">
 			{/* Printable Thermal Label */}
 			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:flex print:items-start print:justify-center print:bg-white print:p-2">
 				<style
@@ -158,27 +158,27 @@ export default function PackerHistoryPage() {
 			</div>
 
 			{/* Page Header */}
-			<div className="flex flex-col gap-1">
-				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
-					<ArchiveIcon className="h-7 w-7 text-blue-600" />
-					{t("packingHistoryTitle")}
+			<div className="flex w-full min-w-0 max-w-full flex-col gap-1">
+				<h1 className="flex items-center gap-2 truncate font-bold text-xl sm:text-2xl text-foreground tracking-tight">
+					<ArchiveIcon className="h-6 w-6 sm:h-7 sm:w-7 shrink-0 text-blue-600" />
+					<span className="truncate">{t("packingHistoryTitle")}</span>
 				</h1>
-				<p className="text-muted-foreground text-sm">
+				<p className="line-clamp-2 sm:line-clamp-none text-muted-foreground text-xs sm:text-sm">
 					{t("packingHistorySub")}
 				</p>
 			</div>
 
 			{/* Stats */}
-			<StaggerList className="grid gap-4 sm:grid-cols-3" slow>
-				<StaggerItem>
-					<Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
+			<StaggerList className="grid w-full min-w-0 max-w-full grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4" slow>
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
 										{t("totalPacked")}
 									</p>
-									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+									<p className="font-bold text-2xl sm:text-3xl text-blue-800 dark:text-blue-300">
 										{historyList?.length ?? 0}
 									</p>
 								</div>
@@ -188,15 +188,15 @@ export default function PackerHistoryPage() {
 					</Card>
 				</StaggerItem>
 
-				<StaggerItem>
-					<Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-green-700 text-sm dark:text-green-400">
 										{t("readyForDispatch")}
 									</p>
-									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
+									<p className="font-bold text-2xl sm:text-3xl text-green-800 dark:text-green-300">
 										{historyList?.length ?? 0}
 									</p>
 								</div>
@@ -206,15 +206,15 @@ export default function PackerHistoryPage() {
 					</Card>
 				</StaggerItem>
 
-				<StaggerItem>
-					<Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
 										{t("qualityAccuracy")}
 									</p>
-									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+									<p className="font-bold text-2xl sm:text-3xl text-blue-800 dark:text-blue-300">
 										100%
 									</p>
 								</div>
@@ -226,7 +226,7 @@ export default function PackerHistoryPage() {
 			</StaggerList>
 
 			{/* Main Table Card */}
-			<Card className="border-border/50 shadow-sm">
+			<Card className="w-full min-w-0 max-w-full overflow-hidden border-border/50 shadow-sm">
 				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
@@ -278,86 +278,155 @@ export default function PackerHistoryPage() {
 							<p>{t("noPackageHistoryFound")}</p>
 						</div>
 					) : (
-						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>{t("packageNumber")}</TableHead>
-										<TableHead>{t("orderRef")}</TableHead>
-										<TableHead>{t("customerName")}</TableHead>
-										<TableHead>{t("assignedRoute")}</TableHead>
-										<TableHead>{t("packedBy")}</TableHead>
-										<TableHead>{tCommon("status")}</TableHead>
-										<TableHead>{t("packedDate")}</TableHead>
-										<TableHead className="text-right">
-											{tCommon("actions")}
-										</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{filteredList.map((pkg, idx) => (
-										<TableRow key={idx} className="hover:bg-muted/50">
-											<TableCell className="font-bold font-mono text-blue-600 text-xs dark:text-blue-400">
-												{pkg.packageNumber}
-											</TableCell>
-											<TableCell className="font-semibold text-sm">
-												{pkg.orderId}
-											</TableCell>
-											<TableCell className="font-medium text-foreground text-xs">
-												<div className="flex items-center gap-1.5">
-													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
-													<span className="font-semibold text-foreground">
-														{pkg.customerName || "Customer Order"}
-													</span>
-												</div>
-											</TableCell>
-											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
-												<div className="flex items-center gap-1">
-													<MapPinIcon className="h-3 w-3" />{" "}
-													{pkg.routeName || "Delivery Route"}
-												</div>
-											</TableCell>
-											<TableCell className="text-muted-foreground text-xs">
-												{pkg.packedBy}
-											</TableCell>
-											<TableCell>
-												<span
-													className={`rounded-full px-2 py-0.5 font-medium text-xs capitalize ${
-														pkg.status === "Packed" || pkg.status === "packed"
-															? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-															: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-													}`}
-												>
-													{pkg.status === "Packed" || pkg.status === "packed"
-														? "Packed"
-														: pkg.status}
+						<>
+							{/* Mobile View: High-contrast touch cards */}
+							<div className="space-y-3 sm:hidden">
+								{filteredList.map((pkg, idx) => (
+									<div
+										key={idx}
+										className="rounded-xl border border-border/70 bg-card p-3.5 shadow-xs"
+									>
+										<div className="mb-2 flex items-center justify-between gap-2">
+											<div className="min-w-0 flex items-center gap-1.5">
+												<span className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
+													{pkg.packageNumber}
 												</span>
-											</TableCell>
-											<TableCell className="text-muted-foreground text-xs font-mono">
-												{(pkg as any).packedDateDisplay || pkg.packedAt}
-											</TableCell>
-											<TableCell className="text-right">
-												<Button
-													variant="outline"
-													size="sm"
-													className="h-8 gap-1"
-													onClick={() =>
-														handlePrintLabel(
-															pkg.packageNumber,
-															pkg.orderId,
-															pkg.customerName,
-														)
-													}
-												>
-													<PrinterIcon className="h-3.5 w-3.5" />{" "}
-													{t("reprintLabel")}
-												</Button>
-											</TableCell>
+												<span className="truncate font-semibold text-xs text-foreground">
+													Ref: {pkg.orderId}
+												</span>
+											</div>
+											<span
+												className={`shrink-0 rounded-full px-2 py-0.5 font-medium text-[10px] capitalize ${
+													pkg.status === "Packed" || pkg.status === "packed"
+														? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+														: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+												}`}
+											>
+												{pkg.status === "Packed" || pkg.status === "packed"
+													? "Packed"
+													: pkg.status}
+											</span>
+										</div>
+
+										<div className="mb-1.5 flex items-center gap-1.5 text-xs text-foreground">
+											<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+											<span className="truncate font-medium">
+												{pkg.customerName || "Customer Order"}
+											</span>
+										</div>
+
+										{pkg.routeName && (
+											<div className="mb-2 inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+												<MapPinIcon className="h-3 w-3" /> {pkg.routeName}
+											</div>
+										)}
+
+										<div className="mb-3 flex items-center justify-between text-[11px] text-muted-foreground">
+											<span>By: {pkg.packedBy || "Packer"}</span>
+											<span className="font-mono">{(pkg as any).packedDateDisplay || pkg.packedAt}</span>
+										</div>
+
+										<Button
+											variant="outline"
+											size="sm"
+											className="h-9 w-full gap-1.5 text-xs font-semibold shadow-xs active:scale-[0.99]"
+											onClick={() =>
+												handlePrintLabel(
+													pkg.packageNumber,
+													pkg.orderId,
+													pkg.customerName,
+												)
+											}
+										>
+											<PrinterIcon className="h-3.5 w-3.5 text-gray-600" />{" "}
+											{t("reprintLabel")}
+										</Button>
+									</div>
+								))}
+							</div>
+
+							{/* Desktop/Tablet View: Full Table */}
+							<div className="hidden sm:block w-full min-w-0 max-w-full overflow-x-auto">
+								<Table className="min-w-[650px]">
+									<TableHeader>
+										<TableRow>
+											<TableHead>{t("packageNumber")}</TableHead>
+											<TableHead>{t("orderRef")}</TableHead>
+											<TableHead>{t("customerName")}</TableHead>
+											<TableHead>{t("assignedRoute")}</TableHead>
+											<TableHead>{t("packedBy")}</TableHead>
+											<TableHead>{tCommon("status")}</TableHead>
+											<TableHead>{t("packedDate")}</TableHead>
+											<TableHead className="text-right">
+												{tCommon("actions")}
+											</TableHead>
 										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
+									</TableHeader>
+									<TableBody>
+										{filteredList.map((pkg, idx) => (
+											<TableRow key={idx} className="hover:bg-muted/50">
+												<TableCell className="font-bold font-mono text-blue-600 text-xs dark:text-blue-400">
+													{pkg.packageNumber}
+												</TableCell>
+												<TableCell className="font-semibold text-sm">
+													{pkg.orderId}
+												</TableCell>
+												<TableCell className="font-medium text-foreground text-xs">
+													<div className="flex items-center gap-1.5">
+														<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+														<span className="font-semibold text-foreground">
+															{pkg.customerName || "Customer Order"}
+														</span>
+													</div>
+												</TableCell>
+												<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
+													<div className="flex items-center gap-1">
+														<MapPinIcon className="h-3 w-3" />{" "}
+														{pkg.routeName || "Delivery Route"}
+													</div>
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{pkg.packedBy}
+												</TableCell>
+												<TableCell>
+													<span
+														className={`rounded-full px-2 py-0.5 font-medium text-xs capitalize ${
+															pkg.status === "Packed" || pkg.status === "packed"
+																? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+																: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+														}`}
+													>
+														{pkg.status === "Packed" || pkg.status === "packed"
+															? "Packed"
+															: pkg.status}
+													</span>
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs font-mono">
+													{(pkg as any).packedDateDisplay || pkg.packedAt}
+												</TableCell>
+												<TableCell className="text-right">
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-8 gap-1"
+														onClick={() =>
+															handlePrintLabel(
+																pkg.packageNumber,
+																pkg.orderId,
+																pkg.customerName,
+															)
+														}
+													>
+														<PrinterIcon className="h-3.5 w-3.5" />{" "}
+														{t("reprintLabel")}
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						</>
 					)}
 				</CardContent>
 			</Card>

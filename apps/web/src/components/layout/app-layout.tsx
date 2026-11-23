@@ -392,10 +392,28 @@ export function AppLayout({
 
 	const formatShortNavLabel = (key: string) => {
 		const full = formatNavLabel(key);
-		if (key === "vanStockPicking" || full === "Van Stock Picking")
+		if (
+			key === "vanStockPicking" ||
+			key === "vanStockPacking" ||
+			full === "Van Stock Picking" ||
+			full === "Van Stock Packing" ||
+			full.includes("Van Stock")
+		)
 			return "Van Stock";
-		if (key === "pendingPicks" || full === "Pending Picks") return "Pending";
+		if (
+			key === "pendingPicks" ||
+			key === "pendingPacking" ||
+			full === "Pending Picks" ||
+			full === "Pending Packing"
+		)
+			return "Pending";
 		if (key === "activePicks" || full === "Active Picks") return "Active";
+		if (
+			key === "packingHistory" ||
+			full === "Packing History" ||
+			full.includes("History")
+		)
+			return "History";
 		if (key === "completedPicks" || full === "Completed Picks")
 			return "Completed";
 		if (key === "productsPlaceOrder" || full === "Products / Place Order")

@@ -94,7 +94,7 @@ export default function PackerPendingPage() {
 		vehiclePlate?: string;
 		weight?: string;
 		dimensions?: string;
-		items?: Array<{ productName: string; sku: string; quantity: number }>;
+		items?: Array<any>;
 	} | null>(null);
 	const printSvgRef = useRef<SVGSVGElement | null>(null);
 	const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
@@ -191,7 +191,7 @@ export default function PackerPendingPage() {
 	);
 
 	return (
-		<PageTransition className="container mx-auto space-y-6">
+		<PageTransition className="flex w-full min-w-0 max-w-full flex-col gap-4 sm:gap-6">
 			{/* Printable Thermal-Optimized Unified Packing Slip & Shipping Label */}
 			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:flex print:items-start print:justify-center print:bg-white print:p-2">
 				<style
@@ -321,19 +321,19 @@ export default function PackerPendingPage() {
 			</div>
 
 			{/* Page Header */}
-			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-				<div className="flex flex-col gap-1">
-					<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
-						<PackageIcon className="h-7 w-7 text-blue-600" />
-						{t("pendingPackingQueue")}
+			<div className="flex w-full min-w-0 max-w-full flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
+				<div className="flex min-w-0 flex-col gap-1">
+					<h1 className="flex items-center gap-2 truncate font-bold text-xl sm:text-2xl text-foreground tracking-tight">
+						<PackageIcon className="h-6 w-6 sm:h-7 sm:w-7 shrink-0 text-blue-600" />
+						<span className="truncate">{t("pendingPackingQueue")}</span>
 					</h1>
-					<p className="text-muted-foreground text-sm">
+					<p className="line-clamp-2 sm:line-clamp-none text-muted-foreground text-xs sm:text-sm">
 						{t("pendingPackingQueueSub")}
 					</p>
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="flex shrink-0 items-center gap-2">
 					<Button
-						className="bg-emerald-600 font-semibold text-white shadow-sm hover:bg-emerald-700"
+						className="h-9 bg-emerald-600 font-semibold text-xs sm:text-sm text-white shadow-sm hover:bg-emerald-700"
 						disabled={
 							claimPackMutation.isPending ||
 							!pendingList ||
@@ -341,7 +341,7 @@ export default function PackerPendingPage() {
 						}
 						onClick={() => claimPackMutation.mutate()}
 					>
-						<ZapIcon className="mr-2 h-4 w-4" />
+						<ZapIcon className="mr-1.5 sm:mr-2 h-4 w-4" />
 						{claimPackMutation.isPending
 							? "Claiming Parcel..."
 							: "Claim & Pack Next Parcel"}
@@ -350,16 +350,16 @@ export default function PackerPendingPage() {
 			</div>
 
 			{/* Stats */}
-			<StaggerList className="grid gap-4 sm:grid-cols-3" slow>
-				<StaggerItem>
-					<Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
+			<StaggerList className="grid w-full min-w-0 max-w-full grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4" slow>
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
 										{t("totalPendingToPack")}
 									</p>
-									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+									<p className="font-bold text-2xl sm:text-3xl text-blue-800 dark:text-blue-300">
 										{pendingList?.length ?? 0}
 									</p>
 								</div>
@@ -369,15 +369,15 @@ export default function PackerPendingPage() {
 					</Card>
 				</StaggerItem>
 
-				<StaggerItem>
-					<Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
 										{t("pickingVerified")}
 									</p>
-									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+									<p className="font-bold text-2xl sm:text-3xl text-blue-800 dark:text-blue-300">
 										{pendingList?.length ?? 0}
 									</p>
 								</div>
@@ -387,15 +387,15 @@ export default function PackerPendingPage() {
 					</Card>
 				</StaggerItem>
 
-				<StaggerItem>
-					<Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-green-700 text-sm dark:text-green-400">
 										{t("stationStatus")}
 									</p>
-									<p className="font-bold text-green-800 text-xl dark:text-green-300">
+									<p className="font-bold text-green-800 text-xl sm:text-2xl dark:text-green-300">
 										{tCommon("active")}
 									</p>
 								</div>
@@ -407,7 +407,7 @@ export default function PackerPendingPage() {
 			</StaggerList>
 
 			{/* Main Table Card */}
-			<Card className="border-border/50 shadow-sm">
+			<Card className="w-full min-w-0 max-w-full overflow-hidden border-border/50 shadow-sm">
 				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">

@@ -220,22 +220,22 @@ export default function PackerVanStockPage() {
 	);
 
 	return (
-		<div className="space-y-6 pb-12">
+		<div className="flex w-full min-w-0 max-w-full flex-col gap-4 pb-12 sm:gap-6">
 			{/* Page Header */}
-			<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
-				<div>
-					<h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-						<Box className="h-6 w-6 text-primary" />
-						Van Stock Packing
+			<div className="flex w-full min-w-0 max-w-full flex-col justify-between gap-3 border-b pb-4 sm:flex-row sm:items-center sm:gap-4">
+				<div className="min-w-0">
+					<h1 className="flex items-center gap-2 truncate font-bold text-xl sm:text-2xl text-foreground tracking-tight">
+						<Box className="h-6 w-6 shrink-0 text-primary" />
+						<span className="truncate">Van Stock Packing</span>
 					</h1>
-					<p className="text-sm text-muted-foreground mt-1">
+					<p className="line-clamp-2 sm:line-clamp-none text-xs sm:text-sm text-muted-foreground mt-1">
 						Inspect and pack picked goods for vehicle loading. Record physical packaging verification, damaged stock, and discrepancy causes.
 					</p>
 				</div>
 			</div>
 
 			{/* Active Packing Queue */}
-			<Card className="border-purple-200 dark:border-purple-900/50">
+			<Card className="w-full min-w-0 max-w-full overflow-hidden border-purple-200 dark:border-purple-900/50">
 				<CardHeader className="bg-purple-50/50 dark:bg-purple-950/20">
 					<CardTitle className="text-base flex items-center gap-2 text-purple-900 dark:text-purple-200">
 						<Clock className="h-4 w-4 text-purple-600" />
@@ -255,7 +255,7 @@ export default function PackerVanStockPage() {
 							<div className="text-xs">No pending van stock manifests ready for packing.</div>
 						</div>
 					) : (
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+						<div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
 							{packingQueue.map((plan: any) => (
 								<Card
 									key={plan.id}
@@ -368,8 +368,8 @@ export default function PackerVanStockPage() {
 						</div>
 					)}
 
-					<div className="flex-1 overflow-y-auto my-3 border rounded-lg">
-						<table className="w-full text-left text-xs">
+					<div className="flex-1 overflow-x-auto overflow-y-auto my-3 border rounded-lg">
+						<table className="w-full min-w-[580px] text-left text-xs">
 							<thead className="bg-muted text-muted-foreground font-semibold border-b sticky top-0">
 								<tr>
 									<th className="p-2.5">Product</th>
