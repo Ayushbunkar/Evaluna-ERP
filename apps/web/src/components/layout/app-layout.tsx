@@ -271,14 +271,11 @@ export function AppLayout({
 
 	const formatNavLabel = (key: string) => {
 		try {
-			const translator = t as unknown as Record<
-				string,
-				(k: string) => unknown
-			> & { has?: (k: string) => boolean };
+			const translator = t as any;
 			if (
 				translator &&
-				typeof translator.has === "function" &&
-				translator.has(key)
+				typeof translator === "function" &&
+				(typeof translator.has !== "function" || translator.has(key))
 			) {
 				const translated = translator(key);
 				if (
@@ -296,6 +293,35 @@ export function AppLayout({
 			.replace(/([A-Z])/g, " $1")
 			.replace(/^./, (str) => str.toUpperCase())
 			.trim();
+	};
+
+	const formatShortNavLabel = (key: string) => {
+		const full = formatNavLabel(key);
+		if (key === "vanStockPicking" || full === "Van Stock Picking")
+			return "Van Stock";
+		if (key === "pendingPicks" || full === "Pending Picks") return "Pending";
+		if (key === "activePicks" || full === "Active Picks") return "Active";
+		if (key === "completedPicks" || full === "Completed Picks")
+			return "Completed";
+		if (key === "productsPlaceOrder") return "Products";
+		if (key === "customerProfile") return "Profile";
+		if (key === "warehouseStock") return "Stock";
+		if (key === "pointOfSale") return "POS";
+		return full;
+	};
+
+	const isNavItemActive = (itemHref: string) => {
+		if (pathname === itemHref) return true;
+		if (itemHref === "/") return false;
+		if (!pathname.startsWith(`${itemHref}/`)) return false;
+		// If another more specific nav item matches this pathname, don't mark the parent root active
+		const hasMoreSpecificItem = navItems.some(
+			(other) =>
+				other.href !== itemHref &&
+				other.href.startsWith(`${itemHref}/`) &&
+				(pathname === other.href || pathname.startsWith(`${other.href}/`)),
+		);
+		return !hasMoreSpecificItem;
 	};
 
 	const pageNames: Record<string, string> = Object.fromEntries(
@@ -566,7 +592,7 @@ export function AppLayout({
 							<div className="mb-6 flex items-center justify-between px-2">
 								<Link
 									href="/"
-									onClick={() => setMobileOpen(false)}
+									onClick={() => setMobileMenuOpen(false)}
 									className="group flex items-center gap-3 transition-opacity hover:opacity-90"
 									title="Go to Home"
 								>
@@ -599,8 +625,7 @@ export function AppLayout({
 							<div className="flex-1 space-y-1">
 								{navItems.map((item, i) => {
 									const { href, labelKey, icon: Icon, badge } = item;
-									const isActive =
-										pathname === href || pathname.startsWith(`${href}/`);
+									const isActive = isNavItemActive(href);
 									return (
 										<motion.div
 											key={href}
@@ -668,8 +693,7 @@ export function AppLayout({
 						<div className="no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3 py-4">
 							{navItems.map((item) => {
 								const { href, labelKey, icon: Icon, badge } = item;
-								const isActive =
-									pathname === href || pathname.startsWith(`${href}/`);
+								const isActive = isNavItemActive(href);
 
 								const NavLink = (
 									<Link
@@ -737,7 +761,7 @@ export function AppLayout({
 
 				{/* Main Content Area */}
 				<main
-					className="prevent-overflow relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20 pb-32 sm:pb-36 lg:pb-8"
+					className="prevent-overflow relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-muted/20 pb-32 sm:pb-36 lg:pb-8"
 					style={{
 						paddingBottom:
 							navItems && navItems.length > 0
@@ -756,7 +780,7 @@ export function AppLayout({
 							damping: 40,
 							mass: 0.8,
 						}}
-						className="mx-auto min-h-full w-full max-w-7xl p-2 pb-12 sm:p-4 sm:pb-16 md:p-6 md:pb-8"
+						className="mx-auto min-h-full w-full min-w-0 max-w-7xl p-2 pb-12 sm:p-4 sm:pb-16 md:p-6 md:pb-8"
 					>
 						{children}
 					</motion.div>
@@ -772,17 +796,15 @@ export function AppLayout({
 						paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))",
 					}}
 				>
-					<div className="flex items-center justify-around px-2 py-1.5">
+					<div className="flex w-full items-center justify-around px-1 py-1 sm:px-2 sm:py-1.5">
 						{navItems.slice(0, navItems.length > 4 ? 4 : 5).map((item) => {
 							const { href, labelKey, icon: Icon, badge } = item;
-							const isActive =
-								pathname === href ||
-								(href !== "/" && pathname.startsWith(`${href}/`));
+							const isActive = isNavItemActive(href);
 							return (
 								<Link
 									key={href}
 									href={href}
-									className={`relative flex min-h-[44px] min-w-[56px] flex-1 flex-col items-center justify-center rounded-xl py-1 text-[11px] font-medium transition-all active:scale-95 ${
+									className={`relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center rounded-xl py-1 px-0.5 text-[10px] sm:text-[11px] font-medium transition-all active:scale-95 ${
 										isActive
 											? "text-primary font-bold"
 											: "text-muted-foreground hover:text-foreground"
@@ -791,7 +813,7 @@ export function AppLayout({
 									{isActive && (
 										<motion.div
 											layoutId="mobile-bottom-nav-pill"
-											className="absolute inset-x-2 inset-y-1 -z-10 rounded-xl bg-primary/10 dark:bg-primary/20"
+											className="absolute inset-x-1 inset-y-0.5 -z-10 rounded-xl bg-primary/10 dark:bg-primary/20"
 											transition={{
 												type: "spring",
 												stiffness: 500,
@@ -809,8 +831,8 @@ export function AppLayout({
 											</span>
 										)}
 									</div>
-									<span className="mt-0.5 w-full max-w-[72px] truncate text-center leading-tight text-[10px] sm:text-[11px]">
-										{formatNavLabel(labelKey)}
+									<span className="mt-0.5 w-full truncate text-center leading-tight tracking-tight">
+										{formatShortNavLabel(labelKey)}
 									</span>
 								</Link>
 							);
@@ -821,10 +843,10 @@ export function AppLayout({
 							<button
 								type="button"
 								onClick={() => setMobileMenuOpen(true)}
-								className="relative flex min-h-[44px] min-w-[56px] flex-1 flex-col items-center justify-center rounded-xl py-1 text-[11px] font-medium text-muted-foreground transition-all hover:text-foreground active:scale-95"
+								className="relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center rounded-xl py-1 px-0.5 text-[10px] sm:text-[11px] font-medium text-muted-foreground transition-all hover:text-foreground active:scale-95"
 							>
 								<MenuIcon className="h-5 w-5" />
-								<span className="mt-0.5 truncate text-center leading-tight">
+								<span className="mt-0.5 truncate text-center leading-tight tracking-tight">
 									More
 								</span>
 							</button>

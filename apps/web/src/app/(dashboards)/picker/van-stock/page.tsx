@@ -22,7 +22,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -82,7 +88,9 @@ export default function PickerVanStockPage() {
 	// Day-wise filter states
 	const todayKey = useMemo(() => getTodayLocalDateStr(), []);
 	const yesterdayKey = useMemo(() => getYesterdayLocalDateStr(), []);
-	const [datePreset, setDatePreset] = useState<"all" | "today" | "yesterday" | "custom">("all");
+	const [datePreset, setDatePreset] = useState<
+		"all" | "today" | "yesterday" | "custom"
+	>("all");
 	const [customDate, setCustomDate] = useState<string>(todayKey);
 
 	// Compute effective dispatchDate parameter for query
@@ -105,17 +113,19 @@ export default function PickerVanStockPage() {
 		dispatchDate: effectiveDispatchDate,
 	});
 
-	const { data: planDetail, isLoading: loadingDetail } = trpc.vanStock.getPlanDetail.useQuery(
-		{ planId: selectedPlanId || "" },
-		{ enabled: !!selectedPlanId }
-	);
+	const { data: planDetail, isLoading: loadingDetail } =
+		trpc.vanStock.getPlanDetail.useQuery(
+			{ planId: selectedPlanId || "" },
+			{ enabled: !!selectedPlanId },
+		);
 
 	// Mutations
 	const startPickingMutation = trpc.vanStock.startPicking.useMutation({
 		onSuccess: () => {
 			toast.success("Picking started for this van!");
 			utils.vanStock.listPlans.invalidate();
-			if (selectedPlanId) utils.vanStock.getPlanDetail.invalidate({ planId: selectedPlanId });
+			if (selectedPlanId)
+				utils.vanStock.getPlanDetail.invalidate({ planId: selectedPlanId });
 		},
 		onError: (err) => toast.error(err.message || "Failed to start picking"),
 	});
@@ -229,14 +239,17 @@ export default function PickerVanStockPage() {
 	};
 
 	// Safely normalize all plans
-	const rawPlans = Array.isArray(plansData) ? plansData : (plansData?.items || []);
+	const rawPlans = Array.isArray(plansData)
+		? plansData
+		: plansData?.items || [];
 
 	// Client-side date filter safeguard
 	const dateFilteredPlans = useMemo(() => {
 		if (!rawPlans) return [];
 		return rawPlans.filter((p: any) => {
 			if (datePreset === "all") return true;
-			const planDate = p.dispatchDate || (p.createdAt ? toDateKey(p.createdAt) : "");
+			const planDate =
+				p.dispatchDate || (p.createdAt ? toDateKey(p.createdAt) : "");
 			if (!planDate) return true;
 			if (datePreset === "today") return planDate === todayKey;
 			if (datePreset === "yesterday") return planDate === yesterdayKey;
@@ -251,7 +264,11 @@ export default function PickerVanStockPage() {
 		if (!q) return dateFilteredPlans;
 		return dateFilteredPlans.filter((p: any) => {
 			const code = (p.planCode || p.planNumber || "").toLowerCase();
-			const vehicle = (p.vehicle?.registrationNumber || p.vehicle?.name || "").toLowerCase();
+			const vehicle = (
+				p.vehicle?.registrationNumber ||
+				p.vehicle?.name ||
+				""
+			).toLowerCase();
 			const driver = (p.driver?.name || p.driverName || "").toLowerCase();
 			return code.includes(q) || vehicle.includes(q) || driver.includes(q);
 		});
@@ -259,15 +276,17 @@ export default function PickerVanStockPage() {
 
 	// Filter active picking queue vs past
 	const pickingQueue = searchFilteredPlans.filter(
-		(p: any) => p.status === "PENDING_PICKING" || p.status === "PICKING_IN_PROGRESS"
+		(p: any) =>
+			p.status === "PENDING_PICKING" || p.status === "PICKING_IN_PROGRESS",
 	);
 
 	const otherPlans = searchFilteredPlans.filter(
-		(p: any) => p.status !== "PENDING_PICKING" && p.status !== "PICKING_IN_PROGRESS"
+		(p: any) =>
+			p.status !== "PENDING_PICKING" && p.status !== "PICKING_IN_PROGRESS",
 	);
 
 	return (
-		<div className="space-y-6 pb-12">
+		<div className="w-full max-w-full min-w-0 space-y-4 sm:space-y-6 pb-12">
 			{/* Page Header */}
 			<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
 				<div>
@@ -276,7 +295,8 @@ export default function PickerVanStockPage() {
 						Van Stock Picking
 					</h1>
 					<p className="text-sm text-muted-foreground mt-1">
-						Fulfill vehicle stock plans, record actual picked quantities, log shortages, and reserve inventory.
+						Fulfill vehicle stock plans, record actual picked quantities, log
+						shortages, and reserve inventory.
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
@@ -287,7 +307,9 @@ export default function PickerVanStockPage() {
 						disabled={fetchingPlans}
 						className="gap-1.5 text-xs"
 					>
-						<RefreshCw className={`h-3.5 w-3.5 ${fetchingPlans ? "animate-spin" : ""}`} />
+						<RefreshCw
+							className={`h-3.5 w-3.5 ${fetchingPlans ? "animate-spin" : ""}`}
+						/>
 						{fetchingPlans ? "Refreshing..." : "Refresh"}
 					</Button>
 				</div>
@@ -368,8 +390,10 @@ export default function PickerVanStockPage() {
 								<CalendarIcon className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
 								{datePreset === "all" && "Showing: All Dates"}
 								{datePreset === "today" && `Showing: Today (${todayKey})`}
-								{datePreset === "yesterday" && `Showing: Yesterday (${yesterdayKey})`}
-								{datePreset === "custom" && `Showing: Selected Date (${customDate})`}
+								{datePreset === "yesterday" &&
+									`Showing: Yesterday (${yesterdayKey})`}
+								{datePreset === "custom" &&
+									`Showing: Selected Date (${customDate})`}
 							</Badge>
 
 							<div className="relative w-48 sm:w-56">
@@ -397,14 +421,17 @@ export default function PickerVanStockPage() {
 								Active Picking Queue ({pickingQueue.length} Pending)
 							</CardTitle>
 							<CardDescription>
-								Van manifests released by Managers requiring warehouse picking for the selected date.
+								Van manifests released by Managers requiring warehouse picking
+								for the selected date.
 							</CardDescription>
 						</div>
 					</div>
 				</CardHeader>
 				<CardContent className="pt-4">
 					{loadingPlans ? (
-						<div className="py-8 text-center text-xs text-muted-foreground">Loading queue...</div>
+						<div className="py-8 text-center text-xs text-muted-foreground">
+							Loading queue...
+						</div>
 					) : pickingQueue.length === 0 ? (
 						<div className="py-12 text-center text-muted-foreground">
 							<CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-2 opacity-80" />
@@ -466,7 +493,9 @@ export default function PickerVanStockPage() {
 										</div>
 										<CardTitle className="text-sm font-semibold flex items-center gap-1.5 mt-1">
 											<Truck className="h-3.5 w-3.5 text-muted-foreground" />
-											{plan.vehicle?.registrationNumber || plan.vehicle?.name || "Van"}
+											{plan.vehicle?.registrationNumber ||
+												plan.vehicle?.name ||
+												"Van"}
 										</CardTitle>
 									</CardHeader>
 									<CardContent className="p-4 pt-1 space-y-2 text-xs">
@@ -479,7 +508,9 @@ export default function PickerVanStockPage() {
 										<div className="flex justify-between text-muted-foreground">
 											<span>Driver:</span>
 											<span className="font-medium text-foreground">
-												{plan.driver?.name || plan.driverName || "Assigned Driver"}
+												{plan.driver?.name ||
+													plan.driverName ||
+													"Assigned Driver"}
 											</span>
 										</div>
 										<div className="flex justify-between text-muted-foreground">
@@ -496,7 +527,11 @@ export default function PickerVanStockPage() {
 										<Button
 											size="sm"
 											className="w-full mt-2 text-xs gap-1.5"
-											variant={plan.status === "PICKING_IN_PROGRESS" ? "default" : "secondary"}
+											variant={
+												plan.status === "PICKING_IN_PROGRESS"
+													? "default"
+													: "secondary"
+											}
 										>
 											{plan.status === "PICKING_IN_PROGRESS" ? (
 												<>
@@ -527,7 +562,8 @@ export default function PickerVanStockPage() {
 							Other Van Stock Plans for Selected Date ({otherPlans.length})
 						</CardTitle>
 						<CardDescription className="text-xs">
-							Plans that have moved forward into Packing, Verification, or Loading.
+							Plans that have moved forward into Packing, Verification, or
+							Loading.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="p-4 pt-2">
@@ -548,13 +584,17 @@ export default function PickerVanStockPage() {
 									<div className="flex items-center gap-1.5 text-muted-foreground">
 										<Truck className="h-3.5 w-3.5" />
 										<span className="font-medium text-foreground">
-											{plan.vehicle?.registrationNumber || plan.vehicle?.name || "Van"}
+											{plan.vehicle?.registrationNumber ||
+												plan.vehicle?.name ||
+												"Van"}
 										</span>
 										<span className="mx-1">•</span>
 										<span>{plan.dispatchDate}</span>
 									</div>
 									<div className="flex justify-between items-center pt-1 border-t text-muted-foreground">
-										<span>Items: {plan.itemCount ?? plan.items?.length ?? 0}</span>
+										<span>
+											Items: {plan.itemCount ?? plan.items?.length ?? 0}
+										</span>
 										<Button
 											variant="ghost"
 											size="sm"
@@ -584,7 +624,8 @@ export default function PickerVanStockPage() {
 						<div className="flex items-center justify-between">
 							<DialogTitle className="text-lg font-bold flex items-center gap-2">
 								<PackageCheck className="h-5 w-5 text-primary" />
-								Picking Manifest: {planDetail?.planCode || planDetail?.planNumber}
+								Picking Manifest:{" "}
+								{planDetail?.planCode || planDetail?.planNumber}
 							</DialogTitle>
 							<Badge variant="outline" className="font-mono">
 								Rev: {planDetail?.revision}
@@ -593,7 +634,9 @@ export default function PickerVanStockPage() {
 						<DialogDescription className="text-xs">
 							Vehicle:{" "}
 							<span className="font-semibold text-foreground">
-								{planDetail?.vehicle?.registrationNumber || planDetail?.vehicle?.name || "Vehicle"}
+								{planDetail?.vehicle?.registrationNumber ||
+									planDetail?.vehicle?.name ||
+									"Vehicle"}
 							</span>{" "}
 							| Dispatch Date:{" "}
 							<span className="font-semibold text-foreground">
@@ -642,8 +685,12 @@ export default function PickerVanStockPage() {
 										}
 									>
 										<td className="p-2.5">
-											<div className="font-semibold text-foreground">{item.productName}</div>
-											<div className="text-[11px] font-mono text-muted-foreground">{item.sku}</div>
+											<div className="font-semibold text-foreground">
+												{item.productName}
+											</div>
+											<div className="text-[11px] font-mono text-muted-foreground">
+												{item.sku}
+											</div>
 											{item.isAdditional && (
 												<Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 text-[10px] mt-1">
 													Extra: {item.additionalReason}
@@ -681,7 +728,9 @@ export default function PickerVanStockPage() {
 												<Input
 													placeholder="Required reason for shortage..."
 													value={item.shortageReason}
-													disabled={planDetail?.status !== "PICKING_IN_PROGRESS"}
+													disabled={
+														planDetail?.status !== "PICKING_IN_PROGRESS"
+													}
 													onChange={(e) =>
 														handleShortageReasonChange(idx, e.target.value)
 													}

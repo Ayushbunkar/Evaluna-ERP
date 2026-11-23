@@ -164,7 +164,7 @@ export default function PickerPendingPage() {
 	}, [dateFilteredPicks]);
 
 	return (
-		<PageTransition className="container mx-auto space-y-6">
+		<PageTransition className="w-full max-w-full min-w-0 flex flex-col gap-4 sm:gap-6">
 			{/* Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">

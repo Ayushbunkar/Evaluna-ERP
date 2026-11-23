@@ -153,7 +153,7 @@ export default function PickerActivePage() {
 	};
 
 	const handleScanCode = (code: string) => {
-		const match = items.find((i) => i.sku === code || i.id.toString() === code);
+		const match = items.find((i: any) => i.sku === code || i.id.toString() === code);
 		if (match) {
 			scanMutation.mutate({ item_id: match.id });
 			toast.success(`Scanned and verified ${match.product}!`);
@@ -235,7 +235,7 @@ export default function PickerActivePage() {
 	const pct = totalCount > 0 ? Math.round((pickedCount / totalCount) * 100) : 0;
 
 	return (
-		<PageTransition className="container mx-auto space-y-6">
+		<PageTransition className="w-full max-w-full min-w-0 flex flex-col gap-4 sm:gap-6">
 			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
@@ -448,7 +448,7 @@ export default function PickerActivePage() {
 						<CardContent>
 							{/* Mobile View: High-Contrast Touch Cards (Phone-First) */}
 							<div className="space-y-3 pb-12 sm:hidden sm:pb-0">
-								{items.map((item) => {
+								{items.map((item: any) => {
 									const isPicked = item.qty_picked >= item.qty_required;
 									return (
 										<div
@@ -625,7 +625,7 @@ export default function PickerActivePage() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{items.map((item) => (
+										{items.map((item: any) => (
 											<TableRow key={item.id} className="hover:bg-muted/50">
 												<TableCell className="font-semibold text-blue-600 text-sm dark:text-blue-400">
 													{item.location}

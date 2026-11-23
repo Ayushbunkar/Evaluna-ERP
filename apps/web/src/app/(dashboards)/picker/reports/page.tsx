@@ -40,7 +40,7 @@ export default function PickerReportsPage() {
 	const { data: stats } = trpc.picker.getDashboardStats.useQuery({});
 
 	return (
-		<PageTransition className="container mx-auto space-y-6">
+		<PageTransition className="w-full max-w-full min-w-0 flex flex-col gap-4 sm:gap-6">
 			{/* Page Header */}
 			<div className="flex flex-col gap-1">
 				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
@@ -159,7 +159,7 @@ export default function PickerReportsPage() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{reports.map((r, idx) => (
+									{reports.map((r: any, idx: number) => (
 										<TableRow key={idx} className="hover:bg-muted/50">
 											<TableCell className="font-semibold text-sm">
 												{r.employeeName}
