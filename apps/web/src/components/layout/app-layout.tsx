@@ -890,8 +890,9 @@ export function AppLayout({
 
 				{/* Main Content Area */}
 				<main
-					className="prevent-overflow relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-muted/20 pb-32 sm:pb-36 lg:pb-8"
+					className="prevent-overflow relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden scroll-smooth bg-muted/20 pb-32 sm:pb-36 lg:pb-8"
 					style={{
+						WebkitOverflowScrolling: "touch",
 						paddingBottom:
 							navItems && navItems.length > 0
 								? "calc(max(5.5rem, 4.5rem + env(safe-area-inset-bottom, 0px)) + 2.5rem)"
@@ -901,7 +902,7 @@ export function AppLayout({
 					<motion.div
 						key={pathname}
 						initial={{ opacity: 0, y: 15 }}
-						animate={{ opacity: 1, y: 0 }}
+						animate={{ opacity: 1, y: 0, transitionEnd: { transform: "none" } }}
 						exit={{ opacity: 0, y: -15 }}
 						transition={{
 							type: "spring",

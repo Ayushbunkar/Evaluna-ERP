@@ -32,6 +32,7 @@ import { financeReconciliationRouter } from "./finance-reconciliation";
 import { hrRouter } from "./hr";
 import { hrmsRouter } from "./hrms";
 import { importsRouter } from "./imports";
+import { instagramRouter } from "./instagram";
 import { inventoryRouter } from "./inventory";
 import { loaderRouter } from "./loader";
 import { loyaltyRouter } from "./loyalty";
@@ -116,6 +117,7 @@ export const appRouter = router({
 	hr: hrRouter,
 	hrms: hrmsRouter,
 	imports: importsRouter,
+	instagram: instagramRouter,
 	inventory: inventoryRouter,
 	loader: loaderRouter,
 	loyalty: loyaltyRouter,

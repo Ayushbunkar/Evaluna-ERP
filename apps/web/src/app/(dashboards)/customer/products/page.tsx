@@ -721,33 +721,35 @@ export default function CustomerProductsPage() {
 				</div>
 			)}
 
-			{/* Search & Filter Bar */}
-			<Card className="border-border/50 bg-card/50 shadow-sm">
-				<CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-					<div className="relative flex-1">
-						<SearchIcon className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground" />
-						<Input
-							placeholder={t.searchPlaceholder}
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							className="pl-9 text-xs sm:text-sm"
-						/>
-					</div>
-					<Select value={category} onValueChange={setCategory}>
-						<SelectTrigger className="w-full text-xs sm:w-[200px] sm:text-sm">
-							<SelectValue placeholder={t.allCategories} />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">{t.allCategories}</SelectItem>
-							{categories.map((cat) => (
-								<SelectItem key={cat} value={cat}>
-									{cat}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</CardContent>
-			</Card>
+			{/* Sticky Search & Filter Bar */}
+			<div className="sticky top-0 z-30 -mx-2 px-2 py-2 sm:-mx-4 sm:px-4 md:-mx-6 md:px-6 bg-background/95 backdrop-blur-md transition-all shadow-xs">
+				<Card className="border-border/60 bg-card/95 shadow-sm backdrop-blur-sm">
+					<CardContent className="flex flex-col gap-2.5 p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
+						<div className="relative flex-1">
+							<SearchIcon className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground" />
+							<Input
+								placeholder={t.searchPlaceholder}
+								value={search}
+								onChange={(e) => setSearch(e.target.value)}
+								className="pl-9 text-xs sm:text-sm bg-background/80"
+							/>
+						</div>
+						<Select value={category} onValueChange={setCategory}>
+							<SelectTrigger className="w-full text-xs sm:w-[200px] sm:text-sm bg-background/80">
+								<SelectValue placeholder={t.allCategories} />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">{t.allCategories}</SelectItem>
+								{categories.map((cat) => (
+									<SelectItem key={cat} value={cat}>
+										{cat}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</CardContent>
+				</Card>
+			</div>
 
 			{/* Product Grid */}
 			{isLoading ? (

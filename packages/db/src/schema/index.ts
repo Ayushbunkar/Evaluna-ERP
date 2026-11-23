@@ -6,3 +6,4 @@ export * from "./rbac";
 export * from "./salary";
 export * from "./procurement";
 export * from "./putaway";
+export * from "./instagram-marketing";
