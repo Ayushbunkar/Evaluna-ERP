@@ -41,14 +41,46 @@ if (!process.env.DATABASE_URL) {
 	throw new Error("DATABASE_URL is missing in environment variables.");
 }
 
-const cleanDbUrl = process.env.DATABASE_URL.replace(/^"|"$/g, "").replace(
+let cleanDbUrl = process.env.DATABASE_URL.replace(/^"|"$/g, "").replace(
 	/sslmode=(require|prefer|verify-ca)/g,
 	"sslmode=verify-full",
 );
 
-const pool = new Pool({
-	connectionString: cleanDbUrl,
-	...({ lookup: customLookup } as any),
-});
+// Automatic Neon Connection Pooler Upgrade:
+// In serverless environments (Vercel), routing through Neon's PgBouncer pooler (-pooler)
+// reuses connections, drastically reducing database CPU load and handshake latency.
+try {
+	const dbUrlParsed = new URL(cleanDbUrl);
+	if (
+		dbUrlParsed.hostname.endsWith(".neon.tech") &&
+		!dbUrlParsed.hostname.includes("-pooler")
+	) {
+		const hostParts = dbUrlParsed.hostname.split(".");
+		hostParts[0] = `${hostParts[0]}-pooler`;
+		dbUrlParsed.hostname = hostParts.join(".");
+		cleanDbUrl = dbUrlParsed.toString();
+	}
+} catch {
+	// Fall back to cleanDbUrl if URL parsing fails
+}
+
+// Global singleton to reuse connection pool across warm serverless function instances
+declare global {
+	var _evalunaPgPool: Pool | undefined;
+}
+
+const pool =
+	globalThis._evalunaPgPool ??
+	new Pool({
+		connectionString: cleanDbUrl,
+		max: 3, // Keep pool small for serverless instances
+		idleTimeoutMillis: 30000,
+		connectionTimeoutMillis: 5000,
+		...({ lookup: customLookup } as any),
+	});
+
+if (process.env.NODE_ENV !== "production") {
+	globalThis._evalunaPgPool = pool;
+}
 
 export const db = drizzle(pool, { schema: { ...schema, ...authSchema } });
