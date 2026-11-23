@@ -83,6 +83,16 @@ const ROLE_CONFIG: Record<
 		color: "text-blue-700 dark:text-blue-300",
 		bg: "bg-blue-100 dark:bg-blue-900/40",
 	},
+	warehouse: {
+		label: "Warehouse Manager",
+		color: "text-amber-700 dark:text-amber-300",
+		bg: "bg-amber-100 dark:bg-amber-900/40",
+	},
+	warehouse_manager: {
+		label: "Warehouse Manager",
+		color: "text-amber-700 dark:text-amber-300",
+		bg: "bg-amber-100 dark:bg-amber-900/40",
+	},
 	sales: {
 		label: "Salesperson",
 		color: "text-green-700 dark:text-green-300",
@@ -113,6 +123,11 @@ const ROLE_CONFIG: Record<
 		color: "text-blue-700 dark:text-blue-300",
 		bg: "bg-blue-100 dark:bg-blue-900/40",
 	},
+	driver: {
+		label: "Driver",
+		color: "text-emerald-700 dark:text-emerald-300",
+		bg: "bg-emerald-100 dark:bg-emerald-900/40",
+	},
 	customer: {
 		label: "Customer",
 		color: "text-emerald-700 dark:text-emerald-300",
@@ -127,6 +142,41 @@ const ROLE_CONFIG: Record<
 		label: "Procurement",
 		color: "text-indigo-700 dark:text-indigo-300",
 		bg: "bg-indigo-100 dark:bg-indigo-900/40",
+	},
+	finance: {
+		label: "Finance",
+		color: "text-emerald-700 dark:text-emerald-300",
+		bg: "bg-emerald-100 dark:bg-emerald-900/40",
+	},
+	hr: {
+		label: "HR",
+		color: "text-violet-700 dark:text-violet-300",
+		bg: "bg-violet-100 dark:bg-violet-900/40",
+	},
+	inventory: {
+		label: "Inventory",
+		color: "text-sky-700 dark:text-sky-300",
+		bg: "bg-sky-100 dark:bg-sky-900/40",
+	},
+	"route-manager": {
+		label: "Route Manager",
+		color: "text-indigo-700 dark:text-indigo-300",
+		bg: "bg-indigo-100 dark:bg-indigo-900/40",
+	},
+	route_manager: {
+		label: "Route Manager",
+		color: "text-indigo-700 dark:text-indigo-300",
+		bg: "bg-indigo-100 dark:bg-indigo-900/40",
+	},
+	superadmin: {
+		label: "Super Admin",
+		color: "text-purple-700 dark:text-purple-300",
+		bg: "bg-purple-100 dark:bg-purple-900/40",
+	},
+	supplier: {
+		label: "Supplier",
+		color: "text-orange-700 dark:text-orange-300",
+		bg: "bg-orange-100 dark:bg-orange-900/40",
 	},
 };
 
@@ -289,6 +339,7 @@ export function AppLayout({
 		} catch (_e) {}
 		if (key === "productsPlaceOrder") return "Products / Place Order";
 		if (key === "customerProfile") return "Customer Profile";
+		if (key.includes(" ")) return key;
 		return key
 			.replace(/([A-Z])/g, " $1")
 			.replace(/^./, (str) => str.toUpperCase())
@@ -303,10 +354,36 @@ export function AppLayout({
 		if (key === "activePicks" || full === "Active Picks") return "Active";
 		if (key === "completedPicks" || full === "Completed Picks")
 			return "Completed";
-		if (key === "productsPlaceOrder") return "Products";
-		if (key === "customerProfile") return "Profile";
-		if (key === "warehouseStock") return "Stock";
-		if (key === "pointOfSale") return "POS";
+		if (key === "productsPlaceOrder" || full === "Products / Place Order")
+			return "Products";
+		if (key === "customerProfile" || full === "Customer Profile")
+			return "Profile";
+		if (key === "warehouseStock" || full === "Warehouse Stock")
+			return "Stock";
+		if (key === "pointOfSale" || full === "Point Of Sale") return "POS";
+		if (key === "vanStockPlanning" || full === "Van Stock Planning")
+			return "Van Stock";
+		if (key === "vanVerification" || full.includes("Verification"))
+			return "Verify";
+		if (key === "dispatchApproval" || full.includes("Dispatch"))
+			return "Dispatch";
+		if (key === "routeNavigation" || full === "Route Navigation")
+			return "Route";
+		if (key === "liveDelivery" || full.includes("Delivery"))
+			return "Delivery";
+		if (key === "scanPackage" || full.includes("Scan"))
+			return "Scanner";
+		if (key === "purchaseOrders" || full === "Purchase Orders")
+			return "Orders";
+		if (key === "purchaseRequests" || full === "Purchase Requests")
+			return "Requests";
+		if (key === "receivingQueue" || full.includes("Receiving"))
+			return "Receiving";
+		if (key === "putAwayTasks" || full.includes("Put-Away") || full.includes("Put Away"))
+			return "Put-Away";
+		if (full.length > 11) {
+			return full.slice(0, 10) + "…";
+		}
 		return full;
 	};
 

@@ -156,8 +156,6 @@ function BranchSwitcher() {
 	);
 }
 
-import { NotificationBell } from "@/components/notifications/NotificationBell";
-
 export function AdminLayout({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const router = useRouter();

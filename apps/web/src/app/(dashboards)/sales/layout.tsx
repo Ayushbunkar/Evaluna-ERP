@@ -32,7 +32,9 @@ export default function Layout({
 	);
 
 	const pendingCount =
-		typeof pendingData === "number" ? pendingData : (pendingData?.count ?? 0);
+		typeof pendingData === "number"
+			? pendingData
+			: ((pendingData as any)?.count ?? 0);
 
 	const salesNavItems: NavItem[] = [
 		{ href: "/sales", labelKey: "dashboard", icon: LayoutDashboardIcon },
