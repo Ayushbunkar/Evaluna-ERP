@@ -19,7 +19,6 @@ import {
 } from "@evaluna/ui/components/dialog";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
-import { Textarea } from "@evaluna/ui/components/textarea";
 import {
 	Table,
 	TableBody,
@@ -28,19 +27,21 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
+import { Textarea } from "@evaluna/ui/components/textarea";
 import {
 	AlertTriangleIcon,
-	CalendarDaysIcon,
-	CheckCircle2Icon,
-	HistoryIcon,
 	ArrowRightIcon,
 	BoxesIcon,
+	CalendarDaysIcon,
+	CheckCircle2Icon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
 	ChevronsLeftIcon,
 	ChevronsRightIcon,
 	Edit3Icon,
 	FilterIcon,
+	HistoryIcon,
+	ImageIcon,
 	IndianRupeeIcon,
 	InfoIcon,
 	LayersIcon,
@@ -49,8 +50,8 @@ import {
 	PackageCheckIcon,
 	PencilIcon,
 	PercentIcon,
-	PlusIcon,
 	PlusCircleIcon,
+	PlusIcon,
 	RefreshCwIcon,
 	SaveIcon,
 	SearchIcon,
@@ -59,7 +60,6 @@ import {
 	Trash2Icon,
 	TrendingDownIcon,
 	UploadCloudIcon,
-	ImageIcon,
 	XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -67,13 +67,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
-import { useTRPC } from "@/lib/trpc/client";
-import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import {
 	calculateEffectivePrice,
-	validateSlabs,
 	type PricingSlab,
+	validateSlabs,
 } from "@/lib/pricing/slab-pricing";
+import { useTRPC } from "@/lib/trpc/client";
+import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 
 const PRESET_DISCOUNT_REASONS = [
 	"Excess Stock Clearance (अतिरिक्त स्टॉक निकासी)",
@@ -110,7 +110,13 @@ export default function StockPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState("all");
 	const [statusFilter, setStatusFilter] = useState<
-		"all" | "in_stock" | "low_stock" | "out_of_stock" | "on_offer" | "with_slabs" | "without_slabs"
+		| "all"
+		| "in_stock"
+		| "low_stock"
+		| "out_of_stock"
+		| "on_offer"
+		| "with_slabs"
+		| "without_slabs"
 	>("all");
 	const [historicalDate, setHistoricalDate] = useState<string>("");
 
@@ -120,15 +126,25 @@ export default function StockPage() {
 	const [slabStartDate, setSlabStartDate] = useState("");
 	const [slabEndDate, setSlabEndDate] = useState("");
 	const [slabList, setSlabList] = useState<
-		Array<{ minQuantity: number | string; maxQuantity: number | string; unitPrice: number | string }>
+		Array<{
+			minQuantity: number | string;
+			maxQuantity: number | string;
+			unitPrice: number | string;
+		}>
 	>([]);
 	const [slabError, setSlabError] = useState<string | null>(null);
 
 	// Bulk Slab Pricing States
-	const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
+	const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(
+		new Set(),
+	);
 	const [bulkSlabModalOpen, setBulkSlabModalOpen] = useState(false);
 	const [bulkSlabList, setBulkSlabList] = useState<
-		Array<{ minQuantity: number | string; maxQuantity: number | string; unitPrice: number | string }>
+		Array<{
+			minQuantity: number | string;
+			maxQuantity: number | string;
+			unitPrice: number | string;
+		}>
 	>([
 		{ minQuantity: 1, maxQuantity: 3, unitPrice: "" },
 		{ minQuantity: 4, maxQuantity: 7, unitPrice: "" },
@@ -146,6 +162,10 @@ export default function StockPage() {
 	const [editItem, setEditItem] = useState<any>(null);
 	const [editName, setEditName] = useState<string>("");
 	const [editCategory, setEditCategory] = useState<string>("");
+	const [isEditCustomCategory, setIsEditCustomCategory] =
+		useState<boolean>(false);
+	const [customEditCategoryName, setCustomEditCategoryName] =
+		useState<string>("");
 	const [editUnit, setEditUnit] = useState<string>("");
 	const [editBarcode, setEditBarcode] = useState<string>("");
 	const [editSku, setEditSku] = useState<string>("");
@@ -327,25 +347,26 @@ export default function StockPage() {
 		},
 	});
 
-	const bulkSaveSlabsMutation = trpc.slabPricing.bulkSaveProductSlabs.useMutation({
-		onSuccess: (data) => {
-			toast.success(
-				locale === "hi"
-					? `${data.appliedCount} उत्पादों के लिए स्लैब दर लागू की गई!`
-					: `Slab pricing applied to ${data.appliedCount} products successfully!`,
-			);
-			utils.inventory.invalidate();
-			utils.pos.invalidate();
-			utils.customer.invalidate();
-			utils.slabPricing.invalidate();
-			refetch();
-			setBulkSlabModalOpen(false);
-			setSelectedProductIds(new Set());
-		},
-		onError: (err) => {
-			toast.error(`Bulk slab update failed: ${err.message}`);
-		},
-	});
+	const bulkSaveSlabsMutation =
+		trpc.slabPricing.bulkSaveProductSlabs.useMutation({
+			onSuccess: (data) => {
+				toast.success(
+					locale === "hi"
+						? `${data.appliedCount} उत्पादों के लिए स्लैब दर लागू की गई!`
+						: `Slab pricing applied to ${data.appliedCount} products successfully!`,
+				);
+				utils.inventory.invalidate();
+				utils.pos.invalidate();
+				utils.customer.invalidate();
+				utils.slabPricing.invalidate();
+				refetch();
+				setBulkSlabModalOpen(false);
+				setSelectedProductIds(new Set());
+			},
+			onError: (err) => {
+				toast.error(`Bulk slab update failed: ${err.message}`);
+			},
+		});
 
 	const handleOpenSlabModal = (item: any) => {
 		setSlabModalItem(item);
@@ -358,7 +379,10 @@ export default function StockPage() {
 			setSlabList(
 				existingSlabs.map((s: any) => ({
 					minQuantity: s.minQuantity,
-					maxQuantity: s.maxQuantity !== null && s.maxQuantity !== undefined ? s.maxQuantity : "",
+					maxQuantity:
+						s.maxQuantity !== null && s.maxQuantity !== undefined
+							? s.maxQuantity
+							: "",
 					unitPrice: s.unitPrice,
 				})),
 			);
@@ -368,9 +392,21 @@ export default function StockPage() {
 			setSlabEndDate("");
 			const regPrice = Number(item.price || item.base_selling_price || 10);
 			setSlabList([
-				{ minQuantity: 1, maxQuantity: 3, unitPrice: (regPrice * 0.95).toFixed(2) },
-				{ minQuantity: 4, maxQuantity: 7, unitPrice: (regPrice * 0.90).toFixed(2) },
-				{ minQuantity: 8, maxQuantity: "", unitPrice: (regPrice * 0.85).toFixed(2) },
+				{
+					minQuantity: 1,
+					maxQuantity: 3,
+					unitPrice: (regPrice * 0.95).toFixed(2),
+				},
+				{
+					minQuantity: 4,
+					maxQuantity: 7,
+					unitPrice: (regPrice * 0.9).toFixed(2),
+				},
+				{
+					minQuantity: 8,
+					maxQuantity: "",
+					unitPrice: (regPrice * 0.85).toFixed(2),
+				},
 			]);
 		}
 	};
@@ -378,8 +414,12 @@ export default function StockPage() {
 	const handleAddSlabRow = () => {
 		setSlabList((prev) => {
 			const last = prev[prev.length - 1];
-			const nextMin = last && last.maxQuantity !== "" ? Number(last.maxQuantity) + 1 : 1;
-			return [...prev, { minQuantity: nextMin, maxQuantity: "", unitPrice: "" }];
+			const nextMin =
+				last && last.maxQuantity !== "" ? Number(last.maxQuantity) + 1 : 1;
+			return [
+				...prev,
+				{ minQuantity: nextMin, maxQuantity: "", unitPrice: "" },
+			];
 		});
 	};
 
@@ -387,7 +427,11 @@ export default function StockPage() {
 		setSlabList((prev) => prev.filter((_, i) => i !== idx));
 	};
 
-	const handleSlabRowChange = (idx: number, field: "minQuantity" | "maxQuantity" | "unitPrice", val: string) => {
+	const handleSlabRowChange = (
+		idx: number,
+		field: "minQuantity" | "maxQuantity" | "unitPrice",
+		val: string,
+	) => {
 		setSlabList((prev) =>
 			prev.map((row, i) => (i === idx ? { ...row, [field]: val } : row)),
 		);
@@ -406,13 +450,20 @@ export default function StockPage() {
 		}
 
 		if (slabList.length === 0) {
-			setSlabError("Please add at least one quantity slab or disable slab pricing.");
+			setSlabError(
+				"Please add at least one quantity slab or disable slab pricing.",
+			);
 			return;
 		}
 
 		const parsedSlabs = slabList.map((row) => ({
 			minQuantity: Number(row.minQuantity),
-			maxQuantity: row.maxQuantity !== "" && row.maxQuantity !== null && row.maxQuantity !== undefined ? Number(row.maxQuantity) : null,
+			maxQuantity:
+				row.maxQuantity !== "" &&
+				row.maxQuantity !== null &&
+				row.maxQuantity !== undefined
+					? Number(row.maxQuantity)
+					: null,
 			unitPrice: Number(row.unitPrice),
 			startDate: slabStartDate.trim() || null,
 			endDate: slabEndDate.trim() || null,
@@ -436,7 +487,9 @@ export default function StockPage() {
 
 	const handleOpenBulkSlabModal = () => {
 		if (selectedProductIds.size === 0) {
-			toast.error("Please select at least one product to apply bulk slab pricing.");
+			toast.error(
+				"Please select at least one product to apply bulk slab pricing.",
+			);
 			return;
 		}
 		setBulkSlabError(null);
@@ -452,7 +505,12 @@ export default function StockPage() {
 
 		const parsedSlabs = bulkSlabList.map((row) => ({
 			minQuantity: Number(row.minQuantity),
-			maxQuantity: row.maxQuantity !== "" && row.maxQuantity !== null && row.maxQuantity !== undefined ? Number(row.maxQuantity) : null,
+			maxQuantity:
+				row.maxQuantity !== "" &&
+				row.maxQuantity !== null &&
+				row.maxQuantity !== undefined
+					? Number(row.maxQuantity)
+					: null,
 			unitPrice: Number(row.unitPrice),
 			startDate: bulkStartDate.trim() || null,
 			endDate: bulkEndDate.trim() || null,
@@ -460,7 +518,9 @@ export default function StockPage() {
 
 		const validation = validateSlabs(parsedSlabs);
 		if (!validation.isValid) {
-			setBulkSlabError(validation.errors[0] || "Invalid slab ranges or prices.");
+			setBulkSlabError(
+				validation.errors[0] || "Invalid slab ranges or prices.",
+			);
 			return;
 		}
 
@@ -695,6 +755,8 @@ export default function StockPage() {
 		setEditItem(item);
 		setEditName(item.product || "");
 		setEditCategory(item.category || "General");
+		setIsEditCustomCategory(false);
+		setCustomEditCategoryName("");
 		setEditUnit(item.unit || "Pcs");
 		setEditBarcode(item.barcode || "");
 		setEditSku(item.sku || "");
@@ -725,7 +787,9 @@ export default function StockPage() {
 		setEditImageUrl(existingImg);
 		setEditImageStoragePath(existingPath);
 		setEditImagePreview(existingImg || null);
-		setEditImageFileName(existingPath ? existingPath.split("/").pop() || "" : "");
+		setEditImageFileName(
+			existingPath ? existingPath.split("/").pop() || "" : "",
+		);
 		setIsUploadingImage(false);
 		setImageUploadProgress(0);
 		setImageUploadError(null);
@@ -735,7 +799,8 @@ export default function StockPage() {
 	const handleUploadImageFile = async (file: File) => {
 		const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 		if (!allowedMimes.includes(file.type.toLowerCase())) {
-			const msg = "Unsupported format. Supported formats: JPG, JPEG, PNG, WEBP.";
+			const msg =
+				"Unsupported format. Supported formats: JPG, JPEG, PNG, WEBP.";
 			setImageUploadError(msg);
 			toast.error(msg);
 			return;
@@ -886,8 +951,11 @@ export default function StockPage() {
 			costPrice: Number.isNaN(cost) ? 0 : cost,
 			reason: editReason || `Warehouse stock & rate lock for ${targetDate}`,
 			pricingDate: targetDate,
-			imageUrl: editImageUrl !== undefined ? (editImageUrl || null) : undefined,
-			imageStoragePath: editImageStoragePath !== undefined ? (editImageStoragePath || null) : undefined,
+			imageUrl: editImageUrl !== undefined ? editImageUrl || null : undefined,
+			imageStoragePath:
+				editImageStoragePath !== undefined
+					? editImageStoragePath || null
+					: undefined,
 		});
 	};
 
@@ -1170,7 +1238,9 @@ export default function StockPage() {
 						<div className="font-bold font-mono text-2xl text-red-500">
 							{outOfStockCount}
 						</div>
-						<p className="mt-1 text-muted-foreground text-xs">0 stock on hand</p>
+						<p className="mt-1 text-muted-foreground text-xs">
+							0 stock on hand
+						</p>
 					</CardContent>
 				</Card>
 
@@ -1202,11 +1272,11 @@ export default function StockPage() {
 			</div>
 
 			{/* Day-Wise Costing & Rate Lock Filter Bar */}
-			<Card className="border-blue-200/80 bg-blue-50/40 dark:border-blue-900/60 dark:bg-blue-950/20 shadow-xs">
+			<Card className="border-blue-200/80 bg-blue-50/40 shadow-xs dark:border-blue-900/60 dark:bg-blue-950/20">
 				<CardContent className="p-3.5">
 					<div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
 						<div className="flex flex-wrap items-center gap-2">
-							<span className="flex items-center gap-1.5 text-xs font-bold text-blue-900 dark:text-blue-200 mr-1">
+							<span className="mr-1 flex items-center gap-1.5 font-bold text-blue-900 text-xs dark:text-blue-200">
 								<CalendarDaysIcon className="h-4 w-4 text-blue-600" />
 								Day-Wise Rates & Stock (तारीख के अनुसार दर व लागत):
 							</span>
@@ -1216,8 +1286,8 @@ export default function StockPage() {
 								variant={!historicalDate ? "default" : "outline"}
 								className={
 									!historicalDate
-										? "bg-blue-600 text-white hover:bg-blue-700 h-7 text-xs font-semibold shadow-xs"
-										: "h-7 text-xs font-medium"
+										? "h-7 bg-blue-600 font-semibold text-white text-xs shadow-xs hover:bg-blue-700"
+										: "h-7 font-medium text-xs"
 								}
 								onClick={() => {
 									setHistoricalDate("");
@@ -1229,11 +1299,13 @@ export default function StockPage() {
 							<Button
 								type="button"
 								size="sm"
-								variant={historicalDate === todayDateStr ? "default" : "outline"}
+								variant={
+									historicalDate === todayDateStr ? "default" : "outline"
+								}
 								className={
 									historicalDate === todayDateStr
-										? "bg-blue-600 text-white hover:bg-blue-700 h-7 text-xs font-semibold shadow-xs"
-										: "h-7 text-xs font-medium"
+										? "h-7 bg-blue-600 font-semibold text-white text-xs shadow-xs hover:bg-blue-700"
+										: "h-7 font-medium text-xs"
 								}
 								onClick={() => {
 									setHistoricalDate(todayDateStr);
@@ -1245,11 +1317,13 @@ export default function StockPage() {
 							<Button
 								type="button"
 								size="sm"
-								variant={historicalDate === yesterdayDateStr ? "default" : "outline"}
+								variant={
+									historicalDate === yesterdayDateStr ? "default" : "outline"
+								}
 								className={
 									historicalDate === yesterdayDateStr
-										? "bg-blue-600 text-white hover:bg-blue-700 h-7 text-xs font-semibold shadow-xs"
-										: "h-7 text-xs font-medium"
+										? "h-7 bg-blue-600 font-semibold text-white text-xs shadow-xs hover:bg-blue-700"
+										: "h-7 font-medium text-xs"
 								}
 								onClick={() => {
 									setHistoricalDate(yesterdayDateStr);
@@ -1260,7 +1334,9 @@ export default function StockPage() {
 							</Button>
 
 							<div className="flex items-center gap-1.5 pl-1">
-								<span className="text-xs text-muted-foreground font-medium">Custom Date:</span>
+								<span className="font-medium text-muted-foreground text-xs">
+									Custom Date:
+								</span>
 								<input
 									type="date"
 									value={historicalDate}
@@ -1277,7 +1353,7 @@ export default function StockPage() {
 						<div className="flex items-center gap-2">
 							<Badge
 								variant="secondary"
-								className="border border-blue-200 bg-white font-medium text-blue-900 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200 text-xs px-2.5 py-1 gap-1.5"
+								className="gap-1.5 border border-blue-200 bg-white px-2.5 py-1 font-medium text-blue-900 text-xs dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"
 							>
 								{isHistoricalMode ? (
 									<>
@@ -1287,7 +1363,7 @@ export default function StockPage() {
 									</>
 								) : (
 									<>
-										<span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+										<span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
 										<span className="font-bold">Live Active Inventory</span>
 									</>
 								)}
@@ -1333,16 +1409,17 @@ export default function StockPage() {
 									}}
 									className="rounded-md border border-input bg-background px-3 py-1.5 font-medium text-foreground text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
 								>
-									<option value="all">All Categories ({rawItems.length})</option>
+									<option value="all">
+										All Categories ({rawItems.length})
+									</option>
 									{categories.map((c) => (
 										<option key={c} value={c}>
-											{c} (
-											{rawItems.filter((i) => i.category === c).length})
+											{c} ({rawItems.filter((i) => i.category === c).length})
 										</option>
 									))}
 									<option
 										value="__create_new__"
-										className="font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950"
+										className="bg-emerald-50 font-bold text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
 									>
 										+ Create New Category...
 									</option>
@@ -1352,7 +1429,7 @@ export default function StockPage() {
 									size="sm"
 									variant="outline"
 									onClick={() => setCreateCategoryOpen(true)}
-									className="h-7 px-2 text-xs gap-1 border-dashed text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+									className="h-7 gap-1 border-dashed bg-emerald-50/60 px-2 text-emerald-700 text-xs hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
 									title="Create a new product category"
 								>
 									<PlusIcon className="h-3.5 w-3.5" />
@@ -1411,7 +1488,7 @@ export default function StockPage() {
 								<Button
 									variant={statusFilter === "on_offer" ? "default" : "ghost"}
 									size="sm"
-									className="h-7 gap-1 px-2.5 text-xs text-blue-600 dark:text-blue-400"
+									className="h-7 gap-1 px-2.5 text-blue-600 text-xs dark:text-blue-400"
 									onClick={() => {
 										setStatusFilter("on_offer");
 										setCurrentPage(1);
@@ -1423,7 +1500,7 @@ export default function StockPage() {
 								<Button
 									variant={statusFilter === "with_slabs" ? "default" : "ghost"}
 									size="sm"
-									className="h-7 gap-1 px-2.5 text-xs text-purple-700 dark:text-purple-300"
+									className="h-7 gap-1 px-2.5 text-purple-700 text-xs dark:text-purple-300"
 									onClick={() => {
 										setStatusFilter("with_slabs");
 										setCurrentPage(1);
@@ -1480,9 +1557,9 @@ export default function StockPage() {
 				<CardContent className="p-0">
 					{/* Bulk Selection Action Bar */}
 					{selectedProductIds.size > 0 && (
-						<div className="flex items-center justify-between bg-purple-50 dark:bg-purple-950/60 border-b border-purple-200 dark:border-purple-800 px-4 py-2.5 text-xs">
+						<div className="flex items-center justify-between border-purple-200 border-b bg-purple-50 px-4 py-2.5 text-xs dark:border-purple-800 dark:bg-purple-950/60">
 							<div className="flex items-center gap-2">
-								<Badge className="bg-purple-600 text-white font-bold">
+								<Badge className="bg-purple-600 font-bold text-white">
 									{selectedProductIds.size} Selected
 								</Badge>
 								<span className="font-medium text-purple-900 dark:text-purple-200">
@@ -1493,7 +1570,7 @@ export default function StockPage() {
 								<Button
 									size="sm"
 									onClick={handleOpenBulkSlabModal}
-									className="h-7 gap-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-xs"
+									className="h-7 gap-1.5 bg-purple-600 font-semibold text-white text-xs shadow-xs hover:bg-purple-700"
 								>
 									<LayersIcon className="h-3.5 w-3.5" />
 									<span>Configure Bulk Slabs</span>
@@ -1502,7 +1579,7 @@ export default function StockPage() {
 									size="sm"
 									variant="ghost"
 									onClick={() => setSelectedProductIds(new Set())}
-									className="h-7 text-xs text-muted-foreground hover:text-foreground"
+									className="h-7 text-muted-foreground text-xs hover:text-foreground"
 								>
 									Clear Selection
 								</Button>
@@ -1546,7 +1623,7 @@ export default function StockPage() {
 														setSelectedProductIds(next);
 													}
 												}}
-												className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+												className="h-4 w-4 cursor-pointer rounded border-gray-300 text-purple-600 focus:ring-purple-500"
 												title="Select all on this page"
 											/>
 										</TableHead>
@@ -1559,7 +1636,7 @@ export default function StockPage() {
 										<TableHead className="font-bold text-slate-700 dark:text-slate-300">
 											Cost Price (लागत दर)
 										</TableHead>
-										<TableHead className="font-bold text-center">
+										<TableHead className="text-center font-bold">
 											Margin %
 										</TableHead>
 										<TableHead>Warehouse Stock (स्टॉक)</TableHead>
@@ -1592,7 +1669,9 @@ export default function StockPage() {
 												<TableCell className="w-8">
 													<input
 														type="checkbox"
-														checked={selectedProductIds.has(item.productId ?? item.id)}
+														checked={selectedProductIds.has(
+															item.productId ?? item.id,
+														)}
 														onChange={(e) => {
 															const id = item.productId ?? item.id;
 															const next = new Set(selectedProductIds);
@@ -1603,7 +1682,7 @@ export default function StockPage() {
 															}
 															setSelectedProductIds(next);
 														}}
-														className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+														className="h-4 w-4 cursor-pointer rounded border-gray-300 text-purple-600 focus:ring-purple-500"
 													/>
 												</TableCell>
 												<TableCell className="font-mono text-muted-foreground text-xs">
@@ -1612,24 +1691,27 @@ export default function StockPage() {
 												<TableCell>
 													{(() => {
 														const rawProd = item.product || "";
-														const bracketMatch = rawProd.match(/^(.*?)\s*\(([^)]+)\)$/);
+														const bracketMatch = rawProd.match(
+															/^(.*?)\s*\(([^)]+)\)$/,
+														);
 														if (bracketMatch) {
 															return (
 																<div>
-																	<div className="font-bold text-slate-900 text-sm dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+																	<div className="flex flex-wrap items-center gap-1.5 font-bold text-slate-900 text-sm dark:text-slate-100">
 																		<span>{bracketMatch[1].trim()}</span>
-																		<span className="text-xs font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800">
+																		<span className="rounded border border-emerald-200/80 bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700 text-xs dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
 																			({bracketMatch[2].trim()})
 																		</span>
 																	</div>
-																	{item.description && item.description !== rawProd && (
-																		<div
-																			className="text-[11px] text-muted-foreground line-clamp-1 italic max-w-xs mt-0.5"
-																			title={item.description}
-																		>
-																			{item.description}
-																		</div>
-																	)}
+																	{item.description &&
+																		item.description !== rawProd && (
+																			<div
+																				className="mt-0.5 line-clamp-1 max-w-xs text-[11px] text-muted-foreground italic"
+																				title={item.description}
+																			>
+																				{item.description}
+																			</div>
+																		)}
 																</div>
 															);
 														}
@@ -1638,19 +1720,20 @@ export default function StockPage() {
 																<div className="font-bold text-slate-900 text-sm dark:text-slate-100">
 																	{rawProd}
 																</div>
-																{item.description && item.description !== rawProd && (
-																	<div
-																		className="text-[11px] text-muted-foreground line-clamp-1 italic max-w-xs mt-0.5"
-																		title={item.description}
-																	>
-																		{item.description}
-																	</div>
-																)}
+																{item.description &&
+																	item.description !== rawProd && (
+																		<div
+																			className="mt-0.5 line-clamp-1 max-w-xs text-[11px] text-muted-foreground italic"
+																			title={item.description}
+																		>
+																			{item.description}
+																		</div>
+																	)}
 															</div>
 														);
 													})()}
-													<div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
-														<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold">
+													<div className="mt-0.5 flex items-center gap-1.5 text-muted-foreground text-xs">
+														<span className="rounded bg-muted px-1.5 py-0.5 font-semibold text-[10px]">
 															{item.category || "General"}
 														</span>
 														<span>•</span>
@@ -1683,13 +1766,13 @@ export default function StockPage() {
 														})}
 													</div>
 												</TableCell>
-												<TableCell className="text-center font-mono font-bold text-xs">
+												<TableCell className="text-center font-bold font-mono text-xs">
 													{sp > 0 ? (
 														<span
 															className={
 																sp >= cp
-																	? "text-emerald-600 font-bold"
-																	: "text-rose-600 font-bold"
+																	? "font-bold text-emerald-600"
+																	: "font-bold text-rose-600"
 															}
 														>
 															{margin}%
@@ -1705,7 +1788,7 @@ export default function StockPage() {
 															{item.unit || "Pcs"}
 														</span>
 													</div>
-													<div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+													<div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
 														Min: {item.reorder_level ?? 10} {item.unit || "Pcs"}
 													</div>
 												</TableCell>
@@ -1713,7 +1796,7 @@ export default function StockPage() {
 													{item.isPriceLocked ? (
 														<Badge
 															variant="outline"
-															className="border-blue-300 bg-blue-50 text-blue-800 text-[10px] font-bold dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 gap-1"
+															className="gap-1 border-blue-300 bg-blue-50 font-bold text-[10px] text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
 															title={
 																item.lockedAt
 																	? `Locked on ${item.lockedAt}`
@@ -1726,7 +1809,7 @@ export default function StockPage() {
 													) : isHistoricalMode ? (
 														<Badge
 															variant="outline"
-															className="text-[10px] text-amber-700 border-amber-300 bg-amber-50"
+															className="border-amber-300 bg-amber-50 text-[10px] text-amber-700"
 														>
 															Historical
 														</Badge>
@@ -1743,7 +1826,7 @@ export default function StockPage() {
 													{item.hasActiveOffer ? (
 														<div className="space-y-0.5">
 															<div className="flex items-center gap-1.5">
-																<Badge className="border-blue-200 bg-blue-100 font-bold text-blue-800 text-[11px] dark:bg-blue-950 dark:text-blue-300">
+																<Badge className="border-blue-200 bg-blue-100 font-bold text-[11px] text-blue-800 dark:bg-blue-950 dark:text-blue-300">
 																	<SparklesIcon className="mr-1 h-3 w-3 text-blue-600" />
 																	₹{item.offerPrice?.toFixed(2)} (
 																	{item.discountPercent}% OFF)
@@ -1764,13 +1847,14 @@ export default function StockPage() {
 												<TableCell>
 													{item.hasSlabPricing ? (
 														<div className="space-y-0.5">
-															<Badge className="border-purple-200 bg-purple-100 font-bold text-purple-800 text-[11px] dark:bg-purple-950 dark:text-purple-300 gap-1">
+															<Badge className="gap-1 border-purple-200 bg-purple-100 font-bold text-[11px] text-purple-800 dark:bg-purple-950 dark:text-purple-300">
 																<LayersIcon className="h-3 w-3 text-purple-600" />
 																<span>{item.slabsCount} Slabs</span>
 															</Badge>
 															{item.minSlabPrice !== null && (
-																<div className="font-mono text-[11px] font-semibold text-purple-900 dark:text-purple-200">
-																	₹{item.minSlabPrice?.toFixed(2)} - ₹{item.maxSlabPrice?.toFixed(2)}
+																<div className="font-mono font-semibold text-[11px] text-purple-900 dark:text-purple-200">
+																	₹{item.minSlabPrice?.toFixed(2)} - ₹
+																	{item.maxSlabPrice?.toFixed(2)}
 																</div>
 															)}
 															{item.slabEndDate && (
@@ -1780,7 +1864,9 @@ export default function StockPage() {
 															)}
 														</div>
 													) : (
-														<span className="text-muted-foreground text-xs">—</span>
+														<span className="text-muted-foreground text-xs">
+															—
+														</span>
 													)}
 												</TableCell>
 												<TableCell className="text-right">
@@ -1836,7 +1922,7 @@ export default function StockPage() {
 														<Button
 															size="sm"
 															variant="outline"
-															className="h-8 w-8 p-0 text-red-600 border-red-200 bg-red-50/50 hover:bg-red-100 hover:border-red-300 dark:bg-red-950/40 dark:border-red-900"
+															className="h-8 w-8 border-red-200 bg-red-50/50 p-0 text-red-600 hover:border-red-300 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40"
 															onClick={() => handleOpenDelete(item)}
 															title="Delete Product (requires reason)"
 														>
@@ -1898,7 +1984,7 @@ export default function StockPage() {
 							<ChevronLeftIcon className="mr-1 h-3.5 w-3.5" />
 							Prev
 						</Button>
-						<span className="px-3 font-mono font-bold text-xs">
+						<span className="px-3 font-bold font-mono text-xs">
 							Page {currentPage} of {totalPages}
 						</span>
 						<Button
@@ -1930,24 +2016,25 @@ export default function StockPage() {
 				open={!!editItem}
 				onOpenChange={(open) => !open && setEditItem(null)}
 			>
-				<DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
-					<DialogHeader className="p-5 pb-3 border-b">
+				<DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+					<DialogHeader className="border-b p-5 pb-3">
 						<DialogTitle className="flex items-center justify-between text-lg">
 							<span className="flex items-center gap-2">
 								<Edit3Icon className="h-5 w-5 text-blue-600" />
 								<span>Edit Product Specifications & Stock (उत्पाद विवरण)</span>
 							</span>
-							<Badge variant="outline" className="text-xs font-mono">
+							<Badge variant="outline" className="font-mono text-xs">
 								#{editItem?.productId || editItem?.id}
 							</Badge>
 						</DialogTitle>
 						<DialogDescription>
-							Update item name, category, unit, barcode, full description, prices, and stock count.
+							Update item name, category, unit, barcode, full description,
+							prices, and stock count.
 						</DialogDescription>
 					</DialogHeader>
 
 					{editItem && (
-						<div className="space-y-3.5 p-5 overflow-y-auto flex-1">
+						<div className="flex-1 space-y-3.5 overflow-y-auto p-5">
 							{/* Product Name & Category */}
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1.5">
@@ -1957,8 +2044,10 @@ export default function StockPage() {
 										</Label>
 										<button
 											type="button"
-											onClick={() => setEditName(toBilingualProductName(editName))}
-											className="text-[11px] text-emerald-600 hover:text-emerald-700 font-medium hover:underline cursor-pointer"
+											onClick={() =>
+												setEditName(toBilingualProductName(editName))
+											}
+											className="cursor-pointer font-medium text-[11px] text-emerald-600 hover:text-emerald-700 hover:underline"
 										>
 											+ Add Hindi (हिंदी जोड़ें)
 										</button>
@@ -1972,27 +2061,73 @@ export default function StockPage() {
 									/>
 									{editName && !editName.includes("(") && (
 										<p className="text-[11px] text-muted-foreground">
-											Suggested: <span className="font-semibold text-emerald-600">{toBilingualProductName(editName)}</span>
+											Suggested:{" "}
+											<span className="font-semibold text-emerald-600">
+												{toBilingualProductName(editName)}
+											</span>
 										</p>
 									)}
 								</div>
 								<div className="space-y-1.5">
-									<Label htmlFor="editCategory" className="font-semibold text-xs">
-										Category (श्रेणी)
+									<Label
+										htmlFor="editCategory"
+										className="flex items-center justify-between font-semibold text-xs"
+									>
+										<span>Category (श्रेणी)</span>
+										{isEditCustomCategory && (
+											<button
+												type="button"
+												onClick={() => {
+													setIsEditCustomCategory(false);
+													setEditCategory("General");
+												}}
+												className="font-normal text-[10px] text-blue-600 hover:underline"
+											>
+												Back to list
+											</button>
+										)}
 									</Label>
-									<Input
+									<select
 										id="editCategory"
-										list="editCategoryList"
-										value={editCategory}
-										onChange={(e) => setEditCategory(e.target.value)}
-										placeholder="e.g. Snacks / Beverages / Grocery"
-										className="text-sm"
-									/>
-									<datalist id="editCategoryList">
-										{allAvailableCategories.map((c) => (
-											<option key={c} value={c} />
+										value={isEditCustomCategory ? "__custom__" : editCategory}
+										onChange={(e) => {
+											const val = e.target.value;
+											if (val === "__custom__") {
+												setIsEditCustomCategory(true);
+												setEditCategory(customEditCategoryName || "");
+											} else {
+												setIsEditCustomCategory(false);
+												setEditCategory(val);
+											}
+										}}
+										className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									>
+										{editCategory &&
+											!allAvailableCategories.includes(editCategory) &&
+											!isEditCustomCategory && (
+												<option value={editCategory}>{editCategory}</option>
+											)}
+										{allAvailableCategories.map((cat) => (
+											<option key={cat} value={cat}>
+												{cat}
+											</option>
 										))}
-									</datalist>
+										<option value="__custom__">
+											+ Custom / नई श्रेणी दर्ज करें...
+										</option>
+									</select>
+									{isEditCustomCategory && (
+										<Input
+											placeholder="Type custom category name..."
+											value={customEditCategoryName}
+											onChange={(e) => {
+												setCustomEditCategoryName(e.target.value);
+												setEditCategory(e.target.value);
+											}}
+											className="mt-1.5 font-medium text-xs"
+											autoFocus
+										/>
+									)}
 								</div>
 							</div>
 
@@ -2007,7 +2142,7 @@ export default function StockPage() {
 										value={editUnit}
 										onChange={(e) => setEditUnit(e.target.value)}
 										placeholder="e.g. Pcs / Kg / Ltr / Pack"
-										className="text-sm font-mono"
+										className="font-mono text-sm"
 									/>
 								</div>
 								<div className="space-y-1.5">
@@ -2019,11 +2154,14 @@ export default function StockPage() {
 										value={editSku}
 										onChange={(e) => setEditSku(e.target.value)}
 										placeholder="SKU-0001"
-										className="text-sm font-mono"
+										className="font-mono text-sm"
 									/>
 								</div>
 								<div className="space-y-1.5">
-									<Label htmlFor="editBarcode" className="font-semibold text-xs">
+									<Label
+										htmlFor="editBarcode"
+										className="font-semibold text-xs"
+									>
 										Barcode / UPC
 									</Label>
 									<Input
@@ -2031,16 +2169,21 @@ export default function StockPage() {
 										value={editBarcode}
 										onChange={(e) => setEditBarcode(e.target.value)}
 										placeholder="e.g. 890123456789"
-										className="text-sm font-mono"
+										className="font-mono text-sm"
 									/>
 								</div>
 							</div>
 
 							{/* Full Description Textarea */}
 							<div className="space-y-1.5">
-								<Label htmlFor="editDescription" className="font-semibold text-xs flex items-center justify-between">
+								<Label
+									htmlFor="editDescription"
+									className="flex items-center justify-between font-semibold text-xs"
+								>
 									<span>Full Product Description (पूरा उत्पाद विवरण)</span>
-									<span className="text-[10px] text-muted-foreground font-normal">Shows in POS & Details Modal</span>
+									<span className="font-normal text-[10px] text-muted-foreground">
+										Shows in POS & Details Modal
+									</span>
 								</Label>
 								<Textarea
 									id="editDescription"
@@ -2048,18 +2191,18 @@ export default function StockPage() {
 									value={editDescription}
 									onChange={(e) => setEditDescription(e.target.value)}
 									placeholder="Enter full specification, ingredients, net weight, or details..."
-									className="text-xs font-medium leading-relaxed"
+									className="font-medium text-xs leading-relaxed"
 								/>
 							</div>
 
 							{/* Product Image Management (उत्पाद की फोटो) */}
 							<div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/40">
 								<div className="flex items-center justify-between">
-									<Label className="font-bold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+									<Label className="flex items-center gap-1.5 font-bold text-slate-900 text-xs dark:text-slate-100">
 										<ImageIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 										<span>Product Image (उत्पाद की फोटो)</span>
 									</Label>
-									<span className="text-[10px] text-muted-foreground font-medium">
+									<span className="font-medium text-[10px] text-muted-foreground">
 										JPG, PNG, WEBP • Max 5 MB
 									</span>
 								</div>
@@ -2081,35 +2224,49 @@ export default function StockPage() {
 								{/* Image Preview or Dropzone */}
 								{editImagePreview ? (
 									<div className="relative rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-										<div className="flex flex-col sm:flex-row items-center gap-4">
+										<div className="flex flex-col items-center gap-4 sm:flex-row">
 											{/* Preview Box */}
-											<div className="relative h-44 w-44 sm:h-48 sm:w-48 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900 flex items-center justify-center p-2 shadow-inner">
+											<div className="relative flex h-44 w-44 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2 shadow-inner sm:h-48 sm:w-48 dark:border-slate-800 dark:bg-slate-900">
 												<img
 													src={editImagePreview}
 													alt={editName || "Product photo"}
 													className="h-full w-full object-contain transition-transform duration-200 hover:scale-105"
 													onError={() => {
-														toast.error("Failed to render product image preview.");
+														toast.error(
+															"Failed to render product image preview.",
+														);
 													}}
 												/>
 												{isUploadingImage && (
-													<div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center gap-2 text-white">
+													<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-white backdrop-blur-xs">
 														<Loader2Icon className="h-6 w-6 animate-spin text-blue-400" />
-														<span className="text-[11px] font-bold">Uploading... {imageUploadProgress}%</span>
+														<span className="font-bold text-[11px]">
+															Uploading... {imageUploadProgress}%
+														</span>
 													</div>
 												)}
 											</div>
 
 											{/* Image Info & Actions */}
-											<div className="flex flex-1 flex-col justify-between w-full space-y-3">
+											<div className="flex w-full flex-1 flex-col justify-between space-y-3">
 												<div className="space-y-1">
 													<div className="flex items-center gap-2">
-														<Badge variant="outline" className="gap-1 border-emerald-300 bg-emerald-50 text-[10px] font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+														<Badge
+															variant="outline"
+															className="gap-1 border-emerald-300 bg-emerald-50 font-bold text-[10px] text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+														>
 															<CheckCircle2Icon className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-															<span>{editImageUrl ? "Saved & Linked" : "Ready to Save"}</span>
+															<span>
+																{editImageUrl
+																	? "Saved & Linked"
+																	: "Ready to Save"}
+															</span>
 														</Badge>
 														{editImageFileName && (
-															<span className="truncate text-xs font-mono text-muted-foreground max-w-[200px]" title={editImageFileName}>
+															<span
+																className="max-w-[200px] truncate font-mono text-muted-foreground text-xs"
+																title={editImageFileName}
+															>
 																{editImageFileName}
 															</span>
 														)}
@@ -2144,7 +2301,7 @@ export default function StockPage() {
 														variant="outline"
 														disabled={isUploadingImage}
 														onClick={() => imageFileInputRef.current?.click()}
-														className="h-8 gap-1.5 text-xs border-slate-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:hover:bg-blue-950/40"
+														className="h-8 gap-1.5 border-slate-300 text-xs hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:hover:bg-blue-950/40"
 													>
 														<RefreshCwIcon className="h-3.5 w-3.5" />
 														<span>Replace Image (फोटो बदलें)</span>
@@ -2156,7 +2313,7 @@ export default function StockPage() {
 														variant="outline"
 														disabled={isUploadingImage}
 														onClick={handleRemoveImage}
-														className="h-8 gap-1.5 text-xs border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+														className="h-8 gap-1.5 border-rose-200 text-rose-600 text-xs hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
 													>
 														<Trash2Icon className="h-3.5 w-3.5" />
 														<span>Remove (फोटो हटाएं)</span>
@@ -2189,15 +2346,15 @@ export default function StockPage() {
 												: "border-slate-300 bg-white hover:border-slate-400 dark:border-slate-700 dark:bg-slate-950"
 										}`}
 									>
-										<div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 shadow-xs dark:bg-blue-950/60 dark:text-blue-400 mb-2">
+										<div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 shadow-xs dark:bg-blue-950/60 dark:text-blue-400">
 											<UploadCloudIcon className="h-6 w-6" />
 										</div>
-										<p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+										<p className="font-semibold text-slate-800 text-xs dark:text-slate-200">
 											Drag and drop image here or{" "}
 											<button
 												type="button"
 												onClick={() => imageFileInputRef.current?.click()}
-												className="font-bold text-blue-600 underline hover:text-blue-700 dark:text-blue-400 cursor-pointer"
+												className="cursor-pointer font-bold text-blue-600 underline hover:text-blue-700 dark:text-blue-400"
 											>
 												Browse Files
 											</button>
@@ -2211,7 +2368,7 @@ export default function StockPage() {
 											variant="secondary"
 											onClick={() => imageFileInputRef.current?.click()}
 											disabled={isUploadingImage}
-											className="mt-3 h-8 gap-1.5 text-xs font-semibold"
+											className="mt-3 h-8 gap-1.5 font-semibold text-xs"
 										>
 											<UploadCloudIcon className="h-3.5 w-3.5" />
 											<span>Upload Product Photo</span>
@@ -2221,7 +2378,7 @@ export default function StockPage() {
 
 								{/* Error notice if upload failed */}
 								{imageUploadError && (
-									<div className="flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+									<div className="flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 p-2 font-medium text-rose-700 text-xs dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
 										<AlertTriangleIcon className="h-3.5 w-3.5 shrink-0 text-rose-600" />
 										<span>{imageUploadError}</span>
 									</div>
@@ -2230,14 +2387,19 @@ export default function StockPage() {
 
 							{/* Day-Wise Pricing Lock Option */}
 							<div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900/60 dark:bg-blue-950/40">
-								<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+								<div className="flex flex-col justify-between gap-2.5 sm:flex-row sm:items-center">
 									<div>
-										<Label htmlFor="editPricingDate" className="font-bold text-xs text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+										<Label
+											htmlFor="editPricingDate"
+											className="flex items-center gap-1.5 font-bold text-blue-900 text-xs dark:text-blue-200"
+										>
 											<LockIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
 											<span>Lock Rates For Date (दर लॉक करने की तारीख):</span>
 										</Label>
-										<p className="text-[11px] text-muted-foreground mt-0.5">
-											Selling Price & Cost Price will be locked for this date. Past/future reports in Manager & Warehouse will preserve this date's exact margin.
+										<p className="mt-0.5 text-[11px] text-muted-foreground">
+											Selling Price & Cost Price will be locked for this date.
+											Past/future reports in Manager & Warehouse will preserve
+											this date's exact margin.
 										</p>
 									</div>
 									<div className="flex items-center gap-2">
@@ -2246,40 +2408,56 @@ export default function StockPage() {
 											type="date"
 											value={editPricingDate}
 											onChange={(e) => setEditPricingDate(e.target.value)}
-											className="w-auto h-8 text-xs font-mono font-bold bg-background border-blue-300 dark:border-blue-700"
+											className="h-8 w-auto border-blue-300 bg-background font-bold font-mono text-xs dark:border-blue-700"
 										/>
 										{editPricingDate && (
-											<Badge variant="outline" className="h-8 text-[11px] bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 shrink-0">
-												{editPricingDate === todayDateStr ? "Today" : editPricingDate === yesterdayDateStr ? "Yesterday" : editPricingDate}
+											<Badge
+												variant="outline"
+												className="h-8 shrink-0 border-blue-300 bg-blue-100 text-[11px] text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"
+											>
+												{editPricingDate === todayDateStr
+													? "Today"
+													: editPricingDate === yesterdayDateStr
+														? "Yesterday"
+														: editPricingDate}
 											</Badge>
 										)}
 									</div>
 								</div>
 								{Number.parseFloat(editPrice || "0") > 0 && (
-									<div className="mt-2.5 pt-2 border-t border-blue-200/60 dark:border-blue-800/60 flex flex-wrap items-center gap-4 text-xs">
+									<div className="mt-2.5 flex flex-wrap items-center gap-4 border-blue-200/60 border-t pt-2 text-xs dark:border-blue-800/60">
 										<span className="text-muted-foreground">
 											Profit Per Unit:{" "}
 											<strong
 												className={
-													(Number.parseFloat(editPrice || "0") - Number.parseFloat(editCostPrice || "0")) >= 0
-														? "text-emerald-600 font-mono"
-														: "text-red-600 font-mono"
+													Number.parseFloat(editPrice || "0") -
+														Number.parseFloat(editCostPrice || "0") >=
+													0
+														? "font-mono text-emerald-600"
+														: "font-mono text-red-600"
 												}
 											>
-												₹{(Number.parseFloat(editPrice || "0") - Number.parseFloat(editCostPrice || "0")).toFixed(2)}
+												₹
+												{(
+													Number.parseFloat(editPrice || "0") -
+													Number.parseFloat(editCostPrice || "0")
+												).toFixed(2)}
 											</strong>
 										</span>
 										<span className="text-muted-foreground">
 											Margin %:{" "}
 											<strong
 												className={
-													(Number.parseFloat(editPrice || "0") - Number.parseFloat(editCostPrice || "0")) >= 0
-														? "text-emerald-600 font-mono"
-														: "text-red-600 font-mono"
+													Number.parseFloat(editPrice || "0") -
+														Number.parseFloat(editCostPrice || "0") >=
+													0
+														? "font-mono text-emerald-600"
+														: "font-mono text-red-600"
 												}
 											>
 												{(
-													((Number.parseFloat(editPrice || "0") - Number.parseFloat(editCostPrice || "0")) /
+													((Number.parseFloat(editPrice || "0") -
+														Number.parseFloat(editCostPrice || "0")) /
 														Number.parseFloat(editPrice || "1")) *
 													100
 												).toFixed(1)}
@@ -2293,7 +2471,10 @@ export default function StockPage() {
 							{/* Selling Price & Cost Price */}
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1.5">
-									<Label htmlFor="editPrice" className="font-semibold text-xs text-emerald-700 dark:text-emerald-400">
+									<Label
+										htmlFor="editPrice"
+										className="font-semibold text-emerald-700 text-xs dark:text-emerald-400"
+									>
 										Selling Price (विक्रय मूल्य ₹) *
 									</Label>
 									<div className="relative">
@@ -2308,12 +2489,15 @@ export default function StockPage() {
 											placeholder="0.00"
 											value={editPrice}
 											onChange={(e) => setEditPrice(e.target.value)}
-											className="pl-7 font-bold font-mono text-sm text-emerald-700"
+											className="pl-7 font-bold font-mono text-emerald-700 text-sm"
 										/>
 									</div>
 								</div>
 								<div className="space-y-1.5">
-									<Label htmlFor="editCostPrice" className="font-semibold text-xs">
+									<Label
+										htmlFor="editCostPrice"
+										className="font-semibold text-xs"
+									>
 										Base Cost Price (लागत मूल्य ₹)
 									</Label>
 									<div className="relative">
@@ -2335,24 +2519,24 @@ export default function StockPage() {
 							</div>
 
 							{/* Stock Management Box with Add Incoming Stock */}
-							<div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3.5 dark:border-emerald-900/60 dark:bg-emerald-950/25 space-y-2">
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50/50 p-3.5 dark:border-emerald-900/60 dark:bg-emerald-950/25">
+								<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 									{/* New Item to Add Box */}
 									<div className="space-y-1.5">
-										<div className="flex items-center justify-between gap-1 flex-wrap">
+										<div className="flex flex-wrap items-center justify-between gap-1">
 											<Label
 												htmlFor="addStockQty"
-												className="font-bold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5"
+												className="flex items-center gap-1.5 font-bold text-emerald-800 text-xs dark:text-emerald-300"
 											>
-												<PlusCircleIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+												<PlusCircleIcon className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
 												<span>New Items to Add (+ नया स्टॉक)</span>
 											</Label>
-											<span className="text-[10px] text-muted-foreground font-mono">
+											<span className="font-mono text-[10px] text-muted-foreground">
 												Current: {editInitialStockQty} {editUnit || "Units"}
 											</span>
 										</div>
 										<div className="relative">
-											<span className="absolute top-1/2 left-3 -translate-y-1/2 font-black text-emerald-600 dark:text-emerald-400 text-sm">
+											<span className="absolute top-1/2 left-3 -translate-y-1/2 font-black text-emerald-600 text-sm dark:text-emerald-400">
 												+
 											</span>
 											<Input
@@ -2363,7 +2547,7 @@ export default function StockPage() {
 												placeholder="e.g. 50 or 13.5"
 												value={addedStockQty}
 												onChange={(e) => handleAddedStockChange(e.target.value)}
-												className="pl-7 font-bold font-mono text-sm border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-200 focus:border-emerald-500 shadow-2xs"
+												className="border-emerald-300 bg-white pl-7 font-bold font-mono text-emerald-800 text-sm shadow-2xs focus:border-emerald-500 dark:border-emerald-700 dark:bg-slate-900 dark:text-emerald-200"
 											/>
 										</div>
 										<p className="text-[10px] text-muted-foreground leading-tight">
@@ -2373,16 +2557,18 @@ export default function StockPage() {
 
 									{/* Total Physical Stock Quantity */}
 									<div className="space-y-1.5">
-										<div className="flex items-center justify-between gap-1 flex-wrap">
+										<div className="flex flex-wrap items-center justify-between gap-1">
 											<Label
 												htmlFor="stockQty"
-												className="font-bold text-xs text-foreground flex items-center gap-1"
+												className="flex items-center gap-1 font-bold text-foreground text-xs"
 											>
-												<span>Total Physical Stock ({editUnit || "Units"})</span>
-												<span className="text-rose-500 font-bold">*</span>
+												<span>
+													Total Physical Stock ({editUnit || "Units"})
+												</span>
+												<span className="font-bold text-rose-500">*</span>
 											</Label>
 											{Number.parseFloat(addedStockQty || "0") > 0 && (
-												<span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 dark:bg-emerald-500 text-white dark:text-emerald-950 px-2 py-0.5 text-[10px] font-bold font-mono shadow-xs">
+												<span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 font-bold font-mono text-[10px] text-white shadow-xs dark:bg-emerald-500 dark:text-emerald-950">
 													+{addedStockQty} added
 												</span>
 											)}
@@ -2395,11 +2581,12 @@ export default function StockPage() {
 											placeholder="e.g. 100 or 13.5"
 											value={editStockQty}
 											onChange={(e) => handleDirectStockChange(e.target.value)}
-											className="font-bold font-mono text-sm bg-white dark:bg-slate-900 border-border text-foreground focus:border-primary shadow-2xs"
+											className="border-border bg-white font-bold font-mono text-foreground text-sm shadow-2xs focus:border-primary dark:bg-slate-900"
 										/>
 										{Number.parseFloat(addedStockQty || "0") > 0 ? (
-											<p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 leading-tight">
-												✓ कुल: {editInitialStockQty} + {addedStockQty} = <strong>{editStockQty}</strong> {editUnit || "Units"}
+											<p className="font-semibold text-[11px] text-emerald-700 leading-tight dark:text-emerald-300">
+												✓ कुल: {editInitialStockQty} + {addedStockQty} ={" "}
+												<strong>{editStockQty}</strong> {editUnit || "Units"}
 											</p>
 										) : (
 											<p className="text-[10px] text-muted-foreground leading-tight">
@@ -2411,11 +2598,11 @@ export default function StockPage() {
 							</div>
 
 							{/* Low Stock Threshold & Audit Reason */}
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 								<div className="space-y-1.5">
 									<Label
 										htmlFor="editReorderLevel"
-										className="font-semibold text-xs flex items-center gap-1 text-amber-700 dark:text-amber-400"
+										className="flex items-center gap-1 font-semibold text-amber-700 text-xs dark:text-amber-400"
 									>
 										<AlertTriangleIcon className="h-3 w-3 text-amber-500" />
 										<span>Low Stock Threshold *</span>
@@ -2428,9 +2615,9 @@ export default function StockPage() {
 										placeholder="e.g. 10"
 										value={editReorderLevel}
 										onChange={(e) => setEditReorderLevel(e.target.value)}
-										className="font-bold font-mono text-sm border-amber-300 bg-amber-50/50 text-amber-950 focus:border-amber-500 dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-200"
+										className="border-amber-300 bg-amber-50/50 font-bold font-mono text-amber-950 text-sm focus:border-amber-500 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
 									/>
-									<span className="text-[10px] text-muted-foreground block leading-tight">
+									<span className="block text-[10px] text-muted-foreground leading-tight">
 										Low stock alert below this
 									</span>
 								</div>
@@ -2450,13 +2637,13 @@ export default function StockPage() {
 						</div>
 					)}
 
-					<DialogFooter className="gap-2 sm:justify-between items-center p-4 border-t bg-muted/20">
+					<DialogFooter className="items-center gap-2 border-t bg-muted/20 p-4 sm:justify-between">
 						<Button
 							type="button"
 							variant="destructive"
 							size="sm"
 							onClick={() => handleOpenDelete(editItem)}
-							className="gap-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs"
+							className="gap-1 bg-red-600 font-semibold text-white text-xs hover:bg-red-700"
 						>
 							<Trash2Icon className="h-3.5 w-3.5" />
 							<span>Delete Item</span>
@@ -2475,7 +2662,7 @@ export default function StockPage() {
 								size="sm"
 								onClick={handleSaveEdit}
 								disabled={updateMutation.isPending}
-								className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700 font-semibold text-xs"
+								className="gap-1.5 bg-blue-600 font-semibold text-white text-xs hover:bg-blue-700"
 							>
 								{updateMutation.isPending ? (
 									<Loader2Icon className="h-4 w-4 animate-spin" />
@@ -2490,7 +2677,10 @@ export default function StockPage() {
 			</Dialog>
 
 			{/* Manager Delete Product Dialog */}
-			<Dialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
+			<Dialog
+				open={!!deleteItem}
+				onOpenChange={(open) => !open && setDeleteItem(null)}
+			>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2 text-lg text-red-600 dark:text-red-400">
@@ -2498,24 +2688,27 @@ export default function StockPage() {
 							<span>Delete Product (उत्पाद हटाएं)</span>
 						</DialogTitle>
 						<DialogDescription>
-							You are about to delete <strong className="text-foreground">{deleteItem?.product}</strong> (#{deleteItem?.productId || deleteItem?.id}).
+							You are about to delete{" "}
+							<strong className="text-foreground">{deleteItem?.product}</strong>{" "}
+							(#{deleteItem?.productId || deleteItem?.id}).
 						</DialogDescription>
 					</DialogHeader>
 
 					{deleteItem && (
 						<div className="space-y-4 py-1">
-							<div className="rounded-lg border border-red-200 bg-red-50/80 p-3 text-xs text-red-900 dark:bg-red-950/50 dark:border-red-900 dark:text-red-200">
-								<p className="font-bold flex items-center gap-1.5">
+							<div className="rounded-lg border border-red-200 bg-red-50/80 p-3 text-red-900 text-xs dark:border-red-900 dark:bg-red-950/50 dark:text-red-200">
+								<p className="flex items-center gap-1.5 font-bold">
 									<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600" />
 									Warning: Permanent Action
 								</p>
 								<p className="mt-1 font-medium">
-									Deleting this item will remove it from active warehouse inventory, POS billing catalogs, and store registers.
+									Deleting this item will remove it from active warehouse
+									inventory, POS billing catalogs, and store registers.
 								</p>
 							</div>
 
 							<div className="space-y-2">
-								<Label className="font-bold text-xs text-foreground">
+								<Label className="font-bold text-foreground text-xs">
 									Reason for Deletion (हटाने का कारण) *
 								</Label>
 
@@ -2531,10 +2724,10 @@ export default function StockPage() {
 											key={reasonOption}
 											type="button"
 											onClick={() => setDeleteReasonPreset(reasonOption)}
-											className={`w-full text-left rounded-md px-3 py-1.5 text-xs font-medium border transition-all cursor-pointer ${
+											className={`w-full cursor-pointer rounded-md border px-3 py-1.5 text-left font-medium text-xs transition-all ${
 												deleteReasonPreset === reasonOption
-													? "bg-red-50 border-red-400 text-red-900 font-bold dark:bg-red-950/60 dark:text-red-200"
-													: "bg-background border-border hover:bg-muted"
+													? "border-red-400 bg-red-50 font-bold text-red-900 dark:bg-red-950/60 dark:text-red-200"
+													: "border-border bg-background hover:bg-muted"
 											}`}
 										>
 											{reasonOption}
@@ -2547,7 +2740,7 @@ export default function StockPage() {
 										placeholder="Enter specific reason for deletion..."
 										value={customDeleteReason}
 										onChange={(e) => setCustomDeleteReason(e.target.value)}
-										className="mt-2 text-xs font-medium border-red-300 focus:border-red-500"
+										className="mt-2 border-red-300 font-medium text-xs focus:border-red-500"
 									/>
 								)}
 							</div>
@@ -2568,7 +2761,7 @@ export default function StockPage() {
 							size="sm"
 							onClick={handleConfirmDelete}
 							disabled={deleteMutation.isPending}
-							className="gap-1.5 bg-red-600 hover:bg-red-700 text-white font-bold"
+							className="gap-1.5 bg-red-600 font-bold text-white hover:bg-red-700"
 						>
 							{deleteMutation.isPending ? (
 								<Loader2Icon className="h-4 w-4 animate-spin" />
@@ -2823,15 +3016,20 @@ export default function StockPage() {
 							<span>Create New Product Category</span>
 						</DialogTitle>
 						<DialogDescription>
-							New categories will instantly appear across the Category Filter, Product Creation, Edit Modal, and POS Catalog.
+							New categories will instantly appear across the Category Filter,
+							Product Creation, Edit Modal, and POS Catalog.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-2">
 						{/* Category Name Input */}
 						<div className="space-y-1.5">
-							<Label htmlFor="categoryNameInput" className="font-semibold text-xs">
-								Category Name (श्रेणी का नाम) <span className="text-red-500">*</span>
+							<Label
+								htmlFor="categoryNameInput"
+								className="font-semibold text-xs"
+							>
+								Category Name (श्रेणी का नाम){" "}
+								<span className="text-red-500">*</span>
 							</Label>
 							<Input
 								id="categoryNameInput"
@@ -2844,7 +3042,7 @@ export default function StockPage() {
 
 						{/* Quick Presets */}
 						<div className="space-y-1.5">
-							<Label className="text-[11px] font-medium text-muted-foreground">
+							<Label className="font-medium text-[11px] text-muted-foreground">
 								Quick Suggestions / लोकप्रिय श्रेणियां (Click to pick):
 							</Label>
 							<div className="flex flex-wrap gap-1.5">
@@ -2869,7 +3067,7 @@ export default function StockPage() {
 											type="button"
 											variant="secondary"
 											size="sm"
-											className="h-6 text-[11px] px-2 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-slate-800"
+											className="h-6 bg-slate-100 px-2 text-[11px] hover:bg-emerald-50 hover:text-emerald-700 dark:bg-slate-800"
 											onClick={() => setNewCategoryName(suggested)}
 										>
 											+ {suggested}
@@ -2880,7 +3078,10 @@ export default function StockPage() {
 
 						{/* Description (Optional) */}
 						<div className="space-y-1.5">
-							<Label htmlFor="categoryDescInput" className="font-semibold text-xs text-muted-foreground">
+							<Label
+								htmlFor="categoryDescInput"
+								className="font-semibold text-muted-foreground text-xs"
+							>
 								Description / विवरण (Optional)
 							</Label>
 							<Input
@@ -2901,7 +3102,9 @@ export default function StockPage() {
 							Cancel
 						</Button>
 						<Button
-							disabled={createCategoryMutation.isPending || !newCategoryName.trim()}
+							disabled={
+								createCategoryMutation.isPending || !newCategoryName.trim()
+							}
 							onClick={() => {
 								if (!newCategoryName.trim()) {
 									toast.error("Please enter a category name.");
@@ -2955,16 +3158,25 @@ export default function StockPage() {
 
 					<div className="space-y-4 py-2">
 						{/* Product Name & Category */}
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 							<div className="space-y-1.5">
 								<div className="flex items-center justify-between">
-									<Label htmlFor="newProdName" className="font-semibold text-xs">
-										Product Name (उत्पाद नाम) <span className="text-red-500">*</span>
+									<Label
+										htmlFor="newProdName"
+										className="font-semibold text-xs"
+									>
+										Product Name (उत्पाद नाम){" "}
+										<span className="text-red-500">*</span>
 									</Label>
 									<button
 										type="button"
-										onClick={() => setNewItem({ ...newItem, name: toBilingualProductName(newItem.name) })}
-										className="text-[11px] text-emerald-600 hover:text-emerald-700 font-medium hover:underline cursor-pointer"
+										onClick={() =>
+											setNewItem({
+												...newItem,
+												name: toBilingualProductName(newItem.name),
+											})
+										}
+										className="cursor-pointer font-medium text-[11px] text-emerald-600 hover:text-emerald-700 hover:underline"
 									>
 										+ Add Hindi (हिंदी जोड़ें)
 									</button>
@@ -2979,14 +3191,23 @@ export default function StockPage() {
 								/>
 								{newItem.name && !newItem.name.includes("(") && (
 									<p className="text-[11px] text-muted-foreground">
-										Suggested: <span className="font-semibold text-emerald-600">{toBilingualProductName(newItem.name)}</span>
+										Suggested:{" "}
+										<span className="font-semibold text-emerald-600">
+											{toBilingualProductName(newItem.name)}
+										</span>
 									</p>
 								)}
 							</div>
 
 							<div className="space-y-1.5">
-								<Label htmlFor="newItemCategory" className="font-semibold text-xs flex items-center justify-between">
-									<span>Category / उत्पाद श्रेणी <span className="text-red-500">*</span></span>
+								<Label
+									htmlFor="newItemCategory"
+									className="flex items-center justify-between font-semibold text-xs"
+								>
+									<span>
+										Category / उत्पाद श्रेणी{" "}
+										<span className="text-red-500">*</span>
+									</span>
 									{isCustomCategory && (
 										<button
 											type="button"
@@ -2994,7 +3215,7 @@ export default function StockPage() {
 												setIsCustomCategory(false);
 												setNewItem({ ...newItem, category: "General" });
 											}}
-											className="text-[10px] text-blue-600 hover:underline font-normal"
+											className="font-normal text-[10px] text-blue-600 hover:underline"
 										>
 											Back to list
 										</button>
@@ -3007,7 +3228,10 @@ export default function StockPage() {
 										const val = e.target.value;
 										if (val === "__custom__") {
 											setIsCustomCategory(true);
-											setNewItem({ ...newItem, category: customCategoryName || "" });
+											setNewItem({
+												...newItem,
+												category: customCategoryName || "",
+											});
 										} else {
 											setIsCustomCategory(false);
 											setNewItem({ ...newItem, category: val });
@@ -3020,7 +3244,9 @@ export default function StockPage() {
 											{cat}
 										</option>
 									))}
-									<option value="__custom__">+ Custom / नई श्रेणी दर्ज करें...</option>
+									<option value="__custom__">
+										+ Custom / नई श्रेणी दर्ज करें...
+									</option>
 								</select>
 								{isCustomCategory && (
 									<Input
@@ -3030,7 +3256,7 @@ export default function StockPage() {
 											setCustomCategoryName(e.target.value);
 											setNewItem({ ...newItem, category: e.target.value });
 										}}
-										className="mt-1.5 text-xs font-medium"
+										className="mt-1.5 font-medium text-xs"
 										autoFocus
 									/>
 								)}
@@ -3039,31 +3265,33 @@ export default function StockPage() {
 
 						{/* Duplicate Item Warning Banner */}
 						{duplicateMatch && (
-							<div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-3.5 text-amber-950 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-200 animate-in fade-in slide-in-from-top-1 duration-200 shadow-sm">
+							<div className="fade-in slide-in-from-top-1 animate-in rounded-lg border-2 border-amber-400 bg-amber-50 p-3.5 text-amber-950 shadow-sm duration-200 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-200">
 								<div className="flex items-start gap-2.5">
-									<AlertTriangleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-									<div className="space-y-1.5 flex-1 text-xs">
+									<AlertTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+									<div className="flex-1 space-y-1.5 text-xs">
 										<div className="flex items-center justify-between gap-2">
-											<p className="font-bold text-sm text-amber-900 dark:text-amber-100 flex items-center gap-1.5">
+											<p className="flex items-center gap-1.5 font-bold text-amber-900 text-sm dark:text-amber-100">
 												<span>उत्पाद पहले से मौजूद है! (Item Already Exists)</span>
 											</p>
 											<Badge
 												variant="outline"
-												className="border-amber-500 bg-amber-100 text-amber-900 font-bold text-[10px] dark:bg-amber-900/60 dark:text-amber-200 shrink-0"
+												className="shrink-0 border-amber-500 bg-amber-100 font-bold text-[10px] text-amber-900 dark:bg-amber-900/60 dark:text-amber-200"
 											>
 												Already in Stock
 											</Badge>
 										</div>
-										<p className="text-amber-800 dark:text-amber-300 leading-tight">
+										<p className="text-amber-800 leading-tight dark:text-amber-300">
 											वेयरहाउस में{" "}
-											<strong className="text-foreground font-semibold">
-												&ldquo;{duplicateMatch.product || duplicateMatch.name}&rdquo;
+											<strong className="font-semibold text-foreground">
+												&ldquo;{duplicateMatch.product || duplicateMatch.name}
+												&rdquo;
 											</strong>{" "}
-											पहले से दर्ज है। डबल एंट्री रोकने के लिए नया आइटम बनाने के बजाय पुराने आइटम का स्टॉक या रेट अपडेट करें।
+											पहले से दर्ज है। डबल एंट्री रोकने के लिए नया आइटम बनाने के बजाय पुराने
+											आइटम का स्टॉक या रेट अपडेट करें।
 										</p>
-										<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded border border-amber-200 bg-amber-100/60 p-2 text-[11px] font-medium dark:border-amber-800 dark:bg-amber-900/30">
+										<div className="grid grid-cols-2 gap-2 rounded border border-amber-200 bg-amber-100/60 p-2 font-medium text-[11px] sm:grid-cols-4 dark:border-amber-800 dark:bg-amber-900/30">
 											<div>
-												<span className="text-muted-foreground block text-[10px]">
+												<span className="block text-[10px] text-muted-foreground">
 													SKU / Code:
 												</span>
 												<strong className="font-mono text-slate-800 dark:text-slate-200">
@@ -3071,7 +3299,7 @@ export default function StockPage() {
 												</strong>
 											</div>
 											<div>
-												<span className="text-muted-foreground block text-[10px]">
+												<span className="block text-[10px] text-muted-foreground">
 													Category:
 												</span>
 												<span className="text-slate-800 dark:text-slate-200">
@@ -3079,16 +3307,18 @@ export default function StockPage() {
 												</span>
 											</div>
 											<div>
-												<span className="text-muted-foreground block text-[10px]">
+												<span className="block text-[10px] text-muted-foreground">
 													Current Stock:
 												</span>
 												<strong className="font-mono text-emerald-700 dark:text-emerald-400">
-													{duplicateMatch.qty_on_hand ?? duplicateMatch.stock ?? 0}{" "}
+													{duplicateMatch.qty_on_hand ??
+														duplicateMatch.stock ??
+														0}{" "}
 													{duplicateMatch.unit || "Pcs"}
 												</strong>
 											</div>
 											<div>
-												<span className="text-muted-foreground block text-[10px]">
+												<span className="block text-[10px] text-muted-foreground">
 													Selling Price:
 												</span>
 												<strong className="font-mono text-slate-800 dark:text-slate-200">
@@ -3096,11 +3326,11 @@ export default function StockPage() {
 												</strong>
 											</div>
 										</div>
-										<div className="pt-1 flex flex-wrap items-center gap-2">
+										<div className="flex flex-wrap items-center gap-2 pt-1">
 											<Button
 												type="button"
 												size="sm"
-												className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold gap-1"
+												className="h-7 gap-1 bg-amber-600 font-semibold text-white text-xs hover:bg-amber-700"
 												onClick={() => {
 													setAddItemOpen(false);
 													handleOpenEdit(duplicateMatch);
@@ -3108,7 +3338,8 @@ export default function StockPage() {
 											>
 												<PencilIcon className="h-3 w-3" />
 												<span>
-													Edit Existing Item / Update Stock (पुराने आइटम का स्टॉक अपडेट करें)
+													Edit Existing Item / Update Stock (पुराने आइटम का स्टॉक
+													अपडेट करें)
 												</span>
 											</Button>
 										</div>
@@ -3211,7 +3442,7 @@ export default function StockPage() {
 						</div>
 
 						{/* Initial Stock, Low Stock Threshold & Bin Location */}
-						<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 							<div className="space-y-1.5">
 								<Label htmlFor="newItemStock" className="font-semibold text-xs">
 									Initial Stock Qty / प्रारंभिक स्टॉक{" "}
@@ -3234,7 +3465,7 @@ export default function StockPage() {
 							<div className="space-y-1.5">
 								<Label
 									htmlFor="newItemReorder"
-									className="font-semibold text-xs flex items-center gap-1 text-amber-700 dark:text-amber-400"
+									className="flex items-center gap-1 font-semibold text-amber-700 text-xs dark:text-amber-400"
 								>
 									<AlertTriangleIcon className="h-3 w-3 text-amber-500" />
 									<span>Low Stock Threshold *</span>
@@ -3249,7 +3480,7 @@ export default function StockPage() {
 									onChange={(e) =>
 										setNewItem({ ...newItem, reorderLevel: e.target.value })
 									}
-									className="font-bold font-mono text-sm border-amber-300 bg-amber-50/50 text-amber-950 dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-200"
+									className="border-amber-300 bg-amber-50/50 font-bold font-mono text-amber-950 text-sm dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
 								/>
 							</div>
 
@@ -3327,7 +3558,7 @@ export default function StockPage() {
 							}}
 							className={`gap-2 font-semibold text-white ${
 								duplicateMatch
-									? "bg-amber-600 hover:bg-amber-700 cursor-not-allowed opacity-90"
+									? "cursor-not-allowed bg-amber-600 opacity-90 hover:bg-amber-700"
 									: "bg-emerald-600 hover:bg-emerald-700"
 							}`}
 						>
@@ -3357,8 +3588,8 @@ export default function StockPage() {
 				open={!!slabModalItem}
 				onOpenChange={(open) => !open && setSlabModalItem(null)}
 			>
-				<DialogContent className="sm:max-w-2xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
-					<DialogHeader className="p-5 pb-3 border-b bg-muted/20">
+				<DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+					<DialogHeader className="border-b bg-muted/20 p-5 pb-3">
 						<DialogTitle className="flex items-center justify-between text-lg">
 							<span className="flex items-center gap-2">
 								<LayersIcon className="h-5 w-5 text-purple-600" />
@@ -3366,52 +3597,61 @@ export default function StockPage() {
 							</span>
 							<Badge
 								variant="outline"
-								className="text-xs font-mono border-purple-300 bg-purple-50 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300"
+								className="border-purple-300 bg-purple-50 font-mono text-purple-800 text-xs dark:bg-purple-950/60 dark:text-purple-300"
 							>
 								#{slabModalItem?.productId ?? slabModalItem?.id}
 							</Badge>
 						</DialogTitle>
-						<DialogDescription className="text-xs text-muted-foreground mt-1">
-							Configure tier-wise volume discounts for this product. Pricing automatically applies in Sales POS & Customer Store.
+						<DialogDescription className="mt-1 text-muted-foreground text-xs">
+							Configure tier-wise volume discounts for this product. Pricing
+							automatically applies in Sales POS & Customer Store.
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="flex-1 overflow-y-auto p-5 space-y-4">
+					<div className="flex-1 space-y-4 overflow-y-auto p-5">
 						{/* Product Info Summary Box */}
 						{slabModalItem && (
-							<div className="rounded-lg border bg-card p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+							<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-3.5 shadow-2xs">
 								<div>
-									<div className="font-bold text-sm text-foreground">
+									<div className="font-bold text-foreground text-sm">
 										{slabModalItem.product || slabModalItem.name}
 									</div>
-									<div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+									<div className="mt-0.5 flex items-center gap-2 text-muted-foreground text-xs">
 										<span className="font-mono">{slabModalItem.sku}</span>
 										<span>•</span>
 										<span>Unit: {slabModalItem.unit || "Pcs"}</span>
 										<span>•</span>
-										<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold">
+										<span className="rounded bg-muted px-1.5 py-0.5 font-semibold text-[10px]">
 											{slabModalItem.category || "General"}
 										</span>
 									</div>
 								</div>
 								<div className="text-right">
-									<div className="text-xs text-muted-foreground font-medium">Regular Selling Price</div>
-									<div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">
-										₹{Number(slabModalItem.price || slabModalItem.base_selling_price || 0).toFixed(2)}
+									<div className="font-medium text-muted-foreground text-xs">
+										Regular Selling Price
+									</div>
+									<div className="font-bold font-mono text-base text-emerald-600 dark:text-emerald-400">
+										₹
+										{Number(
+											slabModalItem.price ||
+												slabModalItem.base_selling_price ||
+												0,
+										).toFixed(2)}
 									</div>
 								</div>
 							</div>
 						)}
 
 						{/* Master Enable/Disable Toggle */}
-						<div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+						<div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
 							<div className="space-y-0.5">
-								<div className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+								<div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
 									<PercentIcon className="h-3.5 w-3.5 text-purple-600" />
 									<span>Enable Slab Pricing for this Product</span>
 								</div>
 								<div className="text-[11px] text-muted-foreground">
-									When enabled, customers ordering within these quantity ranges receive discounted per-unit rates.
+									When enabled, customers ordering within these quantity ranges
+									receive discounted per-unit rates.
 								</div>
 							</div>
 							<Button
@@ -3419,9 +3659,9 @@ export default function StockPage() {
 								size="sm"
 								variant={slabEnabled ? "default" : "outline"}
 								onClick={() => setSlabEnabled(!slabEnabled)}
-								className={`h-7 px-3 text-xs font-semibold ${
+								className={`h-7 px-3 font-semibold text-xs ${
 									slabEnabled
-										? "bg-purple-600 hover:bg-purple-700 text-white"
+										? "bg-purple-600 text-white hover:bg-purple-700"
 										: "text-muted-foreground"
 								}`}
 							>
@@ -3432,9 +3672,9 @@ export default function StockPage() {
 						{slabEnabled && (
 							<>
 								{/* Date Validity Window Calendar Picker */}
-								<div className="rounded-lg border p-3.5 space-y-2.5 bg-card">
+								<div className="space-y-2.5 rounded-lg border bg-card p-3.5">
 									<div className="flex items-center justify-between">
-										<Label className="font-semibold text-xs flex items-center gap-1.5">
+										<Label className="flex items-center gap-1.5 font-semibold text-xs">
 											<CalendarDaysIcon className="h-3.5 w-3.5 text-blue-600" />
 											<span>Offer Validity Window (दर लागू रहने की तारीखें)</span>
 										</Label>
@@ -3445,7 +3685,7 @@ export default function StockPage() {
 													setSlabStartDate("");
 													setSlabEndDate("");
 												}}
-												className="text-[10px] text-muted-foreground hover:text-foreground underline px-1"
+												className="px-1 text-[10px] text-muted-foreground underline hover:text-foreground"
 											>
 												No Expiry
 											</button>
@@ -3453,11 +3693,13 @@ export default function StockPage() {
 												type="button"
 												onClick={() => {
 													const now = new Date().toISOString().split("T")[0];
-													const end = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+													const end = new Date(Date.now() + 7 * 86400000)
+														.toISOString()
+														.split("T")[0];
 													setSlabStartDate(now);
 													setSlabEndDate(end);
 												}}
-												className="text-[10px] text-purple-600 hover:text-purple-700 underline px-1"
+												className="px-1 text-[10px] text-purple-600 underline hover:text-purple-700"
 											>
 												Next 7 Days
 											</button>
@@ -3465,34 +3707,40 @@ export default function StockPage() {
 												type="button"
 												onClick={() => {
 													const now = new Date().toISOString().split("T")[0];
-													const end = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+													const end = new Date(Date.now() + 30 * 86400000)
+														.toISOString()
+														.split("T")[0];
 													setSlabStartDate(now);
 													setSlabEndDate(end);
 												}}
-												className="text-[10px] text-purple-600 hover:text-purple-700 underline px-1"
+												className="px-1 text-[10px] text-purple-600 underline hover:text-purple-700"
 											>
 												Next 30 Days
 											</button>
 										</div>
 									</div>
 
-									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+									<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 										<div className="space-y-1">
-											<span className="text-[11px] text-muted-foreground font-medium">Start Date (आरंभ तिथि)</span>
+											<span className="font-medium text-[11px] text-muted-foreground">
+												Start Date (आरंभ तिथि)
+											</span>
 											<input
 												type="date"
 												value={slabStartDate}
 												onChange={(e) => setSlabStartDate(e.target.value)}
-												className="w-full h-8 rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+												className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
 											/>
 										</div>
 										<div className="space-y-1">
-											<span className="text-[11px] text-muted-foreground font-medium">Valid Until / End Date (अंतिम तिथि)</span>
+											<span className="font-medium text-[11px] text-muted-foreground">
+												Valid Until / End Date (अंतिम तिथि)
+											</span>
 											<input
 												type="date"
 												value={slabEndDate}
 												onChange={(e) => setSlabEndDate(e.target.value)}
-												className="w-full h-8 rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+												className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
 											/>
 										</div>
 									</div>
@@ -3501,7 +3749,7 @@ export default function StockPage() {
 								{/* Slabs Table */}
 								<div className="space-y-2">
 									<div className="flex items-center justify-between">
-										<div className="font-semibold text-xs flex items-center gap-1.5">
+										<div className="flex items-center gap-1.5 font-semibold text-xs">
 											<LayersIcon className="h-3.5 w-3.5 text-purple-600" />
 											<span>Tiered Quantity Slabs (मात्रा एवं दर स्लैब)</span>
 										</div>
@@ -3510,36 +3758,50 @@ export default function StockPage() {
 											size="sm"
 											variant="outline"
 											onClick={handleAddSlabRow}
-											className="h-7 px-2.5 text-xs gap-1 border-purple-200 text-purple-700 bg-purple-50/50 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300"
+											className="h-7 gap-1 border-purple-200 bg-purple-50/50 px-2.5 text-purple-700 text-xs hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300"
 										>
 											<PlusIcon className="h-3.5 w-3.5" />
 											<span>+ Add Slab Tier</span>
 										</Button>
 									</div>
 
-									<div className="rounded-lg border overflow-hidden">
+									<div className="overflow-hidden rounded-lg border">
 										<Table>
 											<TableHeader>
 												<TableRow className="bg-muted/40 text-[11px]">
-													<TableHead className="w-12 text-center">Tier</TableHead>
+													<TableHead className="w-12 text-center">
+														Tier
+													</TableHead>
 													<TableHead className="w-28">Min Qty</TableHead>
 													<TableHead className="w-28">Max Qty</TableHead>
-													<TableHead className="w-32">Price / Unit (₹)</TableHead>
+													<TableHead className="w-32">
+														Price / Unit (₹)
+													</TableHead>
 													<TableHead>Savings vs Regular</TableHead>
-													<TableHead className="w-10 text-right"></TableHead>
+													<TableHead className="w-10 text-right" />
 												</TableRow>
 											</TableHeader>
 											<TableBody>
 												{slabList.map((row, idx) => {
-													const regPrice = Number(slabModalItem?.price || slabModalItem?.base_selling_price || 0);
+													const regPrice = Number(
+														slabModalItem?.price ||
+															slabModalItem?.base_selling_price ||
+															0,
+													);
 													const rowPrice = Number(row.unitPrice);
 													const hasPrice = !isNaN(rowPrice) && rowPrice > 0;
-													const savingsPerUnit = hasPrice && regPrice > 0 ? Math.max(0, regPrice - rowPrice) : 0;
-													const savingsPercent = hasPrice && regPrice > 0 ? ((savingsPerUnit / regPrice) * 100).toFixed(1) : "0";
+													const savingsPerUnit =
+														hasPrice && regPrice > 0
+															? Math.max(0, regPrice - rowPrice)
+															: 0;
+													const savingsPercent =
+														hasPrice && regPrice > 0
+															? ((savingsPerUnit / regPrice) * 100).toFixed(1)
+															: "0";
 
 													return (
 														<TableRow key={idx} className="hover:bg-muted/20">
-															<TableCell className="text-center font-mono font-bold text-xs text-muted-foreground">
+															<TableCell className="text-center font-bold font-mono text-muted-foreground text-xs">
 																#{idx + 1}
 															</TableCell>
 															<TableCell>
@@ -3549,10 +3811,14 @@ export default function StockPage() {
 																	min="0.001"
 																	value={row.minQuantity}
 																	onChange={(e) =>
-																		handleSlabRowChange(idx, "minQuantity", e.target.value)
+																		handleSlabRowChange(
+																			idx,
+																			"minQuantity",
+																			e.target.value,
+																		)
 																	}
 																	placeholder="1"
-																	className="h-8 font-mono font-bold text-xs"
+																	className="h-8 font-bold font-mono text-xs"
 																/>
 															</TableCell>
 															<TableCell>
@@ -3562,7 +3828,11 @@ export default function StockPage() {
 																	min="0.001"
 																	value={row.maxQuantity}
 																	onChange={(e) =>
-																		handleSlabRowChange(idx, "maxQuantity", e.target.value)
+																		handleSlabRowChange(
+																			idx,
+																			"maxQuantity",
+																			e.target.value,
+																		)
 																	}
 																	placeholder="Unlimited (∞)"
 																	className="h-8 font-mono text-xs"
@@ -3570,7 +3840,7 @@ export default function StockPage() {
 															</TableCell>
 															<TableCell>
 																<div className="relative">
-																	<span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
+																	<span className="absolute top-1/2 left-2.5 -translate-y-1/2 font-mono text-muted-foreground text-xs">
 																		₹
 																	</span>
 																	<Input
@@ -3579,26 +3849,33 @@ export default function StockPage() {
 																		min="0.01"
 																		value={row.unitPrice}
 																		onChange={(e) =>
-																			handleSlabRowChange(idx, "unitPrice", e.target.value)
+																			handleSlabRowChange(
+																				idx,
+																				"unitPrice",
+																				e.target.value,
+																			)
 																		}
 																		placeholder="e.g. 9.10"
-																		className="h-8 pl-6 font-mono font-bold text-xs border-purple-200 focus:border-purple-500"
+																		className="h-8 border-purple-200 pl-6 font-bold font-mono text-xs focus:border-purple-500"
 																	/>
 																</div>
 															</TableCell>
 															<TableCell>
 																{hasPrice && savingsPerUnit > 0 ? (
 																	<div className="flex items-center gap-1.5">
-																		<Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 font-bold text-[10px] dark:bg-emerald-950 dark:text-emerald-300">
-																			Save ₹{savingsPerUnit.toFixed(2)} ({savingsPercent}%)
+																		<Badge className="border-emerald-200 bg-emerald-100 font-bold text-[10px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+																			Save ₹{savingsPerUnit.toFixed(2)} (
+																			{savingsPercent}%)
 																		</Badge>
 																	</div>
 																) : hasPrice && rowPrice > regPrice ? (
-																	<span className="text-[10px] text-amber-600 font-medium">
+																	<span className="font-medium text-[10px] text-amber-600">
 																		Higher than regular (₹{regPrice})
 																	</span>
 																) : (
-																	<span className="text-muted-foreground text-xs">—</span>
+																	<span className="text-muted-foreground text-xs">
+																		—
+																	</span>
 																)}
 															</TableCell>
 															<TableCell className="text-right">
@@ -3618,8 +3895,12 @@ export default function StockPage() {
 												})}
 												{slabList.length === 0 && (
 													<TableRow>
-														<TableCell colSpan={6} className="text-center py-6 text-xs text-muted-foreground">
-															No slabs defined yet. Click "+ Add Slab Tier" above.
+														<TableCell
+															colSpan={6}
+															className="py-6 text-center text-muted-foreground text-xs"
+														>
+															No slabs defined yet. Click "+ Add Slab Tier"
+															above.
 														</TableCell>
 													</TableRow>
 												)}
@@ -3630,8 +3911,8 @@ export default function StockPage() {
 
 								{/* Live Validation Alert */}
 								{slabError && (
-									<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:bg-red-950/40 dark:border-red-900 dark:text-red-300 flex items-start gap-2">
-										<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+									<div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-xs dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+										<AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
 										<span>{slabError}</span>
 									</div>
 								)}
@@ -3639,7 +3920,7 @@ export default function StockPage() {
 						)}
 					</div>
 
-					<DialogFooter className="p-4 border-t gap-2 bg-muted/10">
+					<DialogFooter className="gap-2 border-t bg-muted/10 p-4">
 						<Button
 							type="button"
 							variant="outline"
@@ -3652,7 +3933,7 @@ export default function StockPage() {
 							type="button"
 							onClick={handleSaveSlabs}
 							disabled={saveSlabsMutation.isPending}
-							className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs gap-1.5"
+							className="gap-1.5 bg-purple-600 font-semibold text-white text-xs hover:bg-purple-700"
 						>
 							{saveSlabsMutation.isPending ? (
 								<>
@@ -3675,36 +3956,45 @@ export default function StockPage() {
 				open={bulkSlabModalOpen}
 				onOpenChange={(open) => !open && setBulkSlabModalOpen(false)}
 			>
-				<DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
-					<DialogHeader className="p-5 pb-3 border-b bg-purple-50/50 dark:bg-purple-950/30">
+				<DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+					<DialogHeader className="border-b bg-purple-50/50 p-5 pb-3 dark:bg-purple-950/30">
 						<DialogTitle className="flex items-center gap-2 text-lg">
 							<LayersIcon className="h-5 w-5 text-purple-600" />
-							<span>Bulk Configure Quantity Slabs ({selectedProductIds.size} Products)</span>
+							<span>
+								Bulk Configure Quantity Slabs ({selectedProductIds.size}{" "}
+								Products)
+							</span>
 						</DialogTitle>
-						<DialogDescription className="text-xs text-muted-foreground mt-1">
-							Apply a standardized quantity discount structure across all {selectedProductIds.size} selected products. Existing base prices are preserved.
+						<DialogDescription className="mt-1 text-muted-foreground text-xs">
+							Apply a standardized quantity discount structure across all{" "}
+							{selectedProductIds.size} selected products. Existing base prices
+							are preserved.
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="flex-1 overflow-y-auto p-5 space-y-4">
+					<div className="flex-1 space-y-4 overflow-y-auto p-5">
 						{/* Validity Dates */}
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 							<div className="space-y-1">
-								<span className="text-[11px] text-muted-foreground font-medium">Start Date (Optional)</span>
+								<span className="font-medium text-[11px] text-muted-foreground">
+									Start Date (Optional)
+								</span>
 								<input
 									type="date"
 									value={bulkStartDate}
 									onChange={(e) => setBulkStartDate(e.target.value)}
-									className="w-full h-8 rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+									className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
 								/>
 							</div>
 							<div className="space-y-1">
-								<span className="text-[11px] text-muted-foreground font-medium">Valid Until Date (Optional)</span>
+								<span className="font-medium text-[11px] text-muted-foreground">
+									Valid Until Date (Optional)
+								</span>
 								<input
 									type="date"
 									value={bulkEndDate}
 									onChange={(e) => setBulkEndDate(e.target.value)}
-									className="w-full h-8 rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+									className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
 								/>
 							</div>
 						</div>
@@ -3712,7 +4002,9 @@ export default function StockPage() {
 						{/* Slabs Table */}
 						<div className="space-y-2">
 							<div className="flex items-center justify-between">
-								<Label className="font-semibold text-xs">Standard Quantity Slabs</Label>
+								<Label className="font-semibold text-xs">
+									Standard Quantity Slabs
+								</Label>
 								<Button
 									type="button"
 									size="sm"
@@ -3729,7 +4021,7 @@ export default function StockPage() {
 								</Button>
 							</div>
 
-							<div className="rounded-lg border overflow-hidden">
+							<div className="overflow-hidden rounded-lg border">
 								<Table>
 									<TableHeader>
 										<TableRow className="bg-muted/40 text-[11px]">
@@ -3737,13 +4029,13 @@ export default function StockPage() {
 											<TableHead>Min Qty</TableHead>
 											<TableHead>Max Qty</TableHead>
 											<TableHead>Price / Unit (₹)</TableHead>
-											<TableHead className="w-10"></TableHead>
+											<TableHead className="w-10" />
 										</TableRow>
 									</TableHeader>
 									<TableBody>
 										{bulkSlabList.map((row, idx) => (
 											<TableRow key={idx}>
-												<TableCell className="text-center font-mono font-bold text-xs text-muted-foreground">
+												<TableCell className="text-center font-bold font-mono text-muted-foreground text-xs">
 													#{idx + 1}
 												</TableCell>
 												<TableCell>
@@ -3755,7 +4047,9 @@ export default function StockPage() {
 														onChange={(e) =>
 															setBulkSlabList((prev) =>
 																prev.map((r, i) =>
-																	i === idx ? { ...r, minQuantity: e.target.value } : r,
+																	i === idx
+																		? { ...r, minQuantity: e.target.value }
+																		: r,
 																),
 															)
 														}
@@ -3772,7 +4066,9 @@ export default function StockPage() {
 														onChange={(e) =>
 															setBulkSlabList((prev) =>
 																prev.map((r, i) =>
-																	i === idx ? { ...r, maxQuantity: e.target.value } : r,
+																	i === idx
+																		? { ...r, maxQuantity: e.target.value }
+																		: r,
 																),
 															)
 														}
@@ -3782,7 +4078,7 @@ export default function StockPage() {
 												</TableCell>
 												<TableCell>
 													<div className="relative">
-														<span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
+														<span className="absolute top-1/2 left-2.5 -translate-y-1/2 font-mono text-muted-foreground text-xs">
 															₹
 														</span>
 														<Input
@@ -3793,12 +4089,14 @@ export default function StockPage() {
 															onChange={(e) =>
 																setBulkSlabList((prev) =>
 																	prev.map((r, i) =>
-																		i === idx ? { ...r, unitPrice: e.target.value } : r,
+																		i === idx
+																			? { ...r, unitPrice: e.target.value }
+																			: r,
 																	),
 																)
 															}
 															placeholder="e.g. 9.00"
-															className="h-8 pl-6 font-mono font-bold text-xs"
+															className="h-8 pl-6 font-bold font-mono text-xs"
 														/>
 													</div>
 												</TableCell>
@@ -3808,7 +4106,9 @@ export default function StockPage() {
 														variant="ghost"
 														size="icon"
 														onClick={() =>
-															setBulkSlabList((prev) => prev.filter((_, i) => i !== idx))
+															setBulkSlabList((prev) =>
+																prev.filter((_, i) => i !== idx),
+															)
 														}
 														className="h-7 w-7 text-muted-foreground hover:text-red-600"
 													>
@@ -3823,14 +4123,14 @@ export default function StockPage() {
 						</div>
 
 						{bulkSlabError && (
-							<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:bg-red-950/40 dark:border-red-900 dark:text-red-300 flex items-start gap-2">
-								<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+							<div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-xs dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+								<AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
 								<span>{bulkSlabError}</span>
 							</div>
 						)}
 					</div>
 
-					<DialogFooter className="p-4 border-t gap-2 bg-muted/10">
+					<DialogFooter className="gap-2 border-t bg-muted/10 p-4">
 						<Button
 							type="button"
 							variant="outline"
@@ -3843,7 +4143,7 @@ export default function StockPage() {
 							type="button"
 							onClick={handleSaveBulkSlabs}
 							disabled={bulkSaveSlabsMutation.isPending}
-							className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs gap-1.5"
+							className="gap-1.5 bg-purple-600 font-semibold text-white text-xs hover:bg-purple-700"
 						>
 							{bulkSaveSlabsMutation.isPending ? (
 								<>
