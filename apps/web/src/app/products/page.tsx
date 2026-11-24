@@ -29,6 +29,8 @@ import {
 	AlertCircleIcon,
 	ArrowRight,
 	CheckCircle2Icon,
+	ChevronLeft,
+	ChevronRight,
 	FlameIcon,
 	LayersIcon,
 	LogInIcon,
@@ -231,6 +233,94 @@ export default function PublicProductsCatalogPage() {
 	}, [products]);
 
 	const totalCatalogCount = totalCatalogCountRef.current || products?.length || 0;
+
+	// Category horizontal pills auto-scroll and corner scrolling
+	const pillsContainerRef = useRef<HTMLDivElement>(null);
+	const scrollAnimationRef = useRef<number | null>(null);
+	const edgeScrollSpeedRef = useRef<number>(0);
+	const [canScrollLeft, setCanScrollLeft] = useState(false);
+	const [canScrollRight, setCanScrollRight] = useState(false);
+
+	const checkScrollability = () => {
+		const el = pillsContainerRef.current;
+		if (!el) return;
+		setCanScrollLeft(el.scrollLeft > 4);
+		setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+	};
+
+	useEffect(() => {
+		checkScrollability();
+		window.addEventListener("resize", checkScrollability);
+		return () => window.removeEventListener("resize", checkScrollability);
+	}, [categories]);
+
+	// Auto-scroll active category pill into center view
+	useEffect(() => {
+		if (pillsContainerRef.current) {
+			const activeBtn = pillsContainerRef.current.querySelector<HTMLButtonElement>('[data-active="true"]');
+			if (activeBtn) {
+				activeBtn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+			}
+			setTimeout(checkScrollability, 300);
+		}
+	}, [category]);
+
+	const scrollPills = (direction: "left" | "right") => {
+		if (pillsContainerRef.current) {
+			const amount = direction === "left" ? -220 : 220;
+			pillsContainerRef.current.scrollBy({ left: amount, behavior: "smooth" });
+			setTimeout(checkScrollability, 350);
+		}
+	};
+
+	const startEdgeScroll = (speed: number) => {
+		edgeScrollSpeedRef.current = speed;
+		if (!scrollAnimationRef.current) {
+			const step = () => {
+				if (pillsContainerRef.current && edgeScrollSpeedRef.current !== 0) {
+					pillsContainerRef.current.scrollLeft += edgeScrollSpeedRef.current;
+					checkScrollability();
+					scrollAnimationRef.current = requestAnimationFrame(step);
+				} else {
+					scrollAnimationRef.current = null;
+				}
+			};
+			scrollAnimationRef.current = requestAnimationFrame(step);
+		}
+	};
+
+	const stopEdgeScroll = () => {
+		edgeScrollSpeedRef.current = 0;
+		if (scrollAnimationRef.current) {
+			cancelAnimationFrame(scrollAnimationRef.current);
+			scrollAnimationRef.current = null;
+		}
+	};
+
+	const handlePillsMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+		const container = pillsContainerRef.current;
+		if (!container) return;
+		const rect = container.getBoundingClientRect();
+		const x = e.clientX - rect.left;
+		const edgeThreshold = 75; // 75px corner zone
+
+		if (x < edgeThreshold && container.scrollLeft > 0) {
+			const ratio = (edgeThreshold - x) / edgeThreshold;
+			startEdgeScroll(-Math.max(2, Math.round(ratio * 9)));
+		} else if (
+			x > rect.width - edgeThreshold &&
+			container.scrollLeft < container.scrollWidth - container.clientWidth - 1
+		) {
+			const ratio = (x - (rect.width - edgeThreshold)) / edgeThreshold;
+			startEdgeScroll(Math.max(2, Math.round(ratio * 9)));
+		} else {
+			stopEdgeScroll();
+		}
+	};
+
+	const handlePillsMouseLeave = () => {
+		stopEdgeScroll();
+	};
 
 	// Filter and sort products
 	const filteredProducts = useMemo(() => {
@@ -540,34 +630,79 @@ export default function PublicProductsCatalogPage() {
 						</div>
 					</div>
 
-					{/* Category Quick Pills */}
+					{/* Category Quick Pills with Left/Right Auto-Scroll & Corner Proximity */}
 					{categories.length > 0 && (
-						<div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 text-xs scrollbar-none">
+						<div className="relative mt-3 flex items-center group/pills">
+							{/* Left Arrow Scroll Button */}
 							<button
 								type="button"
-								onClick={() => handleCategoryChange("all")}
-								className={`shrink-0 rounded-full px-3 py-1 text-xs transition-all ${
-									category === "all"
-										? "bg-foreground text-background font-semibold"
-										: "border border-border/80 bg-muted/30 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+								onClick={() => scrollPills("left")}
+								className={`absolute left-0 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-md backdrop-blur-md transition-all duration-200 hover:bg-muted hover:scale-105 active:scale-95 ${
+									canScrollLeft ? "opacity-100" : "pointer-events-none opacity-0"
 								}`}
+								aria-label="Scroll categories left"
 							>
-								All ({totalCatalogCount})
+								<ChevronLeft className="h-4 w-4" />
 							</button>
-							{categories.map((cat) => (
+
+							{/* Left Fade Gradient when scrollable */}
+							{canScrollLeft && (
+								<div className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
+							)}
+
+							{/* Scrollable Pills Row with corner auto-scrolling */}
+							<div
+								ref={pillsContainerRef}
+								onMouseMove={handlePillsMouseMove}
+								onMouseLeave={handlePillsMouseLeave}
+								onScroll={checkScrollability}
+								className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 text-xs scrollbar-none scroll-smooth px-1 w-full"
+							>
 								<button
-									key={cat}
 									type="button"
-									onClick={() => handleCategoryChange(cat)}
+									data-active={category === "all"}
+									onClick={() => handleCategoryChange("all")}
 									className={`shrink-0 rounded-full px-3 py-1 text-xs transition-all ${
-										category === cat
-											? "bg-foreground text-background font-semibold"
+										category === "all"
+											? "bg-foreground text-background font-semibold shadow-2xs"
 											: "border border-border/80 bg-muted/30 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
 									}`}
 								>
-									{cat}
+									All ({totalCatalogCount})
 								</button>
-							))}
+								{categories.map((cat) => (
+									<button
+										key={cat}
+										type="button"
+										data-active={category === cat}
+										onClick={() => handleCategoryChange(cat)}
+										className={`shrink-0 rounded-full px-3 py-1 text-xs transition-all ${
+											category === cat
+												? "bg-foreground text-background font-semibold shadow-2xs"
+												: "border border-border/80 bg-muted/30 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+										}`}
+									>
+										{cat}
+									</button>
+								))}
+							</div>
+
+							{/* Right Fade Gradient when scrollable */}
+							{canScrollRight && (
+								<div className="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
+							)}
+
+							{/* Right Arrow Scroll Button */}
+							<button
+								type="button"
+								onClick={() => scrollPills("right")}
+								className={`absolute right-0 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-md backdrop-blur-md transition-all duration-200 hover:bg-muted hover:scale-105 active:scale-95 ${
+									canScrollRight ? "opacity-100" : "pointer-events-none opacity-0"
+								}`}
+								aria-label="Scroll categories right"
+							>
+								<ChevronRight className="h-4 w-4" />
+							</button>
 						</div>
 					)}
 				</div>
