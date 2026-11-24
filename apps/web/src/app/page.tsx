@@ -234,24 +234,24 @@ export default function HomePage() {
 								initial={{ opacity: 0, y: 15 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ duration: 0.6 }}
-								className="inline-flex items-center gap-2 rounded-full border border-[#DEDEDA] bg-[#EFEFEA]/80 px-3.5 py-1.5 font-mono text-[11px] text-[#444444] tracking-wide dark:border-[#292929] dark:bg-[#141414] dark:text-[#A3A3A0]"
+								className="inline-flex max-w-full items-center gap-1.5 sm:gap-2 rounded-full border border-[#DEDEDA] bg-[#EFEFEA]/80 px-3 py-1.5 font-mono text-[10px] sm:text-[11px] text-[#444444] tracking-wide whitespace-nowrap dark:border-[#292929] dark:bg-[#141414] dark:text-[#A3A3A0]"
 							>
-								<span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-								<span className="font-semibold text-[#111111] dark:text-[#F5F5F2]">
+								<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+								<span className="font-semibold whitespace-nowrap text-[#111111] dark:text-[#F5F5F2]">
 									B2B Wholesale Supply
 								</span>
-								<span>•</span>
-								<span>Bhopal & Berasia Hub</span>
+								<span className="hidden sm:inline">•</span>
+								<span className="hidden sm:inline whitespace-nowrap">Bhopal & Berasia Hub</span>
 								<span>•</span>
 								<a
 									href={WHATSAPP_INQUIRY_URL}
 									target="_blank"
 									rel="noopener noreferrer"
-									className="flex items-center gap-1 font-semibold text-emerald-600 hover:underline dark:text-emerald-400"
+									className="flex shrink-0 items-center gap-1 font-semibold whitespace-nowrap text-emerald-600 hover:underline dark:text-emerald-400"
 									title={`Inquire on WhatsApp: ${CONTACT_PHONE}`}
 								>
-									<MessageCircle className="h-3 w-3" />
-									<span>{CONTACT_PHONE}</span>
+									<MessageCircle className="h-3 w-3 shrink-0" />
+									<span className="whitespace-nowrap">{CONTACT_PHONE}</span>
 								</a>
 							</motion.div>
 
