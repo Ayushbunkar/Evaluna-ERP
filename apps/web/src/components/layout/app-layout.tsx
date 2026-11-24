@@ -78,6 +78,11 @@ const ROLE_CONFIG: Record<
 		color: "text-purple-700 dark:text-purple-300",
 		bg: "bg-purple-100 dark:bg-purple-900/40",
 	},
+	marketing: {
+		label: "Marketing Manager",
+		color: "text-pink-700 dark:text-pink-300",
+		bg: "bg-pink-100 dark:bg-pink-900/40",
+	},
 	manager: {
 		label: "Manager",
 		color: "text-blue-700 dark:text-blue-300",
