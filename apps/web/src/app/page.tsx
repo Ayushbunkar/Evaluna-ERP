@@ -55,7 +55,7 @@ const CATEGORIES = [
 		icon: Wheat,
 		accent: "from-amber-500/20 to-orange-500/10",
 		border: "hover:border-amber-500/40",
-		link: "/customer/products?category=staples",
+		link: "/products",
 	},
 	{
 		id: "edible-oils-ghee",
@@ -68,7 +68,7 @@ const CATEGORIES = [
 		icon: Droplets,
 		accent: "from-yellow-500/20 to-amber-500/10",
 		border: "hover:border-yellow-500/40",
-		link: "/customer/products?category=oils",
+		link: "/products",
 	},
 	{
 		id: "packaged-foods-snacks",
@@ -81,7 +81,7 @@ const CATEGORIES = [
 		icon: Coffee,
 		accent: "from-rose-500/20 to-red-500/10",
 		border: "hover:border-rose-500/40",
-		link: "/customer/products?category=packaged",
+		link: "/products",
 	},
 	{
 		id: "fmcg-daily-needs",
@@ -94,7 +94,7 @@ const CATEGORIES = [
 		icon: Sparkles,
 		accent: "from-blue-500/20 to-cyan-500/10",
 		border: "hover:border-blue-500/40",
-		link: "/customer/products?category=fmcg",
+		link: "/products",
 	},
 	{
 		id: "beverages",
@@ -107,7 +107,7 @@ const CATEGORIES = [
 		icon: Package,
 		accent: "from-emerald-500/20 to-teal-500/10",
 		border: "hover:border-emerald-500/40",
-		link: "/customer/products?category=beverages",
+		link: "/products",
 	},
 ];
 
@@ -290,7 +290,7 @@ export default function HomePage() {
 							>
 								{/* Primary Action: Order Now / Browse Catalog */}
 								<Link
-									href="/customer/products"
+									href="/products"
 									className="group inline-flex items-center justify-center space-x-2.5 bg-[#111111] px-6 py-3.5 font-mono text-xs uppercase text-[#F7F7F4] tracking-wider transition-all duration-200 hover:bg-[#252525] hover:shadow-lg active:scale-95 dark:bg-[#F5F5F2] dark:text-[#080808] dark:hover:bg-white"
 								>
 									<ShoppingBag className="h-4 w-4" />
@@ -468,7 +468,7 @@ export default function HomePage() {
 						</div>
 
 						<Link
-							href="/customer/products"
+							href="/products"
 							className="inline-flex items-center space-x-2 font-mono text-xs uppercase tracking-wider text-[#111111] hover:underline dark:text-[#F5F5F2]"
 						>
 							<span>View Complete Wholesale Catalog</span>
@@ -976,27 +976,27 @@ export default function HomePage() {
 							</h4>
 							<ul className="space-y-2 text-xs text-[#555555] dark:text-[#A3A3A0]">
 								<li>
-									<Link href="/customer/products?category=staples" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+									<Link href="/products" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
 										Staples & Grains (Atta, Rice, Pulses)
 									</Link>
 								</li>
 								<li>
-									<Link href="/customer/products?category=oils" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+									<Link href="/products" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
 										Edible Oils & Deshi Ghee
 									</Link>
 								</li>
 								<li>
-									<Link href="/customer/products?category=packaged" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+									<Link href="/products" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
 										Packaged Foods & Namkeen
 									</Link>
 								</li>
 								<li>
-									<Link href="/customer/products?category=fmcg" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+									<Link href="/products" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
 										FMCG, Soaps & Detergents
 									</Link>
 								</li>
 								<li>
-									<Link href="/customer/products?category=beverages" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+									<Link href="/products" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
 										Cold Drinks & Beverages
 									</Link>
 								</li>
