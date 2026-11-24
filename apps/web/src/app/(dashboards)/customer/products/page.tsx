@@ -742,11 +742,11 @@ export default function CustomerProductsPage() {
 	};
 
 	return (
-		<PageTransition className="container mx-auto space-y-6 pb-44 lg:pb-24">
+		<PageTransition className="container mx-auto max-w-full overflow-x-hidden space-y-6 pb-44 lg:pb-24">
 			{/* Page Header */}
-			<div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-				<div>
-					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
+			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+				<div className="min-w-0 flex-1">
+					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl truncate">
 						{t.title}
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
@@ -754,15 +754,16 @@ export default function CustomerProductsPage() {
 					</p>
 				</div>
 				{cartItemsList.length > 0 && (
-					<div className="flex items-center gap-2">
+					<div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
 						<Button
 							variant="outline"
 							onClick={() => router.push("/customer/cart")}
-							className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+							className="w-full sm:w-auto border-emerald-600 text-emerald-700 hover:bg-emerald-50 px-2 sm:px-4 text-xs sm:text-sm dark:text-emerald-300 dark:hover:bg-emerald-950/40"
 						>
-							<ShoppingBagIcon className="mr-2 h-4 w-4" />
-							{locale === "hi" ? "कार्ट खोलें" : "Open Cart"} (
-							{cartItemsList.length})
+							<ShoppingBagIcon className="mr-1.5 h-4 w-4 shrink-0" />
+							<span className="truncate">
+								{locale === "hi" ? "कार्ट खोलें" : "Open Cart"} ({cartItemsList.length})
+							</span>
 						</Button>
 						<Button
 							onClick={() => {
@@ -772,9 +773,15 @@ export default function CustomerProductsPage() {
 									setReviewOpen(true);
 								}
 							}}
-							className="bg-emerald-600 text-white hover:bg-emerald-700"
+							className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 px-2 sm:px-4 text-xs sm:text-sm font-semibold shadow-xs"
 						>
-							<CheckCircle2Icon className="mr-2 h-4 w-4" /> {t.reviewOrderBtn}
+							<CheckCircle2Icon className="mr-1.5 h-4 w-4 shrink-0" />
+							<span className="truncate sm:hidden">
+								{t.reviewOrderBtnShort} ({totalCartCount})
+							</span>
+							<span className="hidden truncate sm:inline">
+								{t.reviewOrderBtn}
+							</span>
 						</Button>
 					</div>
 				)}
@@ -812,10 +819,10 @@ export default function CustomerProductsPage() {
 			)}
 
 			{/* Sticky Search & Filter Bar */}
-			<div className="sticky top-0 z-30 -mx-2 px-2 py-2 sm:-mx-4 sm:px-4 md:-mx-6 md:px-6 bg-background/95 backdrop-blur-md transition-all shadow-xs">
+			<div className="sticky top-0 z-30 w-full py-2 bg-background/95 backdrop-blur-md transition-all shadow-xs">
 				<Card className="border-border/60 bg-card/95 shadow-sm backdrop-blur-sm">
 					<CardContent className="flex flex-col gap-2.5 p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
-						<div className="relative flex-1">
+						<div className="relative flex-1 min-w-0">
 							<SearchIcon className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground" />
 							<Input
 								placeholder={t.searchPlaceholder}
@@ -858,7 +865,7 @@ export default function CustomerProductsPage() {
 					</CardContent>
 				</Card>
 			) : (
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full min-w-0">
 					{(products ?? []).map((product) => {
 						const isOutOfStock =
 							(product as any).stockStatus === "out_of_stock" ||
@@ -879,7 +886,7 @@ export default function CustomerProductsPage() {
 						return (
 							<Card
 								key={product.id}
-								className={`group flex flex-col justify-between overflow-hidden rounded-xl transition-all duration-200 hover:shadow-lg ${
+								className={`group flex flex-col justify-between overflow-hidden rounded-xl w-full min-w-0 transition-all duration-200 hover:shadow-lg ${
 									hasOffer
 										? "border-amber-400/90 bg-gradient-to-b from-amber-50/40 via-card to-card shadow-md dark:border-amber-600/80 dark:from-amber-950/20"
 										: isOutOfStock
@@ -1163,9 +1170,9 @@ export default function CustomerProductsPage() {
 																	: "border-purple-200 bg-purple-50 text-purple-900 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-200"
 														}`}
 													>
-														<div className="flex min-w-0 shrink-0 items-center gap-1.5">
+														<div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
 															<ClockIcon className="h-3 w-3 shrink-0 animate-pulse text-current" />
-															<span className="whitespace-nowrap font-bold text-[10px]">
+															<span className="truncate font-bold text-[10px]">
 																{locale === "hi"
 																	? `वैध: ${offerCountdown.formattedDate}`
 																	: `Valid: ${offerCountdown.formattedDate}`}
@@ -1177,11 +1184,11 @@ export default function CustomerProductsPage() {
 													</div>
 												) : (
 													<div className="flex items-center justify-between gap-1 rounded border border-purple-200/60 bg-white/80 px-2 py-0.5 font-medium text-[9px] text-purple-800 dark:border-purple-800/60 dark:bg-slate-900/60 dark:text-purple-300">
-														<span className="flex items-center gap-1 whitespace-nowrap">
+														<span className="flex items-center gap-1 min-w-0 overflow-hidden">
 															<CalendarIcon className="h-2.5 w-2.5 shrink-0 text-purple-600 dark:text-purple-400" />
-															<span>
+															<span className="truncate">
 																{locale === "hi"
-																	? "दर वैधता: नियमित थोक दर (स्थाई)"
+																	? "दर वैधता: नियमित थोक दर"
 																	: "Rate Validity: Regular Ongoing Rate"}
 															</span>
 														</span>

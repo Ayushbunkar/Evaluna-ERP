@@ -351,7 +351,7 @@ export default function PublicProductsCatalogPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200">
+		<div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200 w-full overflow-x-hidden">
 			{/* Public Navbar */}
 			<PublicHeader />
 
@@ -545,7 +545,7 @@ export default function PublicProductsCatalogPage() {
 						</Button>
 					</div>
 				) : (
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 w-full min-w-0">
 						{filteredProducts.map((product) => {
 							const isOutOfStock =
 								(product as any).stockStatus === "out_of_stock" ||
@@ -565,7 +565,7 @@ export default function PublicProductsCatalogPage() {
 							return (
 								<Card
 									key={product.id}
-									className={`group relative flex flex-col justify-between overflow-hidden border transition-all duration-200 hover:shadow-md ${
+									className={`group relative flex flex-col justify-between overflow-hidden border w-full min-w-0 transition-all duration-200 hover:shadow-md ${
 										isOutOfStock
 											? "opacity-75 bg-muted/20 border-border/40"
 											: inCartItem
