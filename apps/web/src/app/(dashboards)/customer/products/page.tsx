@@ -853,7 +853,7 @@ export default function CustomerProductsPage() {
 							<SelectTrigger className="w-full text-xs sm:w-[200px] sm:text-sm bg-background/80">
 								<SelectValue placeholder={t.allCategories} />
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent position="popper" side="bottom" sideOffset={6} collisionPadding={12} className="max-h-72 sm:max-h-80">
 								<SelectItem value="all">{t.allCategories}</SelectItem>
 								{categories.map((cat) => (
 									<SelectItem key={cat} value={cat}>

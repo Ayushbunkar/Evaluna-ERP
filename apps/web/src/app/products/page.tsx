@@ -454,7 +454,7 @@ export default function PublicProductsCatalogPage() {
 								<SelectTrigger className="w-full sm:w-[190px] text-xs sm:text-sm bg-muted/30">
 									<SelectValue placeholder="All Categories" />
 								</SelectTrigger>
-								<SelectContent>
+								<SelectContent position="popper" side="bottom" sideOffset={6} collisionPadding={12} className="max-h-72 sm:max-h-80">
 									<SelectItem value="all">All Categories ({products?.length ?? 0})</SelectItem>
 									{categories.map((cat) => (
 										<SelectItem key={cat} value={cat}>
@@ -507,7 +507,7 @@ export default function PublicProductsCatalogPage() {
 								<SelectTrigger className="w-full sm:w-[170px] text-xs sm:text-sm bg-muted/30">
 									<SelectValue placeholder="Sort Products" />
 								</SelectTrigger>
-								<SelectContent>
+								<SelectContent position="popper" side="bottom" sideOffset={6} collisionPadding={12} className="max-h-72 sm:max-h-80">
 									<SelectItem value="default">Featured</SelectItem>
 									<SelectItem value="price_asc">Price: Low to High</SelectItem>
 									<SelectItem value="price_desc">Price: High to Low</SelectItem>
@@ -613,18 +613,27 @@ export default function PublicProductsCatalogPage() {
 										{product.imageUrl ? (
 											<img
 												src={product.imageUrl}
-												alt={product.name}
+												alt=""
+												aria-label={product.name}
 												className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
 												loading="lazy"
+												onError={(e) => {
+													e.currentTarget.style.display = "none";
+													const next = e.currentTarget.nextElementSibling as HTMLElement;
+													if (next) next.style.display = "flex";
+												}}
 											/>
-										) : (
-											<div className="flex flex-col items-center justify-center gap-1.5 text-muted-foreground/60">
-												<PackageIcon className="h-12 w-12 stroke-[1.5]" />
-												<span className="font-mono text-[10px] uppercase tracking-wider">
-													{product.category || "General"}
-												</span>
-											</div>
-										)}
+										) : null}
+										<div
+											className={`flex flex-col items-center justify-center gap-1.5 text-muted-foreground/60 ${
+												product.imageUrl ? "hidden" : "flex"
+											}`}
+										>
+											<PackageIcon className="h-12 w-12 stroke-[1.5]" />
+											<span className="font-mono text-[10px] uppercase tracking-wider">
+												{product.category || "General"}
+											</span>
+										</div>
 
 										{/* Status Badges Overlay */}
 										<div className="absolute top-2.5 left-2.5 flex flex-col gap-1 items-start">
