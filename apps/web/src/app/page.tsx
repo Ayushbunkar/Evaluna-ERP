@@ -34,6 +34,14 @@ import { useState } from "react";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 
+// ── Direct B2B Wholesale Contact & WhatsApp Support ──
+const CONTACT_PHONE = "+91 96306 49277";
+const CONTACT_TEL_HREF = "tel:+919630649277";
+const WHATSAPP_NUMBER = "919630649277";
+const WHATSAPP_INQUIRY_TEXT =
+	"Namaste Evaluna Team,\n\nMujhe wholesale grocery supply / order ke bare mein jankari chahiye.\n\n• Shop / Business Name: \n• Location / City: \n• Products Needed: \n• My Query: \n\nKripya wholesale rate card aur order process share karein.";
+const WHATSAPP_INQUIRY_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_INQUIRY_TEXT)}`;
+
 // ── Core Categories Data ──
 const CATEGORIES = [
 	{
@@ -234,6 +242,17 @@ export default function HomePage() {
 								</span>
 								<span>•</span>
 								<span>Bhopal & Berasia Hub</span>
+								<span>•</span>
+								<a
+									href={WHATSAPP_INQUIRY_URL}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="flex items-center gap-1 font-semibold text-emerald-600 hover:underline dark:text-emerald-400"
+									title={`Inquire on WhatsApp: ${CONTACT_PHONE}`}
+								>
+									<MessageCircle className="h-3 w-3" />
+									<span>{CONTACT_PHONE}</span>
+								</a>
 							</motion.div>
 
 							{/* Main Heading */}
@@ -288,6 +307,18 @@ export default function HomePage() {
 									<Store className="h-4 w-4" />
 									<span>Register as Retailer</span>
 								</Link>
+
+								{/* Direct WhatsApp Inquiry CTA */}
+								<a
+									href={WHATSAPP_INQUIRY_URL}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="group inline-flex items-center justify-center space-x-2 border border-emerald-600/40 bg-emerald-500/10 px-5 py-3.5 font-mono text-xs uppercase text-emerald-700 tracking-wider transition-all hover:bg-emerald-600 hover:text-white active:scale-95 dark:border-emerald-500/50 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white"
+									title={`Inquire on WhatsApp (${CONTACT_PHONE})`}
+								>
+									<MessageCircle className="h-4 w-4 text-emerald-600 group-hover:text-white dark:text-emerald-400" />
+									<span>WhatsApp Inquiry</span>
+								</a>
 
 								{/* PWA Install Button (with smooth bounce-up entrance) */}
 								<PwaInstallButton />
@@ -773,9 +804,17 @@ export default function HomePage() {
 								helpline available hai. Order tracking, scheme updates, ya billing
 								clarifications ke liye turant call ya chat karein.
 							</p>
-							<div className="mt-4 flex items-center gap-2 font-mono text-[11px] text-[#666666] dark:text-[#A3A3A0]">
-								<Clock className="h-3.5 w-3.5 text-amber-500" />
-								<span>Mon - Sat: 8:00 AM - 8:00 PM</span>
+							<div className="mt-4 flex flex-col gap-1.5 font-mono text-[11px] text-[#666666] dark:text-[#A3A3A0]">
+								<div className="flex items-center gap-2">
+									<Clock className="h-3.5 w-3.5 text-amber-500" />
+									<span>Mon - Sat: 8:00 AM - 8:00 PM</span>
+								</div>
+								<div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+									<Phone className="h-3.5 w-3.5" />
+									<a href={CONTACT_TEL_HREF} className="font-semibold hover:underline">
+										Direct Call: {CONTACT_PHONE}
+									</a>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -830,27 +869,27 @@ export default function HomePage() {
 									Need Assistance or Bulk Custom Quotes?
 								</h4>
 								<p className="text-xs text-[#555555] dark:text-[#A3A3A0]">
-									Hamari dedicated retail onboarding team se WhatsApp ya direct call par baat karein.
+									Hamari dedicated retail onboarding team se WhatsApp ({CONTACT_PHONE}) ya direct call par baat karein.
 								</p>
 							</div>
 
 							<div className="flex flex-wrap items-center gap-3">
 								<a
-									href="https://wa.me/919179538580?text=Hi%20Evaluna%2C%20I%20want%20to%20register%20my%20store%20for%20wholesale%20grocery"
+									href={WHATSAPP_INQUIRY_URL}
 									target="_blank"
 									rel="noopener noreferrer"
-									className="inline-flex items-center space-x-2 rounded-lg bg-emerald-600 px-5 py-2.5 font-mono text-xs uppercase text-white hover:bg-emerald-700 transition-colors"
+									className="inline-flex items-center space-x-2 rounded-lg bg-emerald-600 px-5 py-2.5 font-mono text-xs uppercase text-white hover:bg-emerald-700 transition-colors shadow-sm"
 								>
 									<MessageCircle className="h-4 w-4" />
 									<span>Chat on WhatsApp</span>
 								</a>
 
 								<a
-									href="tel:+919179538580"
+									href={CONTACT_TEL_HREF}
 									className="inline-flex items-center space-x-2 rounded-lg border border-[#DEDEDA] px-5 py-2.5 font-mono text-xs uppercase text-[#111111] hover:border-[#111111] dark:border-[#292929] dark:text-[#F5F5F2] dark:hover:border-[#F5F5F2]"
 								>
-									<Phone className="h-3.5 w-3.5" />
-									<span>Call: +91 91795 38580</span>
+									<Phone className="h-3.5 w-3.5 text-emerald-600" />
+									<span>Call: {CONTACT_PHONE}</span>
 								</a>
 							</div>
 						</div>
@@ -978,14 +1017,19 @@ export default function HomePage() {
 								</p>
 								<p className="flex items-center gap-2">
 									<Phone className="h-4 w-4 shrink-0 text-emerald-600" />
-									<a href="tel:+919179538580" className="hover:underline">
-										+91 91795 38580 / +91 755 492 8110
+									<a href={CONTACT_TEL_HREF} className="hover:underline font-mono">
+										{CONTACT_PHONE} / +91 755 492 8110
 									</a>
 								</p>
 								<p className="flex items-center gap-2">
 									<MessageCircle className="h-4 w-4 shrink-0 text-emerald-600" />
-									<a href="https://wa.me/919179538580" className="hover:underline">
-										WhatsApp: +91 91795 38580
+									<a
+										href={WHATSAPP_INQUIRY_URL}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="hover:underline font-mono"
+									>
+										WhatsApp: {CONTACT_PHONE}
 									</a>
 								</p>
 								<p className="flex items-center gap-2">
@@ -1032,6 +1076,25 @@ export default function HomePage() {
 					</div>
 				</div>
 			</footer>
+
+			{/* Floating WhatsApp Quick Action Button */}
+			<aside aria-label="WhatsApp Support" className="fixed bottom-6 right-6 z-40">
+				<a
+					href={WHATSAPP_INQUIRY_URL}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="group flex items-center gap-2.5 rounded-full bg-emerald-600 py-3 px-4 sm:px-5 font-mono text-xs font-semibold text-white shadow-xl shadow-emerald-600/30 transition-all duration-300 hover:bg-emerald-500 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 dark:focus:ring-offset-black"
+					title={`Direct WhatsApp Inquiry with Evaluna Wholesale (${CONTACT_PHONE})`}
+				>
+					<span className="relative flex h-3 w-3">
+						<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+						<span className="relative inline-flex h-3 w-3 rounded-full bg-white" />
+					</span>
+					<MessageCircle className="h-5 w-5 fill-current" />
+					<span className="hidden sm:inline">WhatsApp Help</span>
+					<span className="sm:hidden">Help</span>
+				</a>
+			</aside>
 		</div>
 	);
 }

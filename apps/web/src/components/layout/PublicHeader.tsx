@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Menu, X } from "lucide-react";
+import { ArrowRight, Menu, MessageCircle, Phone, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
@@ -100,6 +100,16 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 
 				{/* Right Utility Actions */}
 				<div className="hidden items-center space-x-3 md:flex lg:space-x-4">
+					<a
+						href="https://wa.me/919630649277?text=Namaste%20Evaluna%20Team%2C%20I%20want%20to%20inquire%20about%20wholesale%20grocery%20rates%20and%20orders."
+						target="_blank"
+						rel="noopener noreferrer"
+						className="flex items-center gap-1.5 rounded-full border border-emerald-600/30 bg-emerald-500/10 px-3 py-1 font-mono text-[11px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-600 hover:text-white dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white"
+						title="WhatsApp Support (+91 96306 49277)"
+					>
+						<MessageCircle className="h-3 w-3" />
+						<span>9630649277</span>
+					</a>
 					<ThemeToggle />
 					<Link
 						href="/login"
@@ -226,10 +236,26 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 
 							{/* Bottom Action Footer */}
 							<div className="flex flex-col space-y-3 border-[#DEDEDA] border-t pt-5 dark:border-[#292929]">
+								<a
+									href="https://wa.me/919630649277?text=Namaste%20Evaluna%20Team%2C%20I%20want%20to%20inquire%20about%20wholesale%20grocery%20rates%20and%20orders."
+									target="_blank"
+									rel="noopener noreferrer"
+									className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 py-2.5 text-center font-mono text-white text-xs uppercase tracking-wider shadow-sm transition-opacity hover:opacity-90"
+								>
+									<MessageCircle className="h-4 w-4" />
+									<span>WhatsApp: +91 96306 49277</span>
+								</a>
+								<a
+									href="tel:+919630649277"
+									className="flex w-full items-center justify-center gap-2 rounded-md border border-[#111111] py-2.5 text-center font-mono text-[#111111] text-xs uppercase tracking-wider transition-colors hover:bg-[#111111] hover:text-[#F7F7F4] dark:border-[#F5F5F2] dark:text-[#F5F5F2] dark:hover:bg-[#F5F5F2] dark:hover:text-[#080808]"
+								>
+									<Phone className="h-4 w-4 text-emerald-600" />
+									<span>Call: +91 96306 49277</span>
+								</a>
 								<Link
 									href="/login"
 									onClick={() => setMobileMenuOpen(false)}
-									className="w-full rounded-md border border-[#111111] py-2.5 text-center font-mono text-[#111111] text-xs uppercase tracking-wider transition-colors hover:bg-[#111111] hover:text-[#F7F7F4] dark:border-[#F5F5F2] dark:text-[#F5F5F2] dark:hover:bg-[#F5F5F2] dark:hover:text-[#080808]"
+									className="w-full rounded-md border border-[#DEDEDA] py-2 text-center font-mono text-[#666666] text-xs uppercase tracking-wider transition-colors hover:text-[#111111] dark:border-[#292929] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
 								>
 									Employee Sign-In
 								</Link>
