@@ -204,7 +204,6 @@ export default function CustomerProductsPage() {
 	} = trpc.customer.browseProducts.useQuery(
 		{
 			search: search.trim() || undefined,
-			category: category !== "all" ? category : undefined,
 		},
 		{
 			refetchInterval: 5000,
@@ -325,13 +324,32 @@ export default function CustomerProductsPage() {
 		},
 	});
 
+	// Persistent unique categories across catalog
+	const allCategoriesRef = useRef<string[]>([]);
+	if (products && products.length > 0) {
+		const currentCats = new Set<string>();
+		products.forEach((p) => {
+			if (p.category) currentCats.add(p.category);
+		});
+		if (currentCats.size >= allCategoriesRef.current.length) {
+			allCategoriesRef.current = Array.from(currentCats).sort();
+		}
+	}
+
 	const categories = useMemo(() => {
+		if (allCategoriesRef.current.length > 0) return allCategoriesRef.current;
 		const set = new Set<string>();
 		(products ?? []).forEach((p) => {
 			if (p.category) set.add(p.category);
 		});
-		return Array.from(set);
+		return Array.from(set).sort();
 	}, [products]);
+
+	// Filter products by selected category
+	const filteredProducts = useMemo(() => {
+		if (category === "all") return products ?? [];
+		return (products ?? []).filter((p) => p.category === category);
+	}, [products, category]);
 
 	const productsWithDeals = useMemo(
 		() => (products ?? []).filter((p) => p.hasActiveOffer),
@@ -875,7 +893,7 @@ export default function CustomerProductsPage() {
 				<div className="flex h-[300px] items-center justify-center text-destructive text-sm">
 					Error loading products: {error.message}
 				</div>
-			) : (products ?? []).length === 0 ? (
+			) : (filteredProducts ?? []).length === 0 ? (
 				<Card>
 					<CardContent className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
 						<PackageIcon className="h-10 w-10 opacity-40" />
@@ -884,7 +902,7 @@ export default function CustomerProductsPage() {
 				</Card>
 			) : (
 				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full min-w-0">
-					{(products ?? []).map((product) => {
+					{(filteredProducts ?? []).map((product) => {
 						const isOutOfStock =
 							(product as any).stockStatus === "out_of_stock" ||
 							Number((product as any).availableStock ?? 0) <= 0;

@@ -120,7 +120,6 @@ export default function PublicProductsCatalogPage() {
 	} = trpc.customer.browseProducts.useQuery(
 		{
 			search: search.trim() || undefined,
-			category: category !== "all" ? category : undefined,
 		},
 		{
 			refetchInterval: 10000,
@@ -205,8 +204,25 @@ export default function PublicProductsCatalogPage() {
 		} catch (_e) {}
 	};
 
-	// Unique categories
+	// Persistent unique categories across catalog
+	const allCategoriesRef = useRef<string[]>([]);
+	const totalCatalogCountRef = useRef<number>(0);
+
+	if (products && products.length > 0) {
+		const currentCats = new Set<string>();
+		products.forEach((p) => {
+			if (p.category) currentCats.add(p.category);
+		});
+		if (currentCats.size >= allCategoriesRef.current.length) {
+			allCategoriesRef.current = Array.from(currentCats).sort();
+		}
+		if (products.length >= totalCatalogCountRef.current) {
+			totalCatalogCountRef.current = products.length;
+		}
+	}
+
 	const categories = useMemo(() => {
+		if (allCategoriesRef.current.length > 0) return allCategoriesRef.current;
 		const set = new Set<string>();
 		(products ?? []).forEach((p) => {
 			if (p.category) set.add(p.category);
@@ -214,9 +230,16 @@ export default function PublicProductsCatalogPage() {
 		return Array.from(set).sort();
 	}, [products]);
 
+	const totalCatalogCount = totalCatalogCountRef.current || products?.length || 0;
+
 	// Filter and sort products
 	const filteredProducts = useMemo(() => {
 		let list = [...(products ?? [])];
+
+		// Filter by category
+		if (category !== "all") {
+			list = list.filter((p) => p.category === category);
+		}
 
 		// Filter by stock status / deals
 		if (stockFilter === "in_stock") {
@@ -247,7 +270,7 @@ export default function PublicProductsCatalogPage() {
 		}
 
 		return list;
-	}, [products, stockFilter, sortBy]);
+	}, [products, category, stockFilter, sortBy]);
 
 	// Cart stats
 	const cartItemsList = useMemo(() => Object.values(cart), [cart]);
@@ -455,7 +478,7 @@ export default function PublicProductsCatalogPage() {
 									<SelectValue placeholder="All Categories" />
 								</SelectTrigger>
 								<SelectContent position="popper" side="bottom" sideOffset={6} collisionPadding={12} className="max-h-72 sm:max-h-80">
-									<SelectItem value="all">All Categories ({products?.length ?? 0})</SelectItem>
+									<SelectItem value="all">All Categories ({totalCatalogCount})</SelectItem>
 									{categories.map((cat) => (
 										<SelectItem key={cat} value={cat}>
 											{cat}
@@ -529,7 +552,7 @@ export default function PublicProductsCatalogPage() {
 										: "border border-border/80 bg-muted/30 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
 								}`}
 							>
-								All ({products?.length ?? 0})
+								All ({totalCatalogCount})
 							</button>
 							{categories.map((cat) => (
 								<button
