@@ -1353,7 +1353,7 @@ function POSContent() {
 	}
 
 	return (
-		<PageTransition className="flex h-[calc(100dvh-140px-env(safe-area-inset-bottom,0px))] w-full flex-col overflow-hidden rounded-lg bg-muted/40 sm:h-[calc(100dvh-136px)] md:h-full md:flex-row">
+		<PageTransition className="flex h-[calc(100dvh-140px-env(safe-area-inset-bottom,0px))] w-full flex-col overflow-hidden rounded-lg bg-muted/40 sm:h-[calc(100dvh-136px)] md:h-full md:max-h-[calc(100dvh-56px-1.25rem)] md:flex-row">
 			{/* Mobile View Mode Switcher */}
 			<div className="flex shrink-0 items-center justify-between border-b bg-background p-2 md:hidden">
 				<div className="flex w-full rounded-lg bg-muted p-1">
@@ -2093,11 +2093,11 @@ function POSContent() {
 
 			{/* Right Pane - Cart */}
 			<div
-				className={`z-10 min-h-0 w-full flex-1 flex-col overflow-hidden bg-background p-2.5 shadow-xl sm:p-4 md:h-full md:w-[350px] md:flex-initial lg:w-[400px] ${
+				className={`z-10 min-h-0 w-full flex-1 flex-col overflow-hidden bg-background p-2.5 shadow-xl sm:p-3.5 md:h-full md:max-h-full md:w-[350px] md:flex-initial lg:w-[400px] ${
 					activeMobileTab === "cart" ? "flex" : "hidden md:flex"
 				}`}
 			>
-				<div className="mb-3 flex shrink-0 items-center justify-between sm:mb-4">
+				<div className="mb-2 flex shrink-0 items-center justify-between sm:mb-3">
 					<div className="flex items-center gap-2">
 						<h2 className="flex items-center gap-2 font-bold text-foreground text-lg sm:text-xl">
 							<ShoppingCart className="h-5 w-5 text-primary" /> {t.currentOrder}
@@ -2141,7 +2141,7 @@ function POSContent() {
 				{/* Active Customer & Route Banner */}
 				<div
 					onClick={() => setCustomerModalOpen(true)}
-					className="mb-2.5 flex cursor-pointer items-center justify-between rounded-lg border border-emerald-500/40 bg-emerald-50/80 p-2.5 text-xs transition-colors hover:bg-emerald-100/80 dark:border-emerald-800 dark:bg-emerald-950/50"
+					className="mb-2 flex shrink-0 cursor-pointer items-center justify-between rounded-lg border border-emerald-500/40 bg-emerald-50/80 p-2 sm:p-2.5 text-xs transition-colors hover:bg-emerald-100/80 dark:border-emerald-800 dark:bg-emerald-950/50"
 				>
 					<div className="flex items-center gap-1.5 truncate">
 						<User className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
@@ -2163,7 +2163,7 @@ function POSContent() {
 
 				{/* Dedicated Live Products Added Count Banner */}
 				{cart.length > 0 && (
-					<div className="fade-in slide-in-from-top-1 mb-2.5 flex animate-in items-center justify-between rounded-lg border border-blue-200/80 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-blue-50/90 px-3 py-1.5 text-blue-950 text-xs shadow-xs duration-200 dark:border-blue-900/60 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-blue-950/40 dark:text-blue-200">
+					<div className="fade-in slide-in-from-top-1 mb-2 flex shrink-0 animate-in items-center justify-between rounded-lg border border-blue-200/80 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-blue-50/90 px-3 py-1.5 text-blue-950 text-xs shadow-xs duration-200 dark:border-blue-900/60 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-blue-950/40 dark:text-blue-200">
 						<div className="flex items-center gap-1.5">
 							<span className="relative flex h-2 w-2">
 								<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
@@ -2192,7 +2192,7 @@ function POSContent() {
 					</div>
 				)}
 
-				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg bg-muted/20 p-2 sm:p-4">
+				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg bg-muted/20 p-2 sm:p-3">
 					<AnimatePresence>
 						{cart.length === 0 ? (
 							<motion.div
@@ -2344,7 +2344,7 @@ function POSContent() {
 				</ScrollArea>
 
 				{/* Cart Bottom Summary Block with Floating Border Toggle */}
-				<div className="relative z-10 mt-auto shrink-0 border-t bg-background p-3 pt-3.5 shadow-lg sm:p-4 sm:shadow-none">
+				<div className="relative z-10 mt-auto shrink-0 border-t bg-background p-2.5 pt-3 shadow-lg sm:p-3 sm:pt-3.5 sm:shadow-none">
 					{/* Circular Toggle Button positioned right on the top border line */}
 					<button
 						type="button"
@@ -2367,18 +2367,18 @@ function POSContent() {
 								animate={{ height: "auto", opacity: 1 }}
 								exit={{ height: 0, opacity: 0 }}
 								transition={{ duration: 0.2 }}
-								className="space-y-2.5 overflow-hidden pt-1"
+								className="space-y-1.5 sm:space-y-2 overflow-hidden pt-1"
 							>
 								{/* Subtotal row */}
-								<div className="flex items-center justify-between text-muted-foreground text-sm">
+								<div className="flex items-center justify-between text-muted-foreground text-xs sm:text-sm">
 									<span>{t.subtotal}</span>
-									<span className="font-medium text-foreground">
+									<span className="font-semibold text-foreground">
 										₹{subtotal.toFixed(2)}
 									</span>
 								</div>
 
 								{/* Discount row */}
-								<div className="flex items-center justify-between text-sm">
+								<div className="flex items-center justify-between text-xs sm:text-sm">
 									<div className="flex flex-wrap items-center gap-1.5">
 										<span className="text-muted-foreground">{t.discount}</span>
 										{discountValue > 0 ? (
@@ -2386,7 +2386,7 @@ function POSContent() {
 												<button
 													type="button"
 													onClick={openDiscountDialog}
-													className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs transition-colors hover:bg-emerald-200"
+													className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-[11px] sm:text-xs transition-colors hover:bg-emerald-200"
 													title={discountReason || "Discount reason"}
 												>
 													<span>
@@ -2414,7 +2414,7 @@ function POSContent() {
 											<Button
 												variant="outline"
 												size="sm"
-												className="h-6 gap-1 border-emerald-300 border-dashed px-2 text-emerald-700 text-xs hover:bg-emerald-50 hover:text-emerald-800"
+												className="h-5 sm:h-6 gap-1 border-emerald-300 border-dashed px-1.5 sm:px-2 text-emerald-700 text-[11px] sm:text-xs hover:bg-emerald-50 hover:text-emerald-800"
 												onClick={openDiscountDialog}
 												disabled={cart.length === 0}
 											>
@@ -2422,7 +2422,7 @@ function POSContent() {
 											</Button>
 										)}
 									</div>
-									<span className="font-medium text-emerald-600">
+									<span className="font-semibold text-emerald-600">
 										{discountValue > 0
 											? `− ₹${discountValue.toFixed(2)}`
 											: "− ₹0.00"}
@@ -2430,7 +2430,7 @@ function POSContent() {
 								</div>
 
 								{/* Extra Charges row */}
-								<div className="flex items-center justify-between text-sm">
+								<div className="flex items-center justify-between text-xs sm:text-sm">
 									<div className="flex flex-wrap items-center gap-1.5">
 										<span className="text-muted-foreground">
 											{t.extraCharges}
@@ -2440,7 +2440,7 @@ function POSContent() {
 												<button
 													type="button"
 													onClick={openExtraChargesDialog}
-													className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800 text-xs transition-colors hover:bg-blue-200"
+													className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800 text-[11px] sm:text-xs transition-colors hover:bg-blue-200"
 													title={extraChargesReason || "Extra charge reason"}
 												>
 													<span>₹{extraChargesValue.toFixed(2)}</span>
@@ -2464,7 +2464,7 @@ function POSContent() {
 											<Button
 												variant="outline"
 												size="sm"
-												className="h-6 gap-1 border-blue-300 border-dashed px-2 text-blue-700 text-xs hover:bg-blue-50 hover:text-blue-800"
+												className="h-5 sm:h-6 gap-1 border-blue-300 border-dashed px-1.5 sm:px-2 text-blue-700 text-[11px] sm:text-xs hover:bg-blue-50 hover:text-blue-800"
 												onClick={openExtraChargesDialog}
 												disabled={cart.length === 0}
 											>
@@ -2472,7 +2472,7 @@ function POSContent() {
 											</Button>
 										)}
 									</div>
-									<span className="font-medium text-blue-600">
+									<span className="font-semibold text-blue-600">
 										{extraChargesValue > 0
 											? `+ ₹${extraChargesValue.toFixed(2)}`
 											: "+ ₹0.00"}
@@ -2483,13 +2483,13 @@ function POSContent() {
 					</AnimatePresence>
 
 					{/* Total row */}
-					<div className="flex items-baseline justify-between border-t pt-2">
+					<div className="flex items-baseline justify-between border-t pt-1.5 sm:pt-2">
 						<div>
-							<div className="font-extrabold text-foreground text-xl sm:text-2xl">
+							<div className="font-extrabold text-foreground text-lg sm:text-xl">
 								{t.total}
 							</div>
 							{cart.length > 0 && (
-								<p className="font-semibold text-[11px] text-blue-600 dark:text-blue-400">
+								<p className="font-semibold text-[10px] sm:text-[11px] text-blue-600 dark:text-blue-400">
 									{cart.length}{" "}
 									{cart.length === 1
 										? locale === "hi"
@@ -2502,16 +2502,16 @@ function POSContent() {
 								</p>
 							)}
 						</div>
-						<span className="font-black text-2xl text-foreground tracking-tight sm:text-3xl">
+						<span className="font-black text-xl text-foreground tracking-tight sm:text-2xl lg:text-3xl">
 							₹{total.toFixed(2)}
 						</span>
 					</div>
 
-					<div className="grid grid-cols-2 gap-2 pt-2">
+					<div className="grid grid-cols-2 gap-2 pt-1.5 sm:pt-2">
 						<Button
 							variant="secondary"
 							size="lg"
-							className="w-full border border-amber-300/80 bg-amber-50 font-semibold text-amber-900 text-xs hover:bg-amber-100 sm:text-base dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+							className="w-full h-10 border border-amber-300/80 bg-amber-50 font-semibold text-amber-900 text-xs hover:bg-amber-100 sm:h-11 sm:text-sm dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 shadow-xs"
 							onClick={() => {
 								suspendMutation.mutate({
 									customerId: customerDetails?.customerId,
@@ -2534,7 +2534,7 @@ function POSContent() {
 						</Button>
 						<Button
 							size="lg"
-							className="w-full bg-primary font-bold text-primary-foreground text-sm shadow-xs hover:bg-primary/90 sm:text-lg"
+							className="w-full h-10 bg-primary font-bold text-primary-foreground text-xs shadow-xs hover:bg-primary/90 sm:h-11 sm:text-sm"
 							onClick={handleCheckout}
 							disabled={cart.length === 0 || checkoutMutation.isPending}
 						>

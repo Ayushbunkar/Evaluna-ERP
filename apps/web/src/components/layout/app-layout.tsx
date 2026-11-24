@@ -260,6 +260,7 @@ export function AppLayout({
 	role?: string;
 }) {
 	const pathname = usePathname();
+	const isPosPage = pathname === "/sales/pos" || pathname?.endsWith("/pos");
 	const router = useRouter();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [isOffline, setIsOffline] = useState(false);
@@ -846,12 +847,16 @@ export function AppLayout({
 
 				{/* Main Content Area */}
 				<main
-					className="prevent-overflow relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden scroll-smooth bg-muted/20 pb-32 sm:pb-36 lg:pb-8"
+					className={`prevent-overflow relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden scroll-smooth bg-muted/20 pb-32 sm:pb-36 lg:pb-8 ${
+						isPosPage ? "md:overflow-hidden md:pb-0 lg:pb-0" : ""
+					}`}
 					style={{
 						WebkitOverflowScrolling: "touch",
 						paddingBottom:
 							navItems && navItems.length > 0
-								? "calc(max(5.5rem, 4.5rem + env(safe-area-inset-bottom, 0px)) + 2.5rem)"
+								? isPosPage
+									? undefined
+									: "calc(max(5.5rem, 4.5rem + env(safe-area-inset-bottom, 0px)) + 2.5rem)"
 								: undefined,
 					}}
 				>
@@ -866,7 +871,9 @@ export function AppLayout({
 							damping: 40,
 							mass: 0.8,
 						}}
-						className="mx-auto min-h-full w-full min-w-0 max-w-7xl p-2 pb-12 sm:p-4 sm:pb-16 md:p-6 md:pb-8"
+						className={`mx-auto min-h-full w-full min-w-0 max-w-7xl p-2 pb-12 sm:p-4 sm:pb-16 md:p-6 md:pb-8 ${
+							isPosPage ? "md:h-full md:p-2.5 md:pb-2.5 lg:p-3 lg:pb-3" : ""
+						}`}
 					>
 						{children}
 					</motion.div>
