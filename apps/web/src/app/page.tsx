@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 
@@ -211,8 +210,6 @@ const REVIEWS = [
 ];
 
 export default function HomePage() {
-	const [activeFaq, setActiveFaq] = useState<number | null>(null);
-
 	return (
 		<div
 			suppressHydrationWarning
@@ -326,44 +323,39 @@ export default function HomePage() {
 
 							{/* Key Metrics / Highlights Strip */}
 							<div className="grid grid-cols-2 gap-4 border-t border-[#DEDEDA] pt-6 sm:grid-cols-4 dark:border-[#292929]">
-								<div>
-									<p className="font-serif text-2xl font-semibold text-[#111111] dark:text-[#F5F5F2]">
-										100%
-									</p>
-									<p className="font-mono text-[11px] text-[#666666] uppercase tracking-wider dark:text-[#A3A3A0]">
-										GST Invoice & ITC
-									</p>
-								</div>
-								<div>
-									<p className="font-serif text-2xl font-semibold text-[#111111] dark:text-[#F5F5F2]">
-										500+
-									</p>
-									<p className="font-mono text-[11px] text-[#666666] uppercase tracking-wider dark:text-[#A3A3A0]">
-										Daily FMCG SKUs
-									</p>
-								</div>
-								<div>
-									<p className="font-serif text-2xl font-semibold text-[#111111] dark:text-[#F5F5F2]">
-										Fixed
-									</p>
-									<p className="font-mono text-[11px] text-[#666666] uppercase tracking-wider dark:text-[#A3A3A0]">
-										Morning Delivery
-									</p>
-								</div>
-								<div>
-									<p className="font-serif text-2xl font-semibold text-[#111111] dark:text-[#F5F5F2]">
-										FEFO
-									</p>
-									<p className="font-mono text-[11px] text-[#666666] uppercase tracking-wider dark:text-[#A3A3A0]">
-										Fresh Batch Expiry
-									</p>
-								</div>
+								{[
+									{ val: "100%", label: "GST Invoice & ITC" },
+									{ val: "500+", label: "Daily FMCG SKUs" },
+									{ val: "Fixed", label: "Morning Delivery" },
+									{ val: "FEFO", label: "Fresh Batch Expiry" },
+								].map((metric, idx) => (
+									<motion.div
+										key={idx}
+										initial={{ opacity: 0, y: 15 }}
+										animate={{ opacity: 1, y: 0 }}
+										transition={{ duration: 0.5, delay: 0.35 + idx * 0.08 }}
+										whileHover={{ y: -3, transition: { duration: 0.2 } }}
+										className="rounded-xl border border-transparent p-2 transition-colors hover:border-[#DEDEDA] hover:bg-white/60 dark:hover:border-[#292929] dark:hover:bg-[#111111]"
+									>
+										<p className="font-serif text-2xl font-semibold text-[#111111] dark:text-[#F5F5F2]">
+											{metric.val}
+										</p>
+										<p className="font-mono text-[11px] text-[#666666] uppercase tracking-wider dark:text-[#A3A3A0]">
+											{metric.label}
+										</p>
+									</motion.div>
+								))}
 							</div>
 						</div>
 
 						{/* Right Column: Hero Visual Showcase */}
-						<div className="relative lg:col-span-5">
-							<div className="relative overflow-hidden rounded-2xl border border-[#DEDEDA] bg-[#EFEFEA] p-6 shadow-xl dark:border-[#292929] dark:bg-[#101010]">
+						<motion.div
+							initial={{ opacity: 0, scale: 0.95, y: 20 }}
+							animate={{ opacity: 1, scale: 1, y: 0 }}
+							transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
+							className="relative lg:col-span-5"
+						>
+							<div className="relative overflow-hidden rounded-2xl border border-[#DEDEDA] bg-[#EFEFEA] p-6 shadow-xl transition-shadow duration-300 hover:shadow-2xl dark:border-[#292929] dark:bg-[#101010]">
 								{/* Accent Badge */}
 								<div className="mb-5 flex items-center justify-between border-b border-[#DEDEDA] pb-4 dark:border-[#292929]">
 									<div className="flex items-center space-x-2">
@@ -372,73 +364,87 @@ export default function HomePage() {
 											Evaluna B2B Portal
 										</span>
 									</div>
-									<span className="rounded bg-emerald-100 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
+									<span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 font-mono text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
+										<span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
 										LIVE STOCK
 									</span>
 								</div>
 
 								{/* Order Snapshot Cards */}
 								<div className="space-y-3">
-									<div className="flex items-center justify-between rounded-xl border border-[#DEDEDA] bg-white p-3.5 shadow-sm dark:border-[#292929] dark:bg-[#161616]">
-										<div className="flex items-center space-x-3">
-											<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-												<Wheat className="h-5 w-5" />
-											</div>
-											<div>
-												<p className="font-medium text-sm">Chakki Fresh Atta 50kg</p>
-												<p className="text-xs text-[#666666] dark:text-[#A3A3A0]">
-													Wholesale Tier-1 Slabs
-												</p>
-											</div>
-										</div>
-										<span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
-											In Stock
-										</span>
-									</div>
-
-									<div className="flex items-center justify-between rounded-xl border border-[#DEDEDA] bg-white p-3.5 shadow-sm dark:border-[#292929] dark:bg-[#161616]">
-										<div className="flex items-center space-x-3">
-											<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
-												<Droplets className="h-5 w-5" />
-											</div>
-											<div>
-												<p className="font-medium text-sm">Mustard Oil Tin 15L</p>
-												<p className="text-xs text-[#666666] dark:text-[#A3A3A0]">
-													Kachhi Ghani Refinery Pack
-												</p>
-											</div>
-										</div>
-										<span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
-											Best Rate
-										</span>
-									</div>
-
-									<div className="flex items-center justify-between rounded-xl border border-[#DEDEDA] bg-white p-3.5 shadow-sm dark:border-[#292929] dark:bg-[#161616]">
-										<div className="flex items-center space-x-3">
-											<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-												<Sparkles className="h-5 w-5" />
-											</div>
-											<div>
-												<p className="font-medium text-sm">Detergent & Soap Master Case</p>
-												<p className="text-xs text-[#666666] dark:text-[#A3A3A0]">
-													Genuine FMCG Brand Lot
-												</p>
-											</div>
-										</div>
-										<span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
-											Scheme Active
-										</span>
-									</div>
+									{[
+										{
+											icon: Wheat,
+											title: "Chakki Fresh Atta 50kg",
+											desc: "Wholesale Tier-1 Slabs",
+											badge: "In Stock",
+											color: "amber",
+										},
+										{
+											icon: Droplets,
+											title: "Mustard Oil Tin 15L",
+											desc: "Kachhi Ghani Refinery Pack",
+											badge: "Best Rate",
+											color: "yellow",
+										},
+										{
+											icon: Sparkles,
+											title: "Detergent & Soap Master Case",
+											desc: "Genuine FMCG Brand Lot",
+											badge: "Scheme Active",
+											color: "blue",
+										},
+									].map((item, idx) => {
+										const IconComp = item.icon;
+										return (
+											<motion.div
+												key={idx}
+												initial={{ opacity: 0, x: 20 }}
+												animate={{ opacity: 1, x: 0 }}
+												transition={{ duration: 0.5, delay: 0.4 + idx * 0.12 }}
+												whileHover={{ scale: 1.02, x: 4, transition: { duration: 0.2 } }}
+												className="flex items-center justify-between rounded-xl border border-[#DEDEDA] bg-white p-3.5 shadow-xs transition-colors dark:border-[#292929] dark:bg-[#161616]"
+											>
+												<div className="flex items-center space-x-3">
+													<div
+														className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+															item.color === "amber"
+																? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+																: item.color === "yellow"
+																	? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+																	: "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+														}`}
+													>
+														<IconComp className="h-5 w-5" />
+													</div>
+													<div>
+														<p className="font-medium text-sm">{item.title}</p>
+														<p className="text-xs text-[#666666] dark:text-[#A3A3A0]">
+															{item.desc}
+														</p>
+													</div>
+												</div>
+												<span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+													{item.badge}
+												</span>
+											</motion.div>
+										);
+									})}
 								</div>
 
 								{/* Bottom Dispatch Confirmation Bar */}
-								<div className="mt-5 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 p-3 text-center">
+								<motion.div
+									initial={{ opacity: 0, y: 10 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{ duration: 0.5, delay: 0.75 }}
+									className="mt-5 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 p-3 text-center"
+								>
 									<p className="font-mono text-[11px] text-emerald-700 dark:text-emerald-300">
 										⚡ Next Morning Guaranteed Delivery Available in Bhopal & Berasia
 									</p>
-								</div>
+								</motion.div>
 							</div>
-						</div>
+						</motion.div>
 					</div>
 				</div>
 			</section>
@@ -478,19 +484,28 @@ export default function HomePage() {
 
 					{/* Category Cards Grid */}
 					<div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-						{CATEGORIES.map((cat) => {
+						{CATEGORIES.map((cat, idx) => {
 							const IconComponent = cat.icon;
 							return (
-								<div
+								<motion.div
 									key={cat.id}
-									className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[#DEDEDA] bg-white p-6 transition-all duration-300 hover:shadow-lg dark:border-[#292929] dark:bg-[#0E0E0E] ${cat.border}`}
+									initial={{ opacity: 0, y: 25 }}
+									whileInView={{ opacity: 1, y: 0 }}
+									viewport={{ once: true, margin: "-40px" }}
+									transition={{ duration: 0.5, delay: idx * 0.08, ease: "easeOut" }}
+									whileHover={{ y: -6, transition: { duration: 0.2 } }}
+									className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-shadow duration-300 hover:shadow-xl dark:border-[#292929] dark:bg-[#0E0E0E] ${cat.border}`}
 								>
 									{/* Top Bar with Icon & Tag */}
 									<div>
 										<div className="flex items-center justify-between">
-											<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br p-2.5 shadow-xs transition-transform duration-300 group-hover:scale-105">
+											<motion.div
+												whileHover={{ scale: 1.1, rotate: 2 }}
+												transition={{ type: "spring", stiffness: 400, damping: 17 }}
+												className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br p-2.5 shadow-xs"
+											>
 												<IconComponent className="h-6 w-6 text-[#111111] dark:text-[#F5F5F2]" />
-											</div>
+											</motion.div>
 											<span className="rounded-full border border-[#DEDEDA] bg-[#F7F7F4] px-2.5 py-1 font-mono text-[10px] text-[#666666] uppercase tracking-wider dark:border-[#292929] dark:bg-[#161616] dark:text-[#A3A3A0]">
 												{cat.badge}
 											</span>
@@ -513,10 +528,10 @@ export default function HomePage() {
 
 										{/* Popular Item Pills */}
 										<div className="mt-5 flex flex-wrap gap-1.5">
-											{cat.items.map((item, idx) => (
+											{cat.items.map((item, i) => (
 												<span
-													key={idx}
-													className="rounded-md bg-[#F0F0EC] px-2 py-0.5 font-sans text-[11px] text-[#444444] dark:bg-[#1C1C1C] dark:text-[#CCCCCC]"
+													key={i}
+													className="rounded-md bg-[#F0F0EC] px-2 py-0.5 font-sans text-[11px] text-[#444444] transition-colors hover:bg-emerald-500/10 hover:text-emerald-700 dark:bg-[#1C1C1C] dark:text-[#CCCCCC] dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
 												>
 													{item}
 												</span>
@@ -534,12 +549,19 @@ export default function HomePage() {
 											<ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
 										</Link>
 									</div>
-								</div>
+								</motion.div>
 							);
 						})}
 
 						{/* Custom Bulk Ordering Card */}
-						<div className="flex flex-col justify-between rounded-2xl border border-dashed border-[#111111]/30 bg-[#111111] p-6 text-[#F7F7F4] dark:border-[#F5F5F2]/30 dark:bg-[#141414]">
+						<motion.div
+							initial={{ opacity: 0, y: 25 }}
+							whileInView={{ opacity: 1, y: 0 }}
+							viewport={{ once: true, margin: "-40px" }}
+							transition={{ duration: 0.5, delay: CATEGORIES.length * 0.08, ease: "easeOut" }}
+							whileHover={{ y: -6, transition: { duration: 0.2 } }}
+							className="flex flex-col justify-between rounded-2xl border border-dashed border-[#111111]/30 bg-[#111111] p-6 text-[#F7F7F4] shadow-xs transition-shadow duration-300 hover:shadow-xl dark:border-[#F5F5F2]/30 dark:bg-[#141414]"
+						>
 							<div>
 								<span className="font-mono text-[10px] uppercase tracking-widest text-[#888888]">
 									Custom Procurement
@@ -556,13 +578,13 @@ export default function HomePage() {
 							<div className="mt-6">
 								<Link
 									href="/contact"
-									className="inline-flex w-full items-center justify-center space-x-2 rounded-lg bg-white px-4 py-3 font-mono text-xs uppercase tracking-wider text-[#111111] transition-transform hover:scale-[1.02] dark:bg-[#F5F5F2]"
+									className="inline-flex w-full items-center justify-center space-x-2 rounded-lg bg-white px-4 py-3 font-mono text-xs uppercase tracking-wider text-[#111111] transition-transform hover:scale-[1.02] active:scale-95 dark:bg-[#F5F5F2]"
 								>
 									<span>Contact Bulk Sales Desk</span>
 									<ArrowRight className="h-3.5 w-3.5" />
 								</Link>
 							</div>
-						</div>
+						</motion.div>
 					</div>
 				</div>
 			</section>
@@ -593,14 +615,23 @@ export default function HomePage() {
 						{USPs.map((usp, idx) => {
 							const IconComponent = usp.icon;
 							return (
-								<div
+								<motion.div
 									key={idx}
-									className="flex flex-col justify-between rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-all hover:shadow-md dark:border-[#292929] dark:bg-[#111111]"
+									initial={{ opacity: 0, y: 25 }}
+									whileInView={{ opacity: 1, y: 0 }}
+									viewport={{ once: true, margin: "-40px" }}
+									transition={{ duration: 0.5, delay: idx * 0.08, ease: "easeOut" }}
+									whileHover={{ y: -6, transition: { duration: 0.2 } }}
+									className="flex flex-col justify-between rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-shadow duration-300 hover:shadow-xl dark:border-[#292929] dark:bg-[#111111]"
 								>
 									<div className="space-y-4">
-										<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#111111] text-[#F7F7F4] dark:bg-[#F5F5F2] dark:text-[#080808]">
+										<motion.div
+											whileHover={{ scale: 1.1, rotate: 3 }}
+											transition={{ type: "spring", stiffness: 400, damping: 17 }}
+											className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#111111] text-[#F7F7F4] dark:bg-[#F5F5F2] dark:text-[#080808]"
+										>
 											<IconComponent className="h-6 w-6" />
-										</div>
+										</motion.div>
 										<div>
 											<h3 className="font-serif text-xl font-medium tracking-tight">
 												{usp.title}
@@ -618,16 +649,27 @@ export default function HomePage() {
 										<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
 										<span>Standard on every order</span>
 									</div>
-								</div>
+								</motion.div>
 							);
 						})}
 
 						{/* Highlighted Assurance Banner Card */}
-						<div className="flex flex-col justify-between rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-6 dark:bg-emerald-950/20">
+						<motion.div
+							initial={{ opacity: 0, y: 25 }}
+							whileInView={{ opacity: 1, y: 0 }}
+							viewport={{ once: true, margin: "-40px" }}
+							transition={{ duration: 0.5, delay: USPs.length * 0.08, ease: "easeOut" }}
+							whileHover={{ y: -6, transition: { duration: 0.2 } }}
+							className="flex flex-col justify-between rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-6 shadow-xs transition-shadow duration-300 hover:shadow-xl dark:bg-emerald-950/20"
+						>
 							<div className="space-y-3">
-								<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white">
+								<motion.div
+									whileHover={{ scale: 1.1, rotate: -3 }}
+									transition={{ type: "spring", stiffness: 400, damping: 17 }}
+									className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white"
+								>
 									<Award className="h-6 w-6" />
-								</div>
+								</motion.div>
 								<h3 className="font-serif text-xl font-medium text-emerald-900 dark:text-emerald-200">
 									Zero Counterfeit & Transparency
 								</h3>
@@ -641,13 +683,13 @@ export default function HomePage() {
 							<div className="mt-6 pt-4 border-t border-emerald-500/30">
 								<Link
 									href="/signup"
-									className="inline-flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-emerald-700 hover:underline dark:text-emerald-300"
+									className="inline-flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-emerald-700 hover:underline active:scale-95 dark:text-emerald-300"
 								>
 									<span>Join Retailer Network</span>
 									<ArrowRight className="h-3.5 w-3.5" />
 								</Link>
 							</div>
-						</div>
+						</motion.div>
 					</div>
 				</div>
 			</section>
@@ -675,17 +717,22 @@ export default function HomePage() {
 
 					<div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
 						{STEPS.map((step, idx) => (
-							<div
+							<motion.div
 								key={idx}
-								className="relative flex flex-col justify-between rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]"
+								initial={{ opacity: 0, y: 25 }}
+								whileInView={{ opacity: 1, y: 0 }}
+								viewport={{ once: true, margin: "-40px" }}
+								transition={{ duration: 0.5, delay: idx * 0.1, ease: "easeOut" }}
+								whileHover={{ y: -6, transition: { duration: 0.2 } }}
+								className="group relative flex flex-col justify-between rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-shadow duration-300 hover:shadow-xl dark:border-[#292929] dark:bg-[#101010]"
 							>
 								<div>
 									{/* Step Number Tag */}
 									<div className="flex items-center justify-between">
-										<span className="font-mono text-3xl font-bold text-[#CCCCCC] dark:text-[#333333]">
+										<span className="font-mono text-3xl font-bold text-[#CCCCCC] transition-colors group-hover:text-emerald-600 dark:text-[#333333] dark:group-hover:text-emerald-400">
 											{step.step}
 										</span>
-										<span className="h-2 w-2 rounded-full bg-emerald-500" />
+										<span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
 									</div>
 
 									<h3 className="mt-4 font-serif text-xl font-medium tracking-tight">
@@ -703,12 +750,18 @@ export default function HomePage() {
 								<div className="mt-6 border-t border-[#EDEDEA] pt-3 text-[11px] font-mono text-[#888888] dark:border-[#222222]">
 									Step {idx + 1} of 4
 								</div>
-							</div>
+							</motion.div>
 						))}
 					</div>
 
 					{/* Step Action Banner */}
-					<div className="mt-12 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#DEDEDA] bg-[#EFEFEA] p-6 sm:flex-row sm:px-8 dark:border-[#292929] dark:bg-[#121212]">
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						whileInView={{ opacity: 1, y: 0 }}
+						viewport={{ once: true, margin: "-30px" }}
+						transition={{ duration: 0.6 }}
+						className="mt-12 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#DEDEDA] bg-[#EFEFEA] p-6 sm:flex-row sm:px-8 dark:border-[#292929] dark:bg-[#121212]"
+					>
 						<div>
 							<h4 className="font-serif text-lg font-medium">
 								Ready to order wholesale grocery for your shop?
@@ -720,13 +773,13 @@ export default function HomePage() {
 						<div className="flex items-center space-x-3">
 							<Link
 								href="/signup"
-								className="inline-flex items-center space-x-2 bg-[#111111] px-5 py-2.5 font-mono text-xs uppercase text-[#F7F7F4] hover:bg-[#252525] dark:bg-[#F5F5F2] dark:text-[#080808]"
+								className="inline-flex items-center space-x-2 bg-[#111111] px-5 py-2.5 font-mono text-xs uppercase text-[#F7F7F4] hover:bg-[#252525] active:scale-95 transition-all dark:bg-[#F5F5F2] dark:text-[#080808]"
 							>
 								<span>Start Sign Up</span>
 								<ArrowRight className="h-3.5 w-3.5" />
 							</Link>
 						</div>
-					</div>
+					</motion.div>
 				</div>
 			</section>
 
@@ -754,10 +807,21 @@ export default function HomePage() {
 					{/* 4 Trust Pillars */}
 					<div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 						{/* Company Overview */}
-						<div className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]">
-							<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+						<motion.div
+							initial={{ opacity: 0, y: 25 }}
+							whileInView={{ opacity: 1, y: 0 }}
+							viewport={{ once: true, margin: "-40px" }}
+							transition={{ duration: 0.5, delay: 0, ease: "easeOut" }}
+							whileHover={{ y: -6, transition: { duration: 0.2 } }}
+							className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-shadow duration-300 hover:shadow-xl dark:border-[#292929] dark:bg-[#101010]"
+						>
+							<motion.div
+								whileHover={{ scale: 1.1, rotate: 3 }}
+								transition={{ type: "spring", stiffness: 400, damping: 17 }}
+								className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400"
+							>
 								<Store className="h-5 w-5" />
-							</div>
+							</motion.div>
 							<h3 className="mt-4 font-serif text-lg font-medium">
 								Company Details & Infrastructure
 							</h3>
@@ -770,13 +834,24 @@ export default function HomePage() {
 								<MapPin className="h-3.5 w-3.5 text-blue-500" />
 								<span>Bhopal & Berasia, Madhya Pradesh</span>
 							</div>
-						</div>
+						</motion.div>
 
 						{/* Quality & Licensing */}
-						<div className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]">
-							<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+						<motion.div
+							initial={{ opacity: 0, y: 25 }}
+							whileInView={{ opacity: 1, y: 0 }}
+							viewport={{ once: true, margin: "-40px" }}
+							transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+							whileHover={{ y: -6, transition: { duration: 0.2 } }}
+							className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-shadow duration-300 hover:shadow-xl dark:border-[#292929] dark:bg-[#101010]"
+						>
+							<motion.div
+								whileHover={{ scale: 1.1, rotate: -3 }}
+								transition={{ type: "spring", stiffness: 400, damping: 17 }}
+								className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+							>
 								<FileCheck className="h-5 w-5" />
-							</div>
+							</motion.div>
 							<h3 className="mt-4 font-serif text-lg font-medium">
 								Quality, FSSAI & 100% GST Billing
 							</h3>
@@ -789,13 +864,24 @@ export default function HomePage() {
 								<ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
 								<span>FSSAI Certified • GST Compliant</span>
 							</div>
-						</div>
+						</motion.div>
 
 						{/* Dedicated Direct Support */}
-						<div className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]">
-							<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+						<motion.div
+							initial={{ opacity: 0, y: 25 }}
+							whileInView={{ opacity: 1, y: 0 }}
+							viewport={{ once: true, margin: "-40px" }}
+							transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+							whileHover={{ y: -6, transition: { duration: 0.2 } }}
+							className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-shadow duration-300 hover:shadow-xl dark:border-[#292929] dark:bg-[#101010]"
+						>
+							<motion.div
+								whileHover={{ scale: 1.1, rotate: 3 }}
+								transition={{ type: "spring", stiffness: 400, damping: 17 }}
+								className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400"
+							>
 								<Headphones className="h-5 w-5" />
-							</div>
+							</motion.div>
 							<h3 className="mt-4 font-serif text-lg font-medium">
 								Dedicated Area Manager & Support
 							</h3>
@@ -816,7 +902,7 @@ export default function HomePage() {
 									</a>
 								</div>
 							</div>
-						</div>
+						</motion.div>
 					</div>
 
 					{/* Retailer Reviews & Testimonials Carousel */}
@@ -832,9 +918,14 @@ export default function HomePage() {
 
 						<div className="grid grid-cols-1 gap-6 md:grid-cols-3">
 							{REVIEWS.map((rev, idx) => (
-								<div
+								<motion.div
 									key={idx}
-									className="flex flex-col justify-between rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]"
+									initial={{ opacity: 0, y: 25 }}
+									whileInView={{ opacity: 1, y: 0 }}
+									viewport={{ once: true, margin: "-40px" }}
+									transition={{ duration: 0.5, delay: idx * 0.1, ease: "easeOut" }}
+									whileHover={{ y: -6, transition: { duration: 0.2 } }}
+									className="flex flex-col justify-between rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-shadow duration-300 hover:shadow-xl dark:border-[#292929] dark:bg-[#101010]"
 								>
 									<div>
 										<div className="flex items-center space-x-1 text-amber-500 mb-3">
@@ -856,13 +947,19 @@ export default function HomePage() {
 											{rev.role} • {rev.store}
 										</p>
 									</div>
-								</div>
+								</motion.div>
 							))}
 						</div>
 					</div>
 
 					{/* WhatsApp & Phone Direct Contact Banner */}
-					<div className="mt-12 rounded-2xl border border-[#DEDEDA] bg-white p-6 sm:p-8 dark:border-[#292929] dark:bg-[#101010]">
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						whileInView={{ opacity: 1, y: 0 }}
+						viewport={{ once: true, margin: "-30px" }}
+						transition={{ duration: 0.6 }}
+						className="mt-12 rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-shadow duration-300 hover:shadow-lg sm:p-8 dark:border-[#292929] dark:bg-[#101010]"
+					>
 						<div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
 							<div className="space-y-1">
 								<h4 className="font-serif text-xl font-medium">
@@ -893,7 +990,7 @@ export default function HomePage() {
 								</a>
 							</div>
 						</div>
-					</div>
+					</motion.div>
 				</div>
 			</section>
 
@@ -1078,12 +1175,21 @@ export default function HomePage() {
 			</footer>
 
 			{/* Floating WhatsApp Quick Action Button */}
-			<aside aria-label="WhatsApp Support" className="fixed bottom-6 right-6 z-40">
-				<a
+			<motion.aside
+				aria-label="WhatsApp Support"
+				initial={{ opacity: 0, scale: 0.8, y: 20 }}
+				animate={{ opacity: 1, scale: 1, y: 0 }}
+				transition={{ duration: 0.6, delay: 0.5 }}
+				className="fixed bottom-6 right-6 z-40"
+			>
+				<motion.a
 					href={WHATSAPP_INQUIRY_URL}
 					target="_blank"
 					rel="noopener noreferrer"
-					className="group flex items-center gap-2.5 rounded-full bg-emerald-600 py-3 px-4 sm:px-5 font-mono text-xs font-semibold text-white shadow-xl shadow-emerald-600/30 transition-all duration-300 hover:bg-emerald-500 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 dark:focus:ring-offset-black"
+					whileHover={{ scale: 1.06, y: -2 }}
+					whileTap={{ scale: 0.94 }}
+					transition={{ type: "spring", stiffness: 400, damping: 20 }}
+					className="group flex items-center gap-2.5 rounded-full bg-emerald-600 py-3 px-4 sm:px-5 font-mono text-xs font-semibold text-white shadow-xl shadow-emerald-600/30 transition-colors duration-300 hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 dark:focus:ring-offset-black"
 					title={`Direct WhatsApp Inquiry with Evaluna Wholesale (${CONTACT_PHONE})`}
 				>
 					<span className="relative flex h-3 w-3">
@@ -1093,8 +1199,8 @@ export default function HomePage() {
 					<MessageCircle className="h-5 w-5 fill-current" />
 					<span className="hidden sm:inline">WhatsApp Help</span>
 					<span className="sm:hidden">Help</span>
-				</a>
-			</aside>
+				</motion.a>
+			</motion.aside>
 		</div>
 	);
 }
