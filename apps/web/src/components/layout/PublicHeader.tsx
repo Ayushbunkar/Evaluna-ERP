@@ -1,9 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Menu, MessageCircle, Phone, X } from "lucide-react";
+import { ArrowRight, LayoutDashboard, Menu, MessageCircle, Phone, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSession } from "@/hooks/use-session";
+import { CustomerCartHeaderButton } from "./CustomerCartHeaderButton";
 import { ThemeToggle } from "./ThemeToggle";
 
 interface PublicHeaderProps {
@@ -12,6 +14,7 @@ interface PublicHeaderProps {
 
 export function PublicHeader({ className }: PublicHeaderProps) {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const { session } = useSession();
 
 	// Prevent background scroll when mobile menu is open
 	useEffect(() => {
@@ -68,7 +71,13 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 				{/* Desktop Navigation Links */}
 				<nav className="hidden items-center space-x-6 font-mono text-[#666666] text-[11px] uppercase tracking-widest md:flex lg:space-x-8 dark:text-[#A3A3A0]">
 					<Link
-						href="/customer/products"
+						href="/"
+						className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+					>
+						Home
+					</Link>
+					<Link
+						href="/products"
 						className="flex items-center gap-1.5 font-bold text-emerald-600 transition-colors hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
 						title="Browse live product catalog and wholesale rates"
 					>
@@ -88,18 +97,6 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 						Why Evaluna
 					</Link>
 					<Link
-						href="/#how-it-works"
-						className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-					>
-						How It Works
-					</Link>
-					<Link
-						href="/#trust"
-						className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-					>
-						Trust & Compliance
-					</Link>
-					<Link
 						href="/contact"
 						className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 					>
@@ -109,40 +106,54 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 
 				{/* Right Utility Actions */}
 				<div className="hidden items-center space-x-3 md:flex lg:space-x-4">
-					<a
-						href="https://wa.me/919630649277?text=Namaste%20Evaluna%20Team%2C%20I%20want%20to%20inquire%20about%20wholesale%20grocery%20rates%20and%20orders."
-						target="_blank"
-						rel="noopener noreferrer"
-						className="flex items-center gap-1.5 rounded-full border border-emerald-600/30 bg-emerald-500/10 px-3 py-1 font-mono text-[11px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-600 hover:text-white dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white"
-						title="WhatsApp Support (+91 96306 49277)"
-					>
-						<MessageCircle className="h-3 w-3" />
-						<span>9630649277</span>
-					</a>
+					<CustomerCartHeaderButton />
 					<ThemeToggle />
-					<Link
-						href="/login"
-						className="px-2 py-1 font-mono text-[#666666] text-[11px] uppercase tracking-widest transition-colors hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
-					>
-						Sign-In
-					</Link>
-					<Link
-						href="/signup"
-						className="border border-[#111111] px-3.5 py-1.5 font-mono text-[#111111] text-xs uppercase tracking-wider transition-all duration-200 hover:bg-[#111111] hover:text-[#F7F7F4] dark:border-[#F5F5F2] dark:text-[#F5F5F2] dark:hover:bg-[#F5F5F2] dark:hover:text-[#080808]"
-					>
-						Register
-					</Link>
+					{!session?.user ? (
+						<>
+							<Link
+								href="/login"
+								className="px-2 py-1 font-mono text-[#666666] text-[11px] uppercase tracking-widest transition-colors hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+							>
+								Sign-In
+							</Link>
+							<Link
+								href="/signup"
+								className="border border-[#111111] px-3.5 py-1.5 font-mono text-[#111111] text-xs uppercase tracking-wider transition-all duration-200 hover:bg-[#111111] hover:text-[#F7F7F4] dark:border-[#F5F5F2] dark:text-[#F5F5F2] dark:hover:bg-[#F5F5F2] dark:hover:text-[#080808]"
+							>
+								Register
+							</Link>
+						</>
+					) : (
+						<Link
+							href="/customer"
+							className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-background/50 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-foreground hover:bg-accent transition-colors shadow-2xs"
+						>
+							<LayoutDashboard className="h-3.5 w-3.5" />
+							<span>Dashboard</span>
+						</Link>
+					)}
 				</div>
 
-				{/* Mobile Header Actions (Sign-In button visible right on top + ThemeToggle + Hamburger) */}
+				{/* Mobile Header Actions (Cart + ThemeToggle + Sign-In / Dashboard + Hamburger) */}
 				<div className="flex items-center space-x-1.5 sm:space-x-2 md:hidden">
-					<Link
-						href="/login"
-						className="rounded-md border border-[#111111]/30 px-2.5 py-1 font-mono text-[#111111] text-[11px] uppercase tracking-wider transition-colors hover:bg-black/5 dark:border-[#F5F5F2]/30 dark:text-[#F5F5F2] dark:hover:bg-white/5"
-					>
-						Sign-In
-					</Link>
+					<CustomerCartHeaderButton />
 					<ThemeToggle />
+					{!session?.user ? (
+						<Link
+							href="/login"
+							className="rounded-md border border-[#111111]/30 px-2.5 py-1 font-mono text-[#111111] text-[11px] uppercase tracking-wider transition-colors hover:bg-black/5 dark:border-[#F5F5F2]/30 dark:text-[#F5F5F2] dark:hover:bg-white/5"
+						>
+							Sign-In
+						</Link>
+					) : (
+						<Link
+							href="/customer"
+							className="rounded-md border border-border/80 p-1.5 text-foreground hover:bg-accent"
+							title="Dashboard"
+						>
+							<LayoutDashboard className="h-4 w-4" />
+						</Link>
+					)}
 					<button
 						type="button"
 						onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -223,12 +234,12 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 								{/* Sidebar Navigation Links */}
 								<nav className="flex flex-col space-y-2 font-mono text-xs uppercase tracking-widest">
 									{[
-										{ href: "/customer/products", num: "01", label: "Browse Products & Catalog" },
-										{ href: "/#categories", num: "02", label: "Core Categories" },
-										{ href: "/#why-choose", num: "03", label: "Why Choose Us" },
-										{ href: "/#how-it-works", num: "04", label: "How It Works" },
-										{ href: "/#trust", num: "05", label: "Trust & Support" },
-										{ href: "/contact", num: "06", label: "Bulk Inquiry" },
+										{ href: "/", num: "01", label: "Home" },
+										{ href: "/products", num: "02", label: "Products & Catalog" },
+										{ href: "/#categories", num: "03", label: "Core Categories" },
+										{ href: "/#why-choose", num: "04", label: "Why Choose Us" },
+										{ href: "/#how-it-works", num: "05", label: "How It Works" },
+										{ href: "/contact", num: "06", label: "Bulk Inquiry & Contact" },
 									].map((item) => (
 										<Link
 											key={item.href}

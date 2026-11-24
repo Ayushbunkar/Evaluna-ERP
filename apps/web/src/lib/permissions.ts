@@ -565,7 +565,7 @@ export const DASHBOARD_ROUTE_PERMISSIONS: Array<{
 		],
 	},
 	{
-		path: "/products",
+		path: "/products-management",
 		allowedRoles: [
 			"super_admin",
 			"admin",

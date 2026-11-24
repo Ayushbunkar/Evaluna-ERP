@@ -52,15 +52,11 @@ export default async function middleware(request: NextRequest) {
 	}
 
 	// 1.5. Allow public website routes without authentication
-	// Products catalog and cart are publicly browseable by guests without login
-	if (pathname === "/products" || pathname.startsWith("/products/")) {
-		const url = request.nextUrl.clone();
-		url.pathname = pathname.replace(/^\/products/, "/customer/products");
-		return NextResponse.redirect(url);
-	}
-
+	// Products catalog, public cart, and customer browsing are publicly accessible to guests without login
 	const publicRoutes = [
 		"/",
+		"/products",
+		"/cart",
 		"/about",
 		"/features",
 		"/solutions",

@@ -694,8 +694,8 @@ export default function CustomerProductsPage() {
 				: `Review Order (${totalCartCount} items)`,
 		searchPlaceholder:
 			locale === "hi"
-				? "उत्पाद नाम, SKU द्वारा खोजें..."
-				: "Search by product name, SKU...",
+				? "उत्पाद के नाम से खोजें..."
+				: "Search by product name...",
 		allCategories: locale === "hi" ? "सभी श्रेणियां" : "All Categories",
 		loadingProducts:
 			locale === "hi"
@@ -974,11 +974,6 @@ export default function CustomerProductsPage() {
 										<span className="inline-block rounded-md bg-muted px-2 py-0.5 font-semibold text-[10px] text-muted-foreground">
 											{product.category || "General"}
 										</span>
-										{product.sku && (
-											<span className="font-mono text-[10px] text-muted-foreground">
-												SKU: {product.sku}
-											</span>
-										)}
 									</div>
 									<CardTitle className="mt-1.5 line-clamp-2 font-bold text-sm leading-snug sm:text-base">
 										{product.name}

@@ -382,11 +382,6 @@ export default function CustomerDashboard() {
 												<h4 className="mt-2 line-clamp-1 font-semibold text-foreground text-sm">
 													{prod.name}
 												</h4>
-												{prod.sku && (
-													<p className="font-mono text-[10px] text-muted-foreground">
-														SKU: {prod.sku}
-													</p>
-												)}
 												{(prod as any).stockWarningText && (
 													<p
 														className={`mt-1 font-medium text-[10px] leading-tight ${

@@ -653,11 +653,6 @@ export default function CustomerCartPage() {
 													>
 														{item.category}
 													</Badge>
-													{item.sku && (
-														<span className="font-mono text-[10px] text-muted-foreground">
-															SKU: {item.sku}
-														</span>
-													)}
 													{hasOffer && (
 														<Badge className="gap-0.5 bg-gradient-to-r from-amber-500 to-red-600 px-1.5 py-0 font-extrabold text-[9px] text-white">
 															<FlameIcon className="h-2.5 w-2.5" />
