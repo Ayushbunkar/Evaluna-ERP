@@ -742,7 +742,7 @@ export default function CustomerProductsPage() {
 	};
 
 	return (
-		<PageTransition className="container mx-auto max-w-full overflow-x-hidden space-y-6 pb-44 lg:pb-24">
+		<PageTransition className="container mx-auto max-w-full space-y-6 pb-44 lg:pb-24">
 			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
 				<div className="min-w-0 flex-1">
@@ -819,7 +819,7 @@ export default function CustomerProductsPage() {
 			)}
 
 			{/* Sticky Search & Filter Bar */}
-			<div className="sticky top-0 z-30 w-full py-2 bg-background/95 backdrop-blur-md transition-all shadow-xs">
+			<div className="sticky top-14 z-30 w-full py-2 bg-background/95 backdrop-blur-md transition-all shadow-xs">
 				<Card className="border-border/60 bg-card/95 shadow-sm backdrop-blur-sm">
 					<CardContent className="flex flex-col gap-2.5 p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
 						<div className="relative flex-1 min-w-0">

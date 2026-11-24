@@ -351,7 +351,7 @@ export default function PublicProductsCatalogPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200 w-full overflow-x-hidden">
+		<div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-200 w-full">
 			{/* Public Navbar */}
 			<PublicHeader />
 
@@ -390,7 +390,7 @@ export default function PublicProductsCatalogPage() {
 			{/* Main Catalog Section */}
 			<main className="mx-auto max-w-7xl w-full flex-1 px-4 py-8 sm:px-6 lg:px-8 space-y-6">
 				{/* Search & Filter Toolbar */}
-				<div className="sticky top-[58px] z-30 rounded-xl border border-border/70 bg-background/95 p-3.5 shadow-sm backdrop-blur-md">
+				<div className="sticky top-[58px] sm:top-[60px] z-40 rounded-xl border border-border/70 bg-background/95 p-3.5 shadow-md backdrop-blur-md">
 					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 						{/* Search Input */}
 						<div className="relative flex-1">
