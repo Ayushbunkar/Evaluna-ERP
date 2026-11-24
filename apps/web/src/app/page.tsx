@@ -216,7 +216,7 @@ export default function HomePage() {
 	return (
 		<div
 			suppressHydrationWarning
-			className="min-h-screen w-full overflow-x-hidden bg-[#F7F7F4] font-sans text-[#111111] transition-colors duration-500 selection:bg-[#111111] selection:text-[#F7F7F4] dark:bg-[#080808] dark:text-[#F5F5F2] dark:selection:bg-[#F5F5F2] dark:selection:text-[#080808]"
+			className="min-h-screen w-full overflow-x-clip bg-[#F7F7F4] font-sans text-[#111111] transition-colors duration-500 selection:bg-[#111111] selection:text-[#F7F7F4] dark:bg-[#080808] dark:text-[#F5F5F2] dark:selection:bg-[#F5F5F2] dark:selection:text-[#080808]"
 		>
 			{/* Top Synchronized Header */}
 			<PublicHeader />

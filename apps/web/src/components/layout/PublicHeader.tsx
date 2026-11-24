@@ -35,12 +35,13 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 	}, []);
 
 	return (
-		<header
-			suppressHydrationWarning
-			className={`sticky top-0 z-50 w-full border-[#DEDEDA] border-b bg-[#F7F7F4]/95 py-3 backdrop-blur-md transition-colors dark:border-[#292929] dark:bg-[#080808]/95 ${
-				className || ""
-			}`}
-		>
+		<>
+			<header
+				suppressHydrationWarning
+				className={`fixed top-0 inset-x-0 z-50 w-full border-b border-[#DEDEDA] bg-[#F7F7F4]/95 py-3 backdrop-blur-md shadow-xs transition-colors dark:border-[#292929] dark:bg-[#080808]/95 dark:shadow-none ${
+					className || ""
+				}`}
+			>
 			<div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-8 lg:px-12">
 				{/* Brand Lockup */}
 				<Link
@@ -149,8 +150,12 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 					</button>
 				</div>
 			</div>
+		</header>
 
-			{/* Slide-out Mobile Sidebar & Backdrop */}
+		{/* Spacer to preserve normal document flow beneath fixed header */}
+		<div className="h-[57px] w-full shrink-0" aria-hidden="true" />
+
+		{/* Slide-out Mobile Sidebar & Backdrop */}
 			<AnimatePresence>
 				{mobileMenuOpen && (
 					<>
@@ -281,6 +286,6 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 					</>
 				)}
 			</AnimatePresence>
-		</header>
+		</>
 	);
 }
