@@ -30,6 +30,7 @@ import {
 	FlameIcon,
 	LayersIcon,
 	Loader2Icon,
+	LogInIcon,
 	MapPinIcon,
 	MinusIcon,
 	PackageIcon,
@@ -44,9 +45,10 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useRealtimeStock } from "@/hooks/use-realtime-stock";
+import { useSession } from "@/hooks/use-session";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -55,11 +57,14 @@ export default function CustomerCartPage() {
 	const trpc = useTRPC();
 	const router = useRouter();
 	const locale = useLocale();
+	const { session } = useSession();
 
 	// Confirmation & Review Modals
 	const [reviewOpen, setReviewOpen] = useState(false);
+	const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 	const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 	const [orderNotes, setOrderNotes] = useState("");
+	const [guestCartMap, setGuestCartMap] = useState<Record<number, any>>({});
 	const [placedOrder, setPlacedOrder] = useState<{
 		orderId: number;
 		orderRef: string;
@@ -69,7 +74,7 @@ export default function CustomerCartPage() {
 	const idempotencyKeyRef = useRef<string | null>(null);
 	const isSubmittingRef = useRef(false);
 
-	// Fetch Server-Persistent Cart
+	// Fetch Server-Persistent Cart (only when authenticated)
 	const {
 		data: cart,
 		isLoading: cartLoading,
@@ -77,13 +82,70 @@ export default function CustomerCartPage() {
 	} = trpc.customer.getCart.useQuery(undefined, {
 		refetchOnWindowFocus: true,
 		refetchInterval: 5000,
+		enabled: !!session?.user,
 	});
 
-	// Fetch Customer Profile for Delivery Details
-	const { data: profile } = trpc.customer.getMyProfile.useQuery();
+	// Load guest cart from localStorage
+	useEffect(() => {
+		const loadGuestCart = () => {
+			if (!session?.user) {
+				try {
+					const raw = localStorage.getItem("evaluna_guest_cart");
+					if (raw) {
+						setGuestCartMap(JSON.parse(raw) || {});
+					} else {
+						setGuestCartMap({});
+					}
+				} catch (_e) {
+					setGuestCartMap({});
+				}
+			}
+		};
+		loadGuestCart();
+		window.addEventListener("storage", loadGuestCart);
+		window.addEventListener("evaluna_cart_updated", loadGuestCart);
+		return () => {
+			window.removeEventListener("storage", loadGuestCart);
+			window.removeEventListener("evaluna_cart_updated", loadGuestCart);
+		};
+	}, [session?.user]);
+
+	// Fetch Customer Profile for Delivery Details (only when authenticated)
+	const { data: profile } = trpc.customer.getMyProfile.useQuery(undefined, {
+		enabled: !!session?.user,
+	});
 
 	// Mutations
 	const utils = trpc.useUtils();
+
+	const addToCartMutation = trpc.customer.addToCart.useMutation({
+		onSuccess: () => {
+			utils.customer.getCart.invalidate();
+		},
+	});
+
+	// Auto-merge guest cart into server cart once user logs in
+	useEffect(() => {
+		if (session?.user) {
+			try {
+				const raw = localStorage.getItem("evaluna_guest_cart");
+				if (raw) {
+					const parsed = JSON.parse(raw);
+					const items = Object.values(parsed || {}) as any[];
+					if (items.length > 0) {
+						items.forEach((it) => {
+							addToCartMutation.mutate({
+								productId: it.productId,
+								quantity: it.quantity,
+							});
+						});
+						localStorage.removeItem("evaluna_guest_cart");
+						window.dispatchEvent(new Event("evaluna_cart_updated"));
+					}
+				}
+			} catch (_e) {}
+		}
+	}, [session?.user]);
 
 	const updateQtyMutation = trpc.customer.updateCartItemQuantity.useMutation({
 		onSuccess: () => {
@@ -152,32 +214,149 @@ export default function CustomerCartPage() {
 		},
 	});
 
-	const items = cart?.items || [];
+	// Construct guest cart representation
+	const guestItems = useMemo(() => {
+		return Object.values(guestCartMap || {}).map((item: any) => ({
+			id: item.productId,
+			productId: item.productId,
+			productName: item.name,
+			sku: item.sku || null,
+			unit: item.unit || "unit",
+			originalPrice: Number(item.originalPrice || item.price || 0),
+			effectivePrice: Number(item.price || 0),
+			quantity: Number(item.quantity || 1),
+			lineTotal: Number(
+				(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2),
+			),
+			itemNet: Number(
+				(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2),
+			),
+			discountPercent: 0,
+			isAvailable: true,
+			availableStock: 9999,
+			stockStatus: "in_stock",
+			stockBadgeColor: "bg-emerald-500",
+			stockBadgeText: "In Stock",
+			stockBadgeTextHi: "स्टॉक में उपलब्ध",
+			stockWarningText: "",
+			stockWarningTextHi: "",
+			isStockShortage: false,
+			imageUrl: item.image || item.imageUrl || null,
+			slabs: item.slabs || [],
+			appliedSlab: null,
+			hasActiveOffer: false,
+			offerReason: "",
+		}));
+	}, [guestCartMap]);
+
+	const guestSubtotal = useMemo(() => {
+		return guestItems.reduce((acc, i) => acc + i.lineTotal, 0);
+	}, [guestItems]);
+
+	const guestTax = useMemo(() => {
+		return Number((guestSubtotal * 0.05).toFixed(2));
+	}, [guestSubtotal]);
+
+	const effectiveCart = session?.user
+		? cart
+		: {
+				items: guestItems,
+				itemCount: guestItems.length,
+				totalQuantity: guestItems.reduce((acc, i) => acc + i.quantity, 0),
+				subtotal: guestSubtotal,
+				taxAmount: guestTax,
+				taxRatePercent: 5,
+				discountTotal: 0,
+				estimatedTotal: Number((guestSubtotal + guestTax).toFixed(2)),
+				hasStockShortage: false,
+				hasUnavailableItems: false,
+				hasOutOfStockItems: false,
+		  };
+
+	const items = effectiveCart?.items || [];
 	const hasItems = items.length > 0;
+	const isLoading = session?.user ? cartLoading : false;
 
 	// Handlers
 	const handleQtyChange = (productId: number, newQty: number) => {
 		if (newQty <= 0) {
-			removeItemMutation.mutate({ productId });
+			handleRemoveItem(productId);
 			return;
 		}
-		const item = cart?.items?.find((i) => i.productId === productId);
-		const maxAvailable = Number((item as any)?.availableStock ?? 99999);
-		if (newQty > maxAvailable) {
-			toast.warning(
-				locale === "hi"
-					? `केवल ${maxAvailable} यूनिट उपलब्ध हैं।`
-					: `Only ${maxAvailable} units are currently available.`,
-			);
-			newQty = maxAvailable;
+		if (session?.user) {
+			const item = cart?.items?.find((i) => i.productId === productId);
+			const maxAvailable = Number((item as any)?.availableStock ?? 99999);
+			if (newQty > maxAvailable) {
+				toast.warning(
+					locale === "hi"
+						? `केवल ${maxAvailable} यूनिट उपलब्ध हैं।`
+						: `Only ${maxAvailable} units are currently available.`,
+				);
+				newQty = maxAvailable;
+			}
+			updateQtyMutation.mutate({
+				productId,
+				quantity: Number(Number(newQty).toFixed(3)),
+			});
+		} else {
+			setGuestCartMap((prev) => {
+				const clone = { ...prev };
+				if (clone[productId]) {
+					clone[productId].quantity = Number(Number(newQty).toFixed(3));
+				}
+				try {
+					localStorage.setItem("evaluna_guest_cart", JSON.stringify(clone));
+					window.dispatchEvent(new Event("evaluna_cart_updated"));
+				} catch (_e) {}
+				return clone;
+			});
 		}
-		updateQtyMutation.mutate({
-			productId,
-			quantity: Number(Number(newQty).toFixed(3)),
-		});
+	};
+
+	const handleRemoveItem = (productId: number) => {
+		if (session?.user) {
+			removeItemMutation.mutate({ productId });
+		} else {
+			setGuestCartMap((prev) => {
+				const clone = { ...prev };
+				delete clone[productId];
+				try {
+					localStorage.setItem("evaluna_guest_cart", JSON.stringify(clone));
+					window.dispatchEvent(new Event("evaluna_cart_updated"));
+				} catch (_e) {}
+				return clone;
+			});
+			toast.success(
+				locale === "hi"
+					? "उत्पाद कार्ट से हटा दिया गया!"
+					: "Product removed from cart!",
+			);
+		}
+	};
+
+	const handleClearCart = () => {
+		if (session?.user) {
+			clearCartMutation.mutate();
+		} else {
+			setGuestCartMap({});
+			try {
+				localStorage.removeItem("evaluna_guest_cart");
+				window.dispatchEvent(new Event("evaluna_cart_updated"));
+			} catch (_e) {}
+			setClearConfirmOpen(false);
+			toast.info(
+				locale === "hi"
+					? "आपकी कार्ट खाली कर दी गई है।"
+					: "Your shopping cart has been cleared.",
+			);
+		}
 	};
 
 	const handleOpenReview = () => {
+		if (!session?.user) {
+			setLoginPromptOpen(true);
+			return;
+		}
 		if (!hasItems) {
 			toast.error(
 				locale === "hi"
@@ -186,7 +365,7 @@ export default function CustomerCartPage() {
 			);
 			return;
 		}
-		if (cart?.hasOutOfStockItems) {
+		if (effectiveCart?.hasOutOfStockItems) {
 			toast.error(
 				locale === "hi"
 					? "यह उत्पाद वर्तमान में स्टॉक में नहीं है। कृपया अपनी कार्ट अपडेट करें।"
@@ -194,7 +373,7 @@ export default function CustomerCartPage() {
 			);
 			return;
 		}
-		if (cart?.hasStockShortage) {
+		if (effectiveCart?.hasStockShortage) {
 			toast.error(
 				locale === "hi"
 					? "कार्ट में कुछ आइटम उपलब्ध स्टॉक से अधिक हैं। कृपया मात्रा समायोजित करें।"
@@ -209,6 +388,10 @@ export default function CustomerCartPage() {
 	};
 
 	const handleConfirmAndPlaceOrder = () => {
+		if (!session?.user) {
+			setLoginPromptOpen(true);
+			return;
+		}
 		if (isSubmittingRef.current || checkoutMutation.isPending) return;
 		if (!idempotencyKeyRef.current) {
 			idempotencyKeyRef.current = crypto.randomUUID();
@@ -325,7 +508,8 @@ export default function CustomerCartPage() {
 							<span>{locale === "hi" ? "शॉपिंग कार्ट" : "Shopping Cart"}</span>
 							{hasItems && (
 								<span className="font-semibold text-muted-foreground text-sm">
-									({cart?.itemCount} {cart?.itemCount === 1 ? "item" : "items"})
+									({effectiveCart?.itemCount}{" "}
+									{effectiveCart?.itemCount === 1 ? "item" : "items"})
 								</span>
 							)}
 						</h1>
@@ -367,7 +551,7 @@ export default function CustomerCartPage() {
 			</div>
 
 			{/* Loading State */}
-			{cartLoading && (
+			{isLoading && (
 				<div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
 					<Loader2Icon className="h-8 w-8 animate-spin text-emerald-600" />
 					<p className="font-medium text-sm">
@@ -379,7 +563,7 @@ export default function CustomerCartPage() {
 			)}
 
 			{/* Empty Cart State */}
-			{!cartLoading && !hasItems && (
+			{!isLoading && !hasItems && (
 				<Card className="border-2 border-dashed bg-card p-12 text-center shadow-xs">
 					<CardContent className="flex flex-col items-center justify-center gap-4 py-8">
 						<div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-400 shadow-inner dark:bg-slate-800 dark:text-slate-500">
@@ -409,7 +593,7 @@ export default function CustomerCartPage() {
 			)}
 
 			{/* Cart Layout: Items List + Summary Panel */}
-			{!cartLoading && hasItems && (
+			{!isLoading && hasItems && (
 				<div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
 					{/* Left Column: Cart Items List */}
 					<div className="space-y-4 lg:col-span-8">
@@ -605,9 +789,7 @@ export default function CustomerCartPage() {
 													variant="ghost"
 													size="icon"
 													onClick={() =>
-														removeItemMutation.mutate({
-															productId: item.productId,
-														})
+														handleRemoveItem(item.productId)
 													}
 													className="h-8 w-8 text-muted-foreground hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
 													title="Remove from cart"
@@ -631,8 +813,8 @@ export default function CustomerCartPage() {
 										{locale === "hi" ? "ऑर्डर सारांश" : "Order Summary"}
 									</span>
 									<span className="font-normal text-muted-foreground text-xs">
-										{cart?.itemCount}{" "}
-										{cart?.itemCount === 1 ? "Product" : "Products"}
+										{effectiveCart?.itemCount}{" "}
+										{effectiveCart?.itemCount === 1 ? "Product" : "Products"}
 									</span>
 								</CardTitle>
 							</CardHeader>
@@ -645,7 +827,7 @@ export default function CustomerCartPage() {
 											: "Total Quantity:"}
 									</span>
 									<span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
-										{cart?.totalQuantity} Units
+										{effectiveCart?.totalQuantity} Units
 									</span>
 								</div>
 
@@ -655,14 +837,14 @@ export default function CustomerCartPage() {
 									</span>
 									<span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
 										₹
-										{cart?.subtotal?.toLocaleString(undefined, {
+										{effectiveCart?.subtotal?.toLocaleString(undefined, {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
 									</span>
 								</div>
 
-								{(cart?.discountTotal ?? 0) > 0 && (
+								{(effectiveCart?.discountTotal ?? 0) > 0 && (
 									<div className="flex items-center justify-between font-semibold text-emerald-600 dark:text-emerald-400">
 										<span className="flex items-center gap-1">
 											<FlameIcon className="h-3.5 w-3.5" />
@@ -672,7 +854,7 @@ export default function CustomerCartPage() {
 										</span>
 										<span className="font-mono">
 											-₹
-											{cart?.discountTotal?.toLocaleString(undefined, {
+											{effectiveCart?.discountTotal?.toLocaleString(undefined, {
 												minimumFractionDigits: 2,
 												maximumFractionDigits: 2,
 											})}
@@ -702,7 +884,7 @@ export default function CustomerCartPage() {
 									</div>
 									<span className="font-extrabold font-mono text-emerald-700 text-xl sm:text-2xl dark:text-emerald-400">
 										₹
-										{cart?.estimatedTotal?.toLocaleString(undefined, {
+										{effectiveCart?.estimatedTotal?.toLocaleString(undefined, {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
@@ -872,7 +1054,7 @@ export default function CustomerCartPage() {
 								</span>
 								<span className="font-extrabold font-mono text-emerald-600 text-sm dark:text-emerald-400">
 									₹
-									{cart?.estimatedTotal?.toLocaleString(undefined, {
+									{effectiveCart?.estimatedTotal?.toLocaleString(undefined, {
 										minimumFractionDigits: 2,
 										maximumFractionDigits: 2,
 									})}
@@ -975,7 +1157,7 @@ export default function CustomerCartPage() {
 						</Button>
 						<Button
 							variant="destructive"
-							onClick={() => clearCartMutation.mutate()}
+							onClick={handleClearCart}
 							disabled={clearCartMutation.isPending}
 						>
 							{clearCartMutation.isPending ? (
@@ -985,6 +1167,65 @@ export default function CustomerCartPage() {
 									{locale === "hi" ? "हाँ, कार्ट खाली करें" : "Yes, Clear Cart"}
 								</span>
 							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Login Required Modal for Guest Checkout */}
+			<Dialog open={loginPromptOpen} onOpenChange={setLoginPromptOpen}>
+				<DialogContent className="max-w-md p-6">
+					<DialogHeader>
+						<div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 mb-2">
+							<ShoppingCartIcon className="h-6 w-6" />
+						</div>
+						<DialogTitle className="text-center font-serif text-xl sm:text-2xl">
+							{locale === "hi"
+								? "ऑर्डर पूरा करने के लिए लॉग इन करें"
+								: "Sign In to Complete Order"}
+						</DialogTitle>
+						<p className="text-center text-sm text-muted-foreground pt-1">
+							{locale === "hi"
+								? "थोक दरों पर ऑर्डर सबमिट करने, GST इनवॉइस प्राप्त करने और डिलीवरी शेड्यूल करने के लिए अपने खाते में लॉग इन करें या नया बिज़नेस खाता बनाएं। आपके कार्ट का सामान सुरक्षित है!"
+								: "Please sign in or register your verified business account to complete your wholesale order, receive a GST invoice, and schedule fast delivery. Your selected items are saved in your cart!"}
+						</p>
+					</DialogHeader>
+
+					<div className="mt-4 rounded-xl border border-border/60 bg-muted/30 p-3.5 text-xs space-y-2">
+						<div className="flex justify-between font-medium">
+							<span>{locale === "hi" ? "कार्ट कुल वस्तुएं:" : "Total Items in Cart:"}</span>
+							<span className="font-bold text-foreground">
+								{effectiveCart?.itemCount ?? 0} {locale === "hi" ? "आइटम" : "items"} ({effectiveCart?.totalQuantity ?? 0} {locale === "hi" ? "यूनिट" : "units"})
+							</span>
+						</div>
+						<div className="flex justify-between font-medium">
+							<span>{locale === "hi" ? "कुल अनुमानित राशि:" : "Estimated Payable:"}</span>
+							<span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+								₹{Number(effectiveCart?.estimatedTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+							</span>
+						</div>
+					</div>
+
+					<DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2.5">
+						<Button
+							variant="outline"
+							className="w-full sm:w-1/2"
+							onClick={() => {
+								setLoginPromptOpen(false);
+								router.push(`/signup?callbackUrl=${encodeURIComponent("/customer/cart")}`);
+							}}
+						>
+							{locale === "hi" ? "नया खाता बनाएं" : "Register Business"}
+						</Button>
+						<Button
+							className="w-full sm:w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+							onClick={() => {
+								setLoginPromptOpen(false);
+								router.push(`/login?callbackUrl=${encodeURIComponent("/customer/cart")}`);
+							}}
+						>
+							<LogInIcon className="mr-2 h-4 w-4" />
+							{locale === "hi" ? "लॉग इन करें" : "Sign In & Order"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

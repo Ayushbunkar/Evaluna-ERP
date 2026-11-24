@@ -34,6 +34,7 @@ import {
 	FlameIcon,
 	LayersIcon,
 	Loader2Icon,
+	LogInIcon,
 	MapPinIcon,
 	MinusIcon,
 	PackageIcon,
@@ -51,6 +52,7 @@ import { useLocale } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useRealtimeStock } from "@/hooks/use-realtime-stock";
+import { useSession } from "@/hooks/use-session";
 import { PageTransition } from "@/lib/animations";
 import {
 	calculateEffectivePrice,
@@ -166,6 +168,7 @@ export default function CustomerProductsPage() {
 	const utils = trpc.useUtils();
 	const router = useRouter();
 	const locale = useLocale();
+	const { session } = useSession();
 
 	const [search, setSearch] = useState("");
 	const [category, setCategory] = useState<string>("all");
@@ -174,6 +177,7 @@ export default function CustomerProductsPage() {
 		{},
 	);
 	const [reviewOpen, setReviewOpen] = useState(false);
+	const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 	const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 	const submittingRef = useRef(false);
 	const idempotencyKeyRef = useRef<string | null>(null);
@@ -192,13 +196,30 @@ export default function CustomerProductsPage() {
 		},
 	);
 
-	// Persistent server-side cart synchronization
+	// Persistent server-side cart synchronization (when logged in)
 	const { data: serverCart } = trpc.customer.getCart.useQuery(undefined, {
 		refetchInterval: 5000,
+		enabled: !!session?.user,
 	});
 
+	// Load guest cart from localStorage when not authenticated
 	useEffect(() => {
-		if (serverCart?.items) {
+		if (!session?.user) {
+			try {
+				const raw = localStorage.getItem("evaluna_guest_cart");
+				if (raw) {
+					const parsed = JSON.parse(raw);
+					if (parsed && typeof parsed === "object") {
+						setCart(parsed);
+					}
+				}
+			} catch (_e) {}
+		}
+	}, [session?.user]);
+
+	// When user is authenticated, sync with server cart
+	useEffect(() => {
+		if (serverCart?.items && session?.user) {
 			const map: Record<number, CartItem> = {};
 			for (const item of serverCart.items) {
 				map[item.productId] = {
@@ -213,7 +234,40 @@ export default function CustomerProductsPage() {
 			}
 			setCart(map);
 		}
-	}, [serverCart]);
+	}, [serverCart, session?.user]);
+
+	// Auto-merge guest cart into server cart once user logs in
+	useEffect(() => {
+		if (session?.user) {
+			try {
+				const raw = localStorage.getItem("evaluna_guest_cart");
+				if (raw) {
+					const parsed = JSON.parse(raw);
+					const items = Object.values(parsed || {}) as CartItem[];
+					if (items.length > 0) {
+						items.forEach((it) => {
+							addToCartMutation.mutate({
+								productId: it.productId,
+								quantity: it.quantity,
+							});
+						});
+						localStorage.removeItem("evaluna_guest_cart");
+						window.dispatchEvent(new Event("evaluna_cart_updated"));
+					}
+				}
+			} catch (_e) {}
+		}
+	}, [session?.user]);
+
+	const saveGuestCart = (newCart: Record<number, CartItem>) => {
+		setCart(newCart);
+		if (!session?.user) {
+			try {
+				localStorage.setItem("evaluna_guest_cart", JSON.stringify(newCart));
+				window.dispatchEvent(new Event("evaluna_cart_updated"));
+			} catch (_e) {}
+		}
+	};
 
 	const addToCartMutation = trpc.customer.addToCart.useMutation({
 		onSuccess: () => {
@@ -399,8 +453,8 @@ export default function CustomerProductsPage() {
 				finalPrice = slabCalc.unitPrice;
 			}
 		}
-		setCart((prev) => ({
-			...prev,
+		const nextCart = {
+			...cart,
 			[product.id]: {
 				productId: product.id,
 				name: product.name,
@@ -411,11 +465,18 @@ export default function CustomerProductsPage() {
 				slabs: product.slabs,
 				originalPrice: product.originalPrice || product.price,
 			},
-		}));
-		addToCartMutation.mutate({
-			productId: product.id,
-			quantity: qtyToAdd,
-		});
+		};
+		setCart(nextCart);
+
+		if (session?.user) {
+			addToCartMutation.mutate({
+				productId: product.id,
+				quantity: qtyToAdd,
+			});
+		} else {
+			saveGuestCart(nextCart);
+		}
+
 		toast.success(
 			locale === "hi"
 				? `${product.name} (${qtyToAdd}) कार्ट में जोड़ा गया!`
@@ -432,6 +493,7 @@ export default function CustomerProductsPage() {
 			finalQty = Math.max(0.001, Number(val.toFixed(3)));
 		}
 
+		let nextMap: Record<number, CartItem> = {};
 		setCart((prev) => {
 			if (!prev[pid]) return prev;
 			const item = prev[pid];
@@ -446,7 +508,7 @@ export default function CustomerProductsPage() {
 					effectivePrice = slabCalc.unitPrice;
 				}
 			}
-			return {
+			nextMap = {
 				...prev,
 				[pid]: {
 					...item,
@@ -454,12 +516,19 @@ export default function CustomerProductsPage() {
 					quantity: finalQty,
 				},
 			};
+			return nextMap;
 		});
 
-		updateCartQtyMutation.mutate({
-			productId: pid,
-			quantity: finalQty,
-		});
+		if (session?.user) {
+			updateCartQtyMutation.mutate({
+				productId: pid,
+				quantity: finalQty,
+			});
+		} else {
+			setTimeout(() => {
+				saveGuestCart(nextMap);
+			}, 0);
+		}
 	};
 
 	const handleCartIncrement = (pid: number) => {
@@ -477,20 +546,31 @@ export default function CustomerProductsPage() {
 	};
 
 	const handleRemoveFromCart = (pid: number) => {
-		setCart((prev) => {
-			const clone = { ...prev };
-			delete clone[pid];
-			return clone;
-		});
-		removeFromCartMutation.mutate({ productId: pid });
+		const clone = { ...cart };
+		delete clone[pid];
+		setCart(clone);
+		if (session?.user) {
+			removeFromCartMutation.mutate({ productId: pid });
+		} else {
+			saveGuestCart(clone);
+		}
 	};
 
 	const handleClearCart = () => {
 		setCart({});
-		clearCartMutation.mutate();
+		if (session?.user) {
+			clearCartMutation.mutate();
+		} else {
+			try {
+				localStorage.removeItem("evaluna_guest_cart");
+				window.dispatchEvent(new Event("evaluna_cart_updated"));
+			} catch (_e) {}
+		}
 	};
 
-	const { data: profile } = trpc.customer.getMyProfile.useQuery();
+	const { data: profile } = trpc.customer.getMyProfile.useQuery(undefined, {
+		enabled: !!session?.user,
+	});
 	const [phone, setPhone] = useState("");
 	const [address, setAddress] = useState("");
 
@@ -545,6 +625,10 @@ export default function CustomerProductsPage() {
 		updateProfileMutation.isPending;
 
 	const handleSubmitOrder = async () => {
+		if (!session?.user) {
+			setLoginPromptOpen(true);
+			return;
+		}
 		if (submittingRef.current || isSubmitting) return;
 		if (cartItemsList.length === 0) return;
 
@@ -681,7 +765,13 @@ export default function CustomerProductsPage() {
 							{cartItemsList.length})
 						</Button>
 						<Button
-							onClick={() => setReviewOpen(true)}
+							onClick={() => {
+								if (!session?.user) {
+									setLoginPromptOpen(true);
+								} else {
+									setReviewOpen(true);
+								}
+							}}
 							className="bg-emerald-600 text-white hover:bg-emerald-700"
 						>
 							<CheckCircle2Icon className="mr-2 h-4 w-4" /> {t.reviewOrderBtn}
@@ -1373,7 +1463,13 @@ export default function CustomerProductsPage() {
 								<Button
 									size="sm"
 									className="bg-emerald-600 text-white text-xs hover:bg-emerald-700"
-									onClick={() => setReviewOpen(true)}
+									onClick={() => {
+										if (!session?.user) {
+											setLoginPromptOpen(true);
+										} else {
+											setReviewOpen(true);
+										}
+									}}
 								>
 									<CheckCircle2Icon className="mr-1.5 h-4 w-4" />{" "}
 									{t.reviewOrderBtnShort}
@@ -1569,6 +1665,61 @@ export default function CustomerProductsPage() {
 							) : (
 								t.submitBtn
 							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Login / Auth Guard Modal for Guest Order Placement */}
+			<Dialog open={loginPromptOpen} onOpenChange={setLoginPromptOpen}>
+				<DialogContent className="max-w-md p-6">
+					<DialogHeader>
+						<div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 mb-2">
+							<ShoppingBagIcon className="h-6 w-6" />
+						</div>
+						<DialogTitle className="text-center font-serif text-xl sm:text-2xl">
+							{locale === "hi"
+								? "ऑर्डर पूरा करने के लिए लॉग इन करें"
+								: "Sign In to Complete Order"}
+						</DialogTitle>
+						<p className="text-center text-sm text-muted-foreground pt-1">
+							{locale === "hi"
+								? "थोक दरों पर ऑर्डर सबमिट करने, GST इनवॉइस प्राप्त करने और डिलीवरी शेड्यूल करने के लिए अपने खाते में लॉग इन करें या नया बिज़नेस खाता बनाएं। आपके कार्ट का सामान सुरक्षित है!"
+								: "Please sign in or register your verified business account to complete your wholesale order, receive a GST invoice, and schedule fast delivery. Your selected items are saved in your cart!"}
+						</p>
+					</DialogHeader>
+
+					<div className="mt-4 rounded-xl border border-border/60 bg-muted/30 p-3.5 text-xs space-y-2">
+						<div className="flex justify-between font-medium">
+							<span>{locale === "hi" ? "चयनित उत्पाद:" : "Selected Items:"}</span>
+							<span className="font-bold text-foreground">{totalCartCount} {locale === "hi" ? "यूनिट" : "units"} ({cartItemsList.length} items)</span>
+						</div>
+						<div className="flex justify-between font-medium">
+							<span>{locale === "hi" ? "अनुमानित कुल राशि:" : "Estimated Total:"}</span>
+							<span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{totalCartAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+						</div>
+					</div>
+
+					<DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2.5">
+						<Button
+							variant="outline"
+							className="w-full sm:w-1/2"
+							onClick={() => {
+								setLoginPromptOpen(false);
+								router.push(`/signup?callbackUrl=${encodeURIComponent("/customer/cart")}`);
+							}}
+						>
+							{locale === "hi" ? "नया खाता बनाएं" : "Register Business"}
+						</Button>
+						<Button
+							className="w-full sm:w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+							onClick={() => {
+								setLoginPromptOpen(false);
+								router.push(`/login?callbackUrl=${encodeURIComponent("/customer/cart")}`);
+							}}
+						>
+							<LogInIcon className="mr-2 h-4 w-4" />
+							{locale === "hi" ? "लॉग इन करें" : "Sign In & Order"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -3,17 +3,67 @@
 import { ShoppingCartIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/hooks/use-session";
 import { trpc } from "@/lib/trpc/client";
 
 export function CustomerCartHeaderButton() {
 	const pathname = usePathname();
-	const { data: cart } = trpc.customer.getCart.useQuery(undefined, {
+	const { session } = useSession();
+
+	const { data: serverCart } = trpc.customer.getCart.useQuery(undefined, {
 		refetchOnWindowFocus: true,
 		staleTime: 10_000,
+		enabled: !!session?.user,
 	});
 
-	const itemCount = cart?.itemCount ?? 0;
+	const [guestCount, setGuestCount] = useState(0);
+	const [guestTotal, setGuestTotal] = useState(0);
+
+	useEffect(() => {
+		const updateGuestCart = () => {
+			if (session?.user) return;
+			try {
+				const raw = localStorage.getItem("evaluna_guest_cart");
+				if (raw) {
+					const parsed = JSON.parse(raw);
+					const items = Object.values(parsed || {});
+					const count = items.length;
+					const total = items.reduce(
+						(sum: number, item: any) =>
+							sum + Number(item.price || 0) * Number(item.quantity || 0),
+						0,
+					);
+					setGuestCount(count);
+					setGuestTotal(total);
+				} else {
+					setGuestCount(0);
+					setGuestTotal(0);
+				}
+			} catch (_e) {
+				setGuestCount(0);
+				setGuestTotal(0);
+			}
+		};
+
+		updateGuestCart();
+		window.addEventListener("storage", updateGuestCart);
+		window.addEventListener("evaluna_cart_updated", updateGuestCart);
+		return () => {
+			window.removeEventListener("storage", updateGuestCart);
+			window.removeEventListener("evaluna_cart_updated", updateGuestCart);
+		};
+	}, [session?.user]);
+
+	const itemCount = session?.user
+		? serverCart?.itemCount ?? 0
+		: guestCount;
+
+	const totalAmount = session?.user
+		? serverCart?.estimatedTotal ?? 0
+		: guestTotal;
+
 	const isCartPage = pathname === "/customer/cart";
 
 	return (
@@ -39,7 +89,12 @@ export function CustomerCartHeaderButton() {
 					Cart
 					{itemCount > 0 && (
 						<span className="ml-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-							(₹{cart?.estimatedTotal?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || "0"})
+							(₹
+							{totalAmount.toLocaleString(undefined, {
+								minimumFractionDigits: 0,
+								maximumFractionDigits: 0,
+							})}
+							)
 						</span>
 					)}
 				</span>

@@ -284,9 +284,12 @@ export function AppLayout({
 
 	const { data: userProfile } = trpc.users.getMyProfile.useQuery(undefined, {
 		refetchOnWindowFocus: false,
+		enabled: !!session?.user,
 	});
 
-	const { data: statusData } = trpc.attendance.myStatus.useQuery();
+	const { data: statusData } = trpc.attendance.myStatus.useQuery(undefined, {
+		enabled: !!session?.user,
+	});
 	const activeShift = statusData?.activeShift;
 
 	const handleSync = async () => {
@@ -520,136 +523,153 @@ export function AppLayout({
 						<LocaleSwitcher />
 					</div>
 
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-9 w-9 overflow-hidden rounded-full shadow-sm ring-1 ring-border/50 transition-all hover:ring-2 hover:ring-primary/20"
+					{!session?.user ? (
+						<div className="flex items-center gap-2">
+							<Link
+								href="/login"
+								className="rounded-lg border border-border/80 bg-background/50 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-foreground hover:bg-accent hover:text-accent-foreground transition-colors shadow-2xs"
 							>
-								{userProfile?.image || session?.user?.image ? (
-									<img
-										src={userProfile?.image || session?.user?.image || ""}
-										alt={
-											userProfile?.name || session?.user?.name || "User Profile"
-										}
-										className="h-full w-full rounded-full object-cover"
-									/>
+								Sign In
+							</Link>
+							<Link
+								href="/signup"
+								className="hidden sm:inline-flex rounded-lg bg-primary px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90 transition-colors shadow-2xs"
+							>
+								Register
+							</Link>
+						</div>
+					) : (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-9 w-9 overflow-hidden rounded-full shadow-sm ring-1 ring-border/50 transition-all hover:ring-2 hover:ring-primary/20"
+								>
+									{userProfile?.image || session?.user?.image ? (
+										<img
+											src={userProfile?.image || session?.user?.image || ""}
+											alt={
+												userProfile?.name || session?.user?.name || "User Profile"
+											}
+											className="h-full w-full rounded-full object-cover"
+										/>
+									) : (
+										<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+											<UserIcon className="h-5 w-5" />
+										</div>
+									)}
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								align="end"
+								className="w-56 rounded-xl border-border/50 shadow-xl"
+							>
+								<DropdownMenuLabel
+									onClick={() => setIsProfileOpen(true)}
+									className="cursor-pointer rounded-lg p-2 font-normal transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70"
+								>
+									<div className="flex items-center justify-between gap-2">
+										<div className="flex flex-col space-y-1">
+											<p className="font-semibold text-slate-900 text-sm leading-none dark:text-slate-100">
+												{userProfile?.name || session?.user?.name || "My Account"}
+											</p>
+											<p className="text-muted-foreground text-xs leading-none">
+												{userProfile?.email || session?.user?.email || ""}
+											</p>
+										</div>
+										<Badge
+											variant="outline"
+											className="border-blue-200 font-semibold text-[10px] text-blue-600 dark:border-blue-800 dark:text-blue-400"
+										>
+											View
+										</Badge>
+									</div>
+								</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									onClick={() => setIsProfileOpen(true)}
+									className="flex cursor-pointer items-center gap-2 rounded-md font-medium text-blue-600 focus:bg-blue-50 dark:text-blue-400 dark:focus:bg-blue-950/50"
+								>
+									<UserIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+									My Profile & Edit
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								{session?.user?.isSuperadmin || role === "admin" ? (
+									<>
+										<DropdownMenuItem
+											asChild
+											className="cursor-pointer rounded-md focus:bg-accent/50"
+										>
+											<Link
+												href={role === "admin" ? "/admin/settings" : "/settings"}
+											>
+												Settings
+											</Link>
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											asChild
+											className="cursor-pointer rounded-md focus:bg-accent/50"
+										>
+											<a
+												href={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/backup`}
+												download
+											>
+												Download Local Backup
+											</a>
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+									</>
+								) : null}
+								{role === "customer" ? (
+									<>
+										<DropdownMenuItem
+											asChild
+											className="cursor-pointer rounded-md focus:bg-accent/50"
+										>
+											<Link href="/customer/profile">My Customer Profile</Link>
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											asChild
+											className="cursor-pointer rounded-md focus:bg-accent/50"
+										>
+											<Link href="/customer/orders">My Orders</Link>
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											asChild
+											className="cursor-pointer rounded-md focus:bg-accent/50"
+										>
+											<Link href="/customer/payments">Payments & Wallet</Link>
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+									</>
 								) : (
-									<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-										<UserIcon className="h-5 w-5" />
-									</div>
+									<>
+										<DropdownMenuItem
+											asChild
+											className="cursor-pointer rounded-md focus:bg-accent/50"
+										>
+											<Link href="/attendance">My Attendance</Link>
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											asChild
+											className="cursor-pointer rounded-md focus:bg-accent/50"
+										>
+											<Link href="/staff">Staff Portal</Link>
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+									</>
 								)}
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent
-							align="end"
-							className="w-56 rounded-xl border-border/50 shadow-xl"
-						>
-							<DropdownMenuLabel
-								onClick={() => setIsProfileOpen(true)}
-								className="cursor-pointer rounded-lg p-2 font-normal transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70"
-							>
-								<div className="flex items-center justify-between gap-2">
-									<div className="flex flex-col space-y-1">
-										<p className="font-semibold text-slate-900 text-sm leading-none dark:text-slate-100">
-											{userProfile?.name || session?.user?.name || "My Account"}
-										</p>
-										<p className="text-muted-foreground text-xs leading-none">
-											{userProfile?.email || session?.user?.email || ""}
-										</p>
-									</div>
-									<Badge
-										variant="outline"
-										className="border-blue-200 font-semibold text-[10px] text-blue-600 dark:border-blue-800 dark:text-blue-400"
-									>
-										View
-									</Badge>
-								</div>
-							</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								onClick={() => setIsProfileOpen(true)}
-								className="flex cursor-pointer items-center gap-2 rounded-md font-medium text-blue-600 focus:bg-blue-50 dark:text-blue-400 dark:focus:bg-blue-950/50"
-							>
-								<UserIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-								My Profile & Edit
-							</DropdownMenuItem>
-							<DropdownMenuSeparator />
-							{session?.user?.isSuperadmin || role === "admin" ? (
-								<>
-									<DropdownMenuItem
-										asChild
-										className="cursor-pointer rounded-md focus:bg-accent/50"
-									>
-										<Link
-											href={role === "admin" ? "/admin/settings" : "/settings"}
-										>
-											Settings
-										</Link>
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										asChild
-										className="cursor-pointer rounded-md focus:bg-accent/50"
-									>
-										<a
-											href={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/backup`}
-											download
-										>
-											Download Local Backup
-										</a>
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-								</>
-							) : null}
-							{role === "customer" ? (
-								<>
-									<DropdownMenuItem
-										asChild
-										className="cursor-pointer rounded-md focus:bg-accent/50"
-									>
-										<Link href="/customer/profile">My Customer Profile</Link>
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										asChild
-										className="cursor-pointer rounded-md focus:bg-accent/50"
-									>
-										<Link href="/customer/orders">My Orders</Link>
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										asChild
-										className="cursor-pointer rounded-md focus:bg-accent/50"
-									>
-										<Link href="/customer/payments">Payments & Wallet</Link>
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-								</>
-							) : (
-								<>
-									<DropdownMenuItem
-										asChild
-										className="cursor-pointer rounded-md focus:bg-accent/50"
-									>
-										<Link href="/attendance">My Attendance</Link>
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-									<DropdownMenuItem
-										asChild
-										className="cursor-pointer rounded-md focus:bg-accent/50"
-									>
-										<Link href="/staff">Staff Portal</Link>
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-								</>
-							)}
-							<DropdownMenuItem
-								onClick={() => setIsLogoutOpen(true)}
-								className="cursor-pointer rounded-md text-destructive focus:bg-destructive/10 focus:text-destructive"
-							>
-								Logout
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+								<DropdownMenuItem
+									onClick={() => setIsLogoutOpen(true)}
+									className="cursor-pointer rounded-md text-destructive focus:bg-destructive/10 focus:text-destructive"
+								>
+									Logout
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
 
 					{/* Modals */}
 					<ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />

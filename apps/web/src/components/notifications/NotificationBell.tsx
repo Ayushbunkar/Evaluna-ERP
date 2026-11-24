@@ -10,6 +10,7 @@ import {
 import { motion } from "framer-motion";
 import { Bell } from "lucide-react";
 import React, { useState } from "react";
+import { useSession } from "@/hooks/use-session";
 import { useTRPC } from "@/lib/trpc/client";
 import { NotificationModal } from "./NotificationModal";
 
@@ -28,15 +29,21 @@ export function NotificationBell({
 }: NotificationBellProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const trpc = useTRPC();
+	const { session } = useSession();
 
-	// Query unread count with 10s auto-refresh
+	// Query unread count with 10s auto-refresh (only for authenticated users)
 	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery(
 		branchId ? { branch_id: branchId } : {},
 		{
 			refetchInterval: 10000,
 			refetchOnWindowFocus: true,
+			enabled: !!session?.user,
 		},
 	);
+
+	if (!session?.user) {
+		return null;
+	}
 
 	const unreadCount = unreadCountData?.count || 0;
 

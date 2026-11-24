@@ -68,6 +68,14 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 				{/* Desktop Navigation Links */}
 				<nav className="hidden items-center space-x-6 font-mono text-[#666666] text-[11px] uppercase tracking-widest md:flex lg:space-x-8 dark:text-[#A3A3A0]">
 					<Link
+						href="/customer/products"
+						className="flex items-center gap-1.5 font-bold text-emerald-600 transition-colors hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+						title="Browse live product catalog and wholesale rates"
+					>
+						<span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+						<span>Products</span>
+					</Link>
+					<Link
 						href="/#categories"
 						className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 					>
@@ -215,11 +223,12 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 								{/* Sidebar Navigation Links */}
 								<nav className="flex flex-col space-y-2 font-mono text-xs uppercase tracking-widest">
 									{[
-										{ href: "/#categories", num: "01", label: "Core Categories" },
-										{ href: "/#why-choose", num: "02", label: "Why Choose Us" },
-										{ href: "/#how-it-works", num: "03", label: "How It Works" },
-										{ href: "/#trust", num: "04", label: "Trust & Support" },
-										{ href: "/contact", num: "05", label: "Bulk Inquiry" },
+										{ href: "/customer/products", num: "01", label: "Browse Products & Catalog" },
+										{ href: "/#categories", num: "02", label: "Core Categories" },
+										{ href: "/#why-choose", num: "03", label: "Why Choose Us" },
+										{ href: "/#how-it-works", num: "04", label: "How It Works" },
+										{ href: "/#trust", num: "05", label: "Trust & Support" },
+										{ href: "/contact", num: "06", label: "Bulk Inquiry" },
 									].map((item) => (
 										<Link
 											key={item.href}

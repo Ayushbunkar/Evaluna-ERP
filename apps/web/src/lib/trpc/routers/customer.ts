@@ -21,7 +21,12 @@ import {
 	autoRecoverMissingProductImages,
 	ensureProductImageColumns,
 } from "@/lib/product-schema-ensure";
-import { customerProcedure, roleProcedure, router } from "../init";
+import {
+	customerProcedure,
+	publicProcedure,
+	roleProcedure,
+	router,
+} from "../init";
 import { ensureSlabPricingTable } from "./slab-pricing";
 
 export { ensureProductImageColumns };
@@ -533,8 +538,8 @@ export const customerRouter = router({
 		};
 	}),
 
-	// ── Product browsing (Includes active product pricing) ───────────────────
-	browseProducts: customerProcedure
+	// ── Product browsing (Includes active product pricing; public for guest browsing) ───────
+	browseProducts: publicProcedure
 		.input(
 			z
 				.object({
@@ -699,8 +704,8 @@ export const customerRouter = router({
 				slabsMap.set(s.product_id, list);
 			}
 
-			// Fetch branch inventory for customer's branch
-			const customerBranchId = ctx.customer.branch_id || 1;
+			// Fetch branch inventory for customer's branch (default to branch 1 if unauthenticated guest)
+			const customerBranchId = (ctx as any).customer?.branch_id || 1;
 			const branchInvMap = new Map<
 				number,
 				{ inStock: number; reservedStock: number }
