@@ -742,7 +742,7 @@ export default function CustomerProductsPage() {
 	};
 
 	return (
-		<PageTransition className="container mx-auto space-y-6 pb-24">
+		<PageTransition className="container mx-auto space-y-6 pb-44 lg:pb-24">
 			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
 				<div>
@@ -1414,22 +1414,22 @@ export default function CustomerProductsPage() {
 
 			{/* Floating Order Cart Bar */}
 			{cartItemsList.length > 0 && (
-				<div className="fixed right-4 bottom-4 left-4 z-40 mx-auto max-w-4xl rounded-xl border border-emerald-500/30 bg-card/95 p-4 shadow-xl backdrop-blur sm:left-auto">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<div className="fixed right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] left-3 z-50 mx-auto max-w-4xl rounded-xl border border-emerald-500/30 bg-card/95 p-3 sm:p-4 shadow-xl backdrop-blur sm:left-auto sm:right-4 lg:bottom-4">
+					<div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
 						<div>
-							<p className="font-bold text-foreground text-sm">
+							<p className="font-bold text-foreground text-xs sm:text-sm">
 								{t.floatingCartTitle(cartItemsList.length, totalCartCount)}
 							</p>
-							<p className="text-muted-foreground text-xs">
+							<p className="text-muted-foreground text-[11px] sm:text-xs">
 								{t.floatingCartDesc}
 							</p>
 						</div>
-						<div className="flex items-center justify-between gap-4 sm:justify-end">
-							<div className="text-right">
+						<div className="flex items-center justify-between gap-3 sm:justify-end">
+							<div className="text-left sm:text-right">
 								<p className="text-[10px] text-muted-foreground">
 									{locale === "hi" ? "कुल अनुमानित मूल्य" : "Est. Total Amount"}
 								</p>
-								<p className="font-bold text-emerald-600 text-sm dark:text-emerald-400">
+								<p className="font-bold text-emerald-600 text-xs sm:text-sm dark:text-emerald-400">
 									₹
 									{totalCartAmount.toLocaleString(undefined, {
 										minimumFractionDigits: 2,
@@ -1437,11 +1437,11 @@ export default function CustomerProductsPage() {
 									})}
 								</p>
 							</div>
-							<div className="flex items-center gap-2">
+							<div className="flex items-center gap-1.5 sm:gap-2">
 								<Button
 									variant="outline"
 									size="sm"
-									className="text-xs"
+									className="h-8 px-2 text-xs"
 									onClick={handleClearCart}
 								>
 									{t.clear}
@@ -1449,15 +1449,15 @@ export default function CustomerProductsPage() {
 								<Button
 									variant="outline"
 									size="sm"
-									className="border-emerald-600 text-emerald-700 text-xs hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+									className="h-8 border-emerald-600 text-emerald-700 text-xs hover:bg-emerald-50 px-2 sm:px-3 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
 									onClick={() => router.push("/customer/cart")}
 								>
-									<ShoppingBagIcon className="mr-1.5 h-3.5 w-3.5" />
-									{locale === "hi" ? "कार्ट देखें" : "View Cart"}
+									<ShoppingBagIcon className="mr-1 h-3.5 w-3.5" />
+									<span>{locale === "hi" ? "कार्ट" : "Cart"}</span>
 								</Button>
 								<Button
 									size="sm"
-									className="bg-emerald-600 text-white text-xs hover:bg-emerald-700"
+									className="h-8 bg-emerald-600 text-white text-xs hover:bg-emerald-700 px-2.5 sm:px-3 font-semibold shadow-xs"
 									onClick={() => {
 										if (!session?.user) {
 											setLoginPromptOpen(true);
@@ -1466,8 +1466,8 @@ export default function CustomerProductsPage() {
 										}
 									}}
 								>
-									<CheckCircle2Icon className="mr-1.5 h-4 w-4" />{" "}
-									{t.reviewOrderBtnShort}
+									<CheckCircle2Icon className="mr-1 h-3.5 w-3.5" />{" "}
+									<span>{t.reviewOrderBtnShort}</span>
 								</Button>
 							</div>
 						</div>
