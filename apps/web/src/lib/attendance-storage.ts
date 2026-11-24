@@ -81,16 +81,20 @@ export async function storeAttendanceImage(
 	const relPath = path.join(relDir, storedName).split(path.sep).join("/");
 
 	// Best-effort local file write (works on localhost/VPS; gracefully ignored on read-only serverless/Vercel)
+	let diskWritten = false;
 	try {
 		const absDir = path.join(attendanceUploadRoot(), relDir);
 		await mkdir(absDir, { recursive: true });
 		await writeFile(path.join(absDir, storedName), params.buffer);
+		diskWritten = true;
 	} catch (diskErr) {
 		console.warn("[attendance-storage] Ephemeral/read-only disk write skipped (using DB persistence):", diskErr);
 	}
 
-	// Always persist base64 data to database so Vercel serverless instances can serve it reliably
-	const b64Data = params.buffer.toString("base64");
+	// Avoid PostgreSQL Base64 Bloat:
+	// Only store base64 in DB if on serverless (Vercel) or disk write failed
+	const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+	const b64Data = isServerless || !diskWritten ? params.buffer.toString("base64") : null;
 
 	const [row] = await db
 		.insert(attachments)

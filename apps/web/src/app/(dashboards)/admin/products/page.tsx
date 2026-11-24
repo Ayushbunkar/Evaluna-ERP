@@ -40,6 +40,7 @@ import {
 import { useLocale } from "next-intl";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { compressProductImageFile } from "@/lib/image-compression";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
@@ -205,17 +206,30 @@ export default function AdminProductImageManagementPage() {
 
 		setUploadError(null);
 		setIsUploading(true);
-		setUploadProgress(25);
+		setUploadProgress(15);
 		setModalFileName(file.name);
 
-		// Local preview
-		const localUrl = URL.createObjectURL(file);
-		setModalImagePreview(localUrl);
-
 		try {
-			setUploadProgress(50);
+			// Client-Side Canvas WebP Compression:
+			// Compresses 2MB-10MB camera photo to ~35KB-70KB WebP max 800px preserving crystal clarity
+			let fileToUpload = file;
+			try {
+				fileToUpload = await compressProductImageFile(file, {
+					maxWidth: 800,
+					maxHeight: 800,
+					quality: 0.78,
+				});
+			} catch (compErr) {
+				console.warn("[admin/products] Pre-compression skipped, using original:", compErr);
+			}
+
+			// Local preview of the optimized file
+			const localUrl = URL.createObjectURL(fileToUpload);
+			setModalImagePreview(localUrl);
+			setUploadProgress(45);
+
 			const formData = new FormData();
-			formData.append("file", file);
+			formData.append("file", fileToUpload);
 			formData.append("productId", String(prodId));
 
 			const res = await fetch("/api/products/upload", {

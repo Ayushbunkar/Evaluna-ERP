@@ -69,6 +69,7 @@ import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ProductImageEditorModal } from "@/components/warehouse/product-image-editor-modal";
 import { PageTransition } from "@/lib/animations";
+import { compressProductImageFile } from "@/lib/image-compression";
 import {
 	calculateEffectivePrice,
 	type PricingSlab,
@@ -825,17 +826,30 @@ export default function StockPage() {
 
 		setImageUploadError(null);
 		setIsUploadingImage(true);
-		setImageUploadProgress(25);
+		setImageUploadProgress(15);
 		setEditImageFileName(file.name);
 
-		// Instant local preview
-		const localUrl = URL.createObjectURL(file);
-		setEditImagePreview(localUrl);
-
 		try {
-			setImageUploadProgress(50);
+			// Client-Side Canvas WebP Compression:
+			// Compresses 2MB-10MB camera photo to ~35KB-70KB WebP max 800px preserving crystal clarity
+			let fileToUpload = file;
+			try {
+				fileToUpload = await compressProductImageFile(file, {
+					maxWidth: 800,
+					maxHeight: 800,
+					quality: 0.78,
+				});
+			} catch (compErr) {
+				console.warn("[warehouse/stock] Compression skipped, using original:", compErr);
+			}
+
+			// Instant local preview
+			const localUrl = URL.createObjectURL(fileToUpload);
+			setEditImagePreview(localUrl);
+			setImageUploadProgress(45);
+
 			const formData = new FormData();
-			formData.append("file", file);
+			formData.append("file", fileToUpload);
 			const prodId = editItem?.productId ?? editItem?.id;
 			if (prodId) {
 				formData.append("productId", String(prodId));

@@ -50,8 +50,34 @@ export async function GET(
 
 		let data: Buffer | null = null;
 
-		// Priority 1: Persistent base64 data from PostgreSQL (safe on Vercel Serverless)
-		if (row.file_data) {
+		// Priority 1: Check filesystem first (Fastest, zero PostgreSQL memory/connection overhead)
+		const root = path.resolve(productImageUploadRoot());
+		let abs = path.resolve(root, row.storage_path);
+
+		if (!existsSync(abs)) {
+			const fallbacks = [
+				path.resolve(process.cwd(), "apps", "web", "uploads", "products", row.storage_path),
+				path.resolve(process.cwd(), "uploads", "products", row.storage_path),
+				path.resolve(process.cwd(), "..", "uploads", "products", row.storage_path),
+			];
+			for (const fb of fallbacks) {
+				if (existsSync(fb)) {
+					abs = fb;
+					break;
+				}
+			}
+		}
+
+		try {
+			if (existsSync(abs)) {
+				data = await readFile(abs);
+			}
+		} catch (fsErr) {
+			console.warn("[products/images] Disk read error, checking DB fallback:", fsErr);
+		}
+
+		// Priority 2: Fallback to persistent base64 data from PostgreSQL (for Vercel Serverless)
+		if (!data && row.file_data) {
 			try {
 				const base64Str = row.file_data.includes(",")
 					? row.file_data.split(",")[1]
@@ -59,34 +85,6 @@ export async function GET(
 				data = Buffer.from(base64Str, "base64");
 			} catch (decodeErr) {
 				console.error("[products/images] Base64 decode failed:", decodeErr);
-			}
-		}
-
-		// Priority 2: Fallback to filesystem
-		if (!data) {
-			const root = path.resolve(productImageUploadRoot());
-			let abs = path.resolve(root, row.storage_path);
-
-			if (!existsSync(abs)) {
-				const fallbacks = [
-					path.resolve(process.cwd(), "apps", "web", "uploads", "products", row.storage_path),
-					path.resolve(process.cwd(), "uploads", "products", row.storage_path),
-					path.resolve(process.cwd(), "..", "uploads", "products", row.storage_path),
-				];
-				for (const fb of fallbacks) {
-					if (existsSync(fb)) {
-						abs = fb;
-						break;
-					}
-				}
-			}
-
-			try {
-				if (existsSync(abs)) {
-					data = await readFile(abs);
-				}
-			} catch (fsErr) {
-				console.error("[products/images] Disk read error:", fsErr);
 			}
 		}
 

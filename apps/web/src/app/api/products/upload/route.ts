@@ -10,6 +10,7 @@ import { getAuthUser } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 import { notifyStockChanged } from "@/lib/inventory/stock-event-bus";
 import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
+import { storeImageBinary } from "@/lib/storage/object-storage";
 
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -150,17 +151,27 @@ export async function POST(req: Request) {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const storedName = `prod_${Date.now()}_${randomUUID().slice(0, 8)}${ext}`;
 
-		// Best-effort disk write for non-serverless environments
+		// Store via Object Storage (Cloudflare R2 / AWS S3 if configured, or local persistent disk)
+		let storageResult = null;
+		let uploadSucceeded = false;
 		try {
 			const root = productImageUploadRoot();
-			await mkdir(root, { recursive: true });
-			await writeFile(path.join(root, storedName), buffer);
-		} catch (fsErr) {
-			console.warn("[products/upload] Local filesystem write skipped:", fsErr);
+			storageResult = await storeImageBinary(storedName, buffer, file.type.toLowerCase(), root);
+			uploadSucceeded = true;
+		} catch (storageErr) {
+			console.warn("[products/upload] Storage write error, will use DB fallback:", storageErr);
 		}
 
-		// Insert into attachments table for 100% persistent storage (Vercel Serverless safe)
-		const base64Data = buffer.toString("base64");
+		// Prevent PostgreSQL Base64 Bloat:
+		// If Cloudflare R2 / S3 or local persistent disk write succeeded, DO NOT duplicate the binary in DB!
+		// Only store base64 as an emergency fallback on ephemeral serverless (Vercel) when no external storage is configured.
+		const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+		const isExternalStorage = storageResult?.driver === "s3_r2";
+		const base64Data =
+			!uploadSucceeded || (isServerless && !isExternalStorage)
+				? buffer.toString("base64")
+				: null;
+
 		const [attachment] = await db
 			.insert(attachments)
 			.values({
@@ -177,7 +188,10 @@ export async function POST(req: Request) {
 			})
 			.returning();
 
-		const imageUrl = `/api/products/images/${attachment.id}`;
+		const imageUrl =
+			storageResult?.driver === "s3_r2"
+				? storageResult.publicUrl
+				: `/api/products/images/${attachment.id}`;
 
 		// If a valid productId was provided, update the products table directly
 		if (productId && !Number.isNaN(productId) && productId > 0) {
