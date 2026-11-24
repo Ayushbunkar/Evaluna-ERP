@@ -172,6 +172,21 @@ export default function CustomerProductsPage() {
 
 	const [search, setSearch] = useState("");
 	const [category, setCategory] = useState<string>("all");
+	const searchBarRef = useRef<HTMLDivElement>(null);
+
+	const handleCategoryChange = (newCat: string) => {
+		setCategory(newCat);
+		if (typeof window !== "undefined") {
+			if (searchBarRef.current) {
+				const headerHeight = 60;
+				const elementTop = searchBarRef.current.getBoundingClientRect().top + window.scrollY;
+				const targetY = Math.max(0, elementTop - headerHeight);
+				window.scrollTo({ top: targetY, behavior: "smooth" });
+			} else {
+				window.scrollTo({ top: 0, behavior: "smooth" });
+			}
+		}
+	};
 	const [cart, setCart] = useState<Record<number, CartItem>>({});
 	const [quantities, setQuantities] = useState<Record<number, number | string>>(
 		{},
@@ -819,7 +834,10 @@ export default function CustomerProductsPage() {
 			)}
 
 			{/* Sticky Search & Filter Bar */}
-			<div className="sticky top-14 z-30 w-full py-2 bg-background/95 backdrop-blur-md transition-all shadow-xs">
+			<div
+				ref={searchBarRef}
+				className="sticky top-14 z-30 w-full py-2 bg-background/95 backdrop-blur-md transition-all shadow-xs"
+			>
 				<Card className="border-border/60 bg-card/95 shadow-sm backdrop-blur-sm">
 					<CardContent className="flex flex-col gap-2.5 p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
 						<div className="relative flex-1 min-w-0">
@@ -831,7 +849,7 @@ export default function CustomerProductsPage() {
 								className="pl-9 text-xs sm:text-sm bg-background/80"
 							/>
 						</div>
-						<Select value={category} onValueChange={setCategory}>
+						<Select value={category} onValueChange={handleCategoryChange}>
 							<SelectTrigger className="w-full text-xs sm:w-[200px] sm:text-sm bg-background/80">
 								<SelectValue placeholder={t.allCategories} />
 							</SelectTrigger>

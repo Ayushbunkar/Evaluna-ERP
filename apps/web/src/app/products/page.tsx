@@ -76,6 +76,38 @@ export default function PublicProductsCatalogPage() {
 	const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "deals">("all");
 	const [sortBy, setSortBy] = useState<"default" | "price_asc" | "price_desc" | "name">("default");
 
+	const toolbarRef = useRef<HTMLDivElement>(null);
+
+	const scrollToCatalogTop = () => {
+		if (typeof window === "undefined") return;
+		if (toolbarRef.current) {
+			const navbarHeight = 62;
+			const elementTop = toolbarRef.current.getBoundingClientRect().top + window.scrollY;
+			const targetY = Math.max(0, elementTop - navbarHeight);
+			window.scrollTo({
+				top: targetY,
+				behavior: "smooth",
+			});
+		} else {
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		}
+	};
+
+	const handleCategoryChange = (newCat: string) => {
+		setCategory(newCat);
+		scrollToCatalogTop();
+	};
+
+	const handleStockFilterChange = (newFilter: "all" | "in_stock" | "deals") => {
+		setStockFilter(newFilter);
+		scrollToCatalogTop();
+	};
+
+	const handleSortChange = (newSort: "default" | "price_asc" | "price_desc" | "name") => {
+		setSortBy(newSort);
+		scrollToCatalogTop();
+	};
+
 	const [cart, setCart] = useState<Record<number, CartItem>>({});
 	const [quantities, setQuantities] = useState<Record<number, number | string>>({});
 	const [loginPromptOpen, setLoginPromptOpen] = useState(false);
@@ -390,7 +422,10 @@ export default function PublicProductsCatalogPage() {
 			{/* Main Catalog Section */}
 			<main className="mx-auto max-w-7xl w-full flex-1 px-4 py-8 sm:px-6 lg:px-8 space-y-6">
 				{/* Search & Filter Toolbar */}
-				<div className="sticky top-[58px] sm:top-[60px] z-40 rounded-xl border border-border/70 bg-background/95 p-3.5 shadow-md backdrop-blur-md">
+				<div
+					ref={toolbarRef}
+					className="sticky top-[58px] sm:top-[60px] z-40 rounded-xl border border-border/70 bg-background/95 p-3.5 shadow-md backdrop-blur-md"
+				>
 					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 						{/* Search Input */}
 						<div className="relative flex-1">
@@ -415,7 +450,7 @@ export default function PublicProductsCatalogPage() {
 						{/* Filters and Sorting */}
 						<div className="flex flex-wrap items-center gap-2 sm:gap-3">
 							{/* Category Dropdown */}
-							<Select value={category} onValueChange={setCategory}>
+							<Select value={category} onValueChange={handleCategoryChange}>
 								<SelectTrigger className="w-full sm:w-[190px] text-xs sm:text-sm bg-muted/30">
 									<SelectValue placeholder="All Categories" />
 								</SelectTrigger>
@@ -433,7 +468,7 @@ export default function PublicProductsCatalogPage() {
 							<div className="flex items-center rounded-lg border border-border/80 bg-muted/30 p-1 text-xs">
 								<button
 									type="button"
-									onClick={() => setStockFilter("all")}
+									onClick={() => handleStockFilterChange("all")}
 									className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
 										stockFilter === "all"
 											? "bg-background text-foreground shadow-2xs font-semibold"
@@ -444,7 +479,7 @@ export default function PublicProductsCatalogPage() {
 								</button>
 								<button
 									type="button"
-									onClick={() => setStockFilter("in_stock")}
+									onClick={() => handleStockFilterChange("in_stock")}
 									className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
 										stockFilter === "in_stock"
 											? "bg-emerald-600 text-white shadow-2xs font-semibold"
@@ -455,7 +490,7 @@ export default function PublicProductsCatalogPage() {
 								</button>
 								<button
 									type="button"
-									onClick={() => setStockFilter("deals")}
+									onClick={() => handleStockFilterChange("deals")}
 									className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors ${
 										stockFilter === "deals"
 											? "bg-amber-600 text-white shadow-2xs font-semibold"
@@ -468,7 +503,7 @@ export default function PublicProductsCatalogPage() {
 							</div>
 
 							{/* Sort Selector */}
-							<Select value={sortBy} onValueChange={(val: any) => setSortBy(val)}>
+							<Select value={sortBy} onValueChange={(val: any) => handleSortChange(val)}>
 								<SelectTrigger className="w-full sm:w-[170px] text-xs sm:text-sm bg-muted/30">
 									<SelectValue placeholder="Sort Products" />
 								</SelectTrigger>
@@ -487,7 +522,7 @@ export default function PublicProductsCatalogPage() {
 						<div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 text-xs scrollbar-none">
 							<button
 								type="button"
-								onClick={() => setCategory("all")}
+								onClick={() => handleCategoryChange("all")}
 								className={`shrink-0 rounded-full px-3 py-1 text-xs transition-all ${
 									category === "all"
 										? "bg-foreground text-background font-semibold"
@@ -500,7 +535,7 @@ export default function PublicProductsCatalogPage() {
 								<button
 									key={cat}
 									type="button"
-									onClick={() => setCategory(cat)}
+									onClick={() => handleCategoryChange(cat)}
 									className={`shrink-0 rounded-full px-3 py-1 text-xs transition-all ${
 										category === cat
 											? "bg-foreground text-background font-semibold"
