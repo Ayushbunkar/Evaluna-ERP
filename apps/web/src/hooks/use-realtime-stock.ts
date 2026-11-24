@@ -11,6 +11,7 @@ export function useRealtimeStock() {
 	const trpc = useTRPC();
 	const utils = trpc.useUtils();
 	const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+	const retryCountRef = useRef(0);
 
 	useEffect(() => {
 		if (typeof window === "undefined" || !("EventSource" in window)) return;
@@ -20,6 +21,12 @@ export function useRealtimeStock() {
 
 		function connect() {
 			if (!isMounted) return;
+
+			// Limit retries to 3 attempts with exponential backoff; if SSE is unavailable,
+			// TRPC polling (refetchInterval: 5000) seamlessly handles live stock updates without console spam.
+			if (retryCountRef.current >= 3) {
+				return;
+			}
 
 			try {
 				eventSource = new EventSource("/api/customer/stock-events");
@@ -37,12 +44,18 @@ export function useRealtimeStock() {
 						eventSource.close();
 						eventSource = null;
 					}
-					if (isMounted) {
-						retryTimerRef.current = setTimeout(connect, 4000);
+					retryCountRef.current += 1;
+					if (isMounted && retryCountRef.current < 3) {
+						const delay = Math.min(12000, 3000 * Math.pow(2, retryCountRef.current - 1));
+						retryTimerRef.current = setTimeout(connect, delay);
 					}
 				};
+
+				eventSource.onopen = () => {
+					retryCountRef.current = 0;
+				};
 			} catch {
-				// Fallback to polling via refetchInterval
+				// Fallback silently to TRPC query polling
 			}
 		}
 

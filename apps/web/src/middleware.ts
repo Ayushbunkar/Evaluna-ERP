@@ -37,6 +37,7 @@ export default async function middleware(request: NextRequest) {
 		pathname.startsWith("/api/logout") ||
 		pathname.startsWith("/api/seed-users") ||
 		pathname.startsWith("/api/trpc") ||
+		pathname.startsWith("/api/customer/stock-events") ||
 		pathname.startsWith("/api/attendance/attachments") ||
 		pathname.startsWith("/api/finance/attachments") ||
 		pathname.startsWith("/_next") ||
