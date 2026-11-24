@@ -1401,141 +1401,168 @@ export default function StockPage() {
 
 			{/* Filter and Search Bar */}
 			<Card className="border-border/60 shadow-sm">
-				<CardContent className="p-4 sm:p-5">
-					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-						{/* Search */}
-						<div className="relative flex-1">
-							<SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+				<CardContent className="p-4 sm:p-5 space-y-3.5">
+					{/* Row 1: Prominent Search Input & Search Action */}
+					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+						<div className="relative flex-1 min-w-0">
+							<SearchIcon className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
 							<Input
-								placeholder="Search 560+ products by name, SKU, barcode, or category..."
-								className="pl-9"
+								placeholder="Search products by name, Hindi name, SKU, barcode, or category..."
+								className="h-10 pl-10 pr-9 text-sm w-full bg-background shadow-2xs focus-visible:ring-blue-500"
 								value={searchQuery}
 								onChange={(e) => {
 									setSearchQuery(e.target.value);
 									setCurrentPage(1);
 								}}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										setCurrentPage(1);
+									}
+								}}
 							/>
+							{searchQuery && (
+								<button
+									type="button"
+									onClick={() => {
+										setSearchQuery("");
+										setCurrentPage(1);
+									}}
+									className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+									title="Clear search"
+									aria-label="Clear search"
+								>
+									<XCircleIcon className="h-4 w-4" />
+								</button>
+							)}
+						</div>
+						<Button
+							type="button"
+							onClick={() => setCurrentPage(1)}
+							className="h-10 px-5 gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs sm:text-sm shadow-xs shrink-0"
+						>
+							<SearchIcon className="h-4 w-4" />
+							<span>Search</span>
+						</Button>
+					</div>
+
+					{/* Row 2: Category & Status Filters */}
+					<div className="flex flex-col gap-3 pt-2 border-t border-border/50 lg:flex-row lg:items-center lg:justify-between">
+						{/* Category select & New Category button */}
+						<div className="flex items-center gap-2">
+							<LayersIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+							<select
+								value={selectedCategory}
+								onChange={(e) => {
+									const val = e.target.value;
+									if (val === "__create_new__") {
+										setCreateCategoryOpen(true);
+									} else {
+										setSelectedCategory(val);
+										setCurrentPage(1);
+									}
+								}}
+								className="rounded-md border border-input bg-background px-3 py-1.5 font-medium text-foreground text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+							>
+								<option value="all">
+									All Categories ({rawItems.length})
+								</option>
+								{categories.map((c) => (
+									<option key={c} value={c}>
+										{c} ({rawItems.filter((i: any) => i.category === c).length})
+									</option>
+								))}
+								<option
+									value="__create_new__"
+									className="bg-emerald-50 font-bold text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+								>
+									+ Create New Category...
+								</option>
+							</select>
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								onClick={() => setCreateCategoryOpen(true)}
+								className="h-7 gap-1 border-dashed bg-emerald-50/60 px-2 text-emerald-700 text-xs hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+								title="Create a new product category"
+							>
+								<PlusIcon className="h-3.5 w-3.5" />
+								<span className="hidden sm:inline">New Category</span>
+							</Button>
 						</div>
 
-						{/* Category & Status Filters */}
-						<div className="flex flex-wrap items-center gap-2">
-							{/* Category select & New Category button */}
-							<div className="flex items-center gap-1.5">
-								<LayersIcon className="h-4 w-4 text-muted-foreground" />
-								<select
-									value={selectedCategory}
-									onChange={(e) => {
-										const val = e.target.value;
-										if (val === "__create_new__") {
-											setCreateCategoryOpen(true);
-										} else {
-											setSelectedCategory(val);
-											setCurrentPage(1);
-										}
-									}}
-									className="rounded-md border border-input bg-background px-3 py-1.5 font-medium text-foreground text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
-								>
-									<option value="all">
-										All Categories ({rawItems.length})
-									</option>
-									{categories.map((c) => (
-										<option key={c} value={c}>
-											{c} ({rawItems.filter((i: any) => i.category === c).length})
-										</option>
-									))}
-									<option
-										value="__create_new__"
-										className="bg-emerald-50 font-bold text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
-									>
-										+ Create New Category...
-									</option>
-								</select>
-								<Button
-									type="button"
-									size="sm"
-									variant="outline"
-									onClick={() => setCreateCategoryOpen(true)}
-									className="h-7 gap-1 border-dashed bg-emerald-50/60 px-2 text-emerald-700 text-xs hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-									title="Create a new product category"
-								>
-									<PlusIcon className="h-3.5 w-3.5" />
-									<span className="hidden sm:inline">New Category</span>
-								</Button>
-							</div>
-
-							{/* Status Filter Buttons */}
-							<div className="flex flex-wrap items-center rounded-lg border bg-muted/40 p-1">
-								<Button
-									variant={statusFilter === "all" ? "default" : "ghost"}
-									size="sm"
-									className="h-7 px-2.5 text-xs"
-									onClick={() => {
-										setStatusFilter("all");
-										setCurrentPage(1);
-									}}
-								>
-									All ({rawItems.length})
-								</Button>
-								<Button
-									variant={statusFilter === "in_stock" ? "default" : "ghost"}
-									size="sm"
-									className="h-7 px-2.5 text-xs"
-									onClick={() => {
-										setStatusFilter("in_stock");
-										setCurrentPage(1);
-									}}
-								>
-									In Stock ({inStockCount})
-								</Button>
-								<Button
-									variant={statusFilter === "low_stock" ? "default" : "ghost"}
-									size="sm"
-									className="h-7 px-2.5 text-xs"
-									onClick={() => {
-										setStatusFilter("low_stock");
-										setCurrentPage(1);
-									}}
-								>
-									Low Stock ({lowStockCount})
-								</Button>
-								<Button
-									variant={
-										statusFilter === "out_of_stock" ? "default" : "ghost"
-									}
-									size="sm"
-									className="h-7 px-2.5 text-xs"
-									onClick={() => {
-										setStatusFilter("out_of_stock");
-										setCurrentPage(1);
-									}}
-								>
-									Out of Stock ({outOfStockCount})
-								</Button>
-								<Button
-									variant={statusFilter === "on_offer" ? "default" : "ghost"}
-									size="sm"
-									className="h-7 gap-1 px-2.5 text-blue-600 text-xs dark:text-blue-400"
-									onClick={() => {
-										setStatusFilter("on_offer");
-										setCurrentPage(1);
-									}}
-								>
-									<SparklesIcon className="h-3 w-3" />
-									<span>On Offer ({activeOffersCount})</span>
-								</Button>
-								<Button
-									variant={statusFilter === "with_slabs" ? "default" : "ghost"}
-									size="sm"
-									className="h-7 gap-1 px-2.5 text-purple-700 text-xs dark:text-purple-300"
-									onClick={() => {
-										setStatusFilter("with_slabs");
-										setCurrentPage(1);
-									}}
-								>
-									<LayersIcon className="h-3 w-3" />
-									<span>Slabs ({withSlabsCount})</span>
-								</Button>
-							</div>
+						{/* Status Filter Buttons */}
+						<div className="flex flex-wrap items-center rounded-lg border bg-muted/40 p-1 gap-1">
+							<Button
+								variant={statusFilter === "all" ? "default" : "ghost"}
+								size="sm"
+								className="h-7 px-2.5 text-xs"
+								onClick={() => {
+									setStatusFilter("all");
+									setCurrentPage(1);
+								}}
+							>
+								All ({rawItems.length})
+							</Button>
+							<Button
+								variant={statusFilter === "in_stock" ? "default" : "ghost"}
+								size="sm"
+								className="h-7 px-2.5 text-xs"
+								onClick={() => {
+									setStatusFilter("in_stock");
+									setCurrentPage(1);
+								}}
+							>
+								In Stock ({inStockCount})
+							</Button>
+							<Button
+								variant={statusFilter === "low_stock" ? "default" : "ghost"}
+								size="sm"
+								className="h-7 px-2.5 text-xs"
+								onClick={() => {
+									setStatusFilter("low_stock");
+									setCurrentPage(1);
+								}}
+							>
+								Low Stock ({lowStockCount})
+							</Button>
+							<Button
+								variant={
+									statusFilter === "out_of_stock" ? "default" : "ghost"
+								}
+								size="sm"
+								className="h-7 px-2.5 text-xs"
+								onClick={() => {
+									setStatusFilter("out_of_stock");
+									setCurrentPage(1);
+								}}
+							>
+								Out of Stock ({outOfStockCount})
+							</Button>
+							<Button
+								variant={statusFilter === "on_offer" ? "default" : "ghost"}
+								size="sm"
+								className="h-7 gap-1 px-2.5 text-blue-600 text-xs dark:text-blue-400"
+								onClick={() => {
+									setStatusFilter("on_offer");
+									setCurrentPage(1);
+								}}
+							>
+								<SparklesIcon className="h-3 w-3" />
+								<span>On Offer ({activeOffersCount})</span>
+							</Button>
+							<Button
+								variant={statusFilter === "with_slabs" ? "default" : "ghost"}
+								size="sm"
+								className="h-7 gap-1 px-2.5 text-purple-700 text-xs dark:text-purple-300"
+								onClick={() => {
+									setStatusFilter("with_slabs");
+									setCurrentPage(1);
+								}}
+							>
+								<LayersIcon className="h-3 w-3" />
+								<span>Slabs ({withSlabsCount})</span>
+							</Button>
 						</div>
 					</div>
 				</CardContent>
