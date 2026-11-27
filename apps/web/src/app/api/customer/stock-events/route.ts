@@ -4,6 +4,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+	// On Vercel serverless, holding an SSE stream open burns GB-Hours and in-memory
+	// event buses are not shared across lambdas. Return 204 so clients use tRPC polling.
+	if (process.env.VERCEL) {
+		return new Response(null, { status: 204 });
+	}
+
 	const encoder = new TextEncoder();
 
 	const stream = new ReadableStream({

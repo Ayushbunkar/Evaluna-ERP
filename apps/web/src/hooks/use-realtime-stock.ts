@@ -15,6 +15,13 @@ export function useRealtimeStock() {
 
 	useEffect(() => {
 		if (typeof window === "undefined" || !("EventSource" in window)) return;
+		// Avoid holding serverless functions open on Vercel; tRPC polling handles updates
+		if (
+			process.env.NEXT_PUBLIC_VERCEL_ENV ||
+			window.location.hostname.endsWith(".vercel.app")
+		) {
+			return;
+		}
 
 		let eventSource: EventSource | null = null;
 		let isMounted = true;

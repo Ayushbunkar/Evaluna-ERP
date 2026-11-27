@@ -38,12 +38,17 @@ export default async function middleware(request: NextRequest) {
 		pathname.startsWith("/api/seed-users") ||
 		pathname.startsWith("/api/trpc") ||
 		pathname.startsWith("/api/customer/stock-events") ||
+		pathname.startsWith("/api/products/images") ||
+		pathname.startsWith("/api/og") ||
 		pathname.startsWith("/api/attendance/attachments") ||
 		pathname.startsWith("/api/finance/attachments") ||
 		pathname.startsWith("/_next") ||
 		pathname === "/favicon.ico" ||
 		pathname === "/manifest.json" ||
 		pathname === "/sw.js" ||
+		pathname === "/offline.html" ||
+		pathname === "/robots.txt" ||
+		pathname === "/sitemap.xml" ||
 		pathname.startsWith("/public") ||
 		/\.(jpg|jpeg|png|gif|svg|webp|ico|ttf|woff|woff2|json|txt|xml|mp3|mp4)$/i.test(
 			pathname,
