@@ -14,6 +14,10 @@ import {
 } from "@evaluna/db/schema";
 import { and, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
+import {
+	decompressAuditRow,
+	scheduleBackgroundAuditCompression,
+} from "@/lib/audit-compression";
 import { router } from "../init";
 import { permProcedure } from "../util/auditor-procedures";
 
@@ -238,7 +242,8 @@ export const auditorRouter = router({
 				.where(conds.length ? and(...conds) : undefined)
 				.orderBy(desc(auditLogs.created_at))
 				.limit(input?.limit ?? 200);
-			return rows;
+			scheduleBackgroundAuditCompression(ctx.db);
+			return rows.map((r: any) => decompressAuditRow(r));
 		}),
 
 	// ── getFindings: full audit findings list for the findings page ───────────

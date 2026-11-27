@@ -42,6 +42,11 @@ import {
 	sql,
 } from "drizzle-orm";
 import { z } from "zod";
+import {
+	compressOldAuditLogs,
+	decompressAuditRow,
+	scheduleBackgroundAuditCompression,
+} from "@/lib/audit-compression";
 import { roleProcedure, router } from "../init";
 
 // ── Access tiers ─────────────────────────────────────────────────────────────
@@ -2582,8 +2587,12 @@ export const adminRouter = router({
 					.where(where),
 			]);
 
+			// Automatically compress 30+ day old audit log payloads in background (at most 1x/24h)
+			scheduleBackgroundAuditCompression(db);
+
 			return envelope(
-				rows.map((r: any) => {
+				rows.map((rawRow: any) => {
+					const r = decompressAuditRow(rawRow);
 					const payloadActor = (r.new_values && r.new_values._actor) || null;
 					const { _actor, ...changes } = (r.new_values ?? {}) as Record<
 						string,
@@ -2641,7 +2650,8 @@ export const adminRouter = router({
 				.orderBy(desc(auditLogs.created_at))
 				.limit(input.limit);
 
-			return rows.map((r: any) => {
+			return rows.map((rawRow: any) => {
+				const r = decompressAuditRow(rawRow);
 				const actor = (r.new_values && r.new_values._actor) || null;
 				const subject =
 					(r.new_values && (r.new_values.name || r.new_values.value)) || null;
@@ -2654,6 +2664,21 @@ export const adminRouter = router({
 					actor_name: r.actor_name ?? actor?.name ?? "Unknown",
 					created_at: isoDate(r.created_at),
 				};
+			});
+		}),
+
+	/** Losslessly gzip-compress audit_logs payloads older than N days (default 30) without deleting rows. */
+	compressOldAuditLogs: adminWrite()
+		.input(
+			optionalInput({
+				olderThanDays: z.number().int().min(7).max(365).default(30),
+				batchSize: z.number().int().min(10).max(1000).default(500),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			return compressOldAuditLogs(ctx.db, {
+				olderThanDays: input.olderThanDays,
+				batchSize: input.batchSize,
 			});
 		}),
 
