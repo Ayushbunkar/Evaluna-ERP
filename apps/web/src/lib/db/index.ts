@@ -77,18 +77,19 @@ function customLookup(host: string, opt: any, cb: any) {
 
 function createDrizzleInstance(rawUrl: string) {
 	const cleanUrl = normalizePgUrl(rawUrl);
-	const isServerless = Boolean(
-		process.env.VERCEL ||
-			cleanUrl.includes(".neon.tech") ||
+	const isCloudDb = Boolean(
+		cleanUrl.includes(".neon.tech") ||
 			cleanUrl.includes("supabase.co") ||
 			cleanUrl.includes("pooler.supabase.com"),
 	);
+	const isServerless = Boolean(process.env.VERCEL || isCloudDb);
 
 	const sqlClient = postgres(cleanUrl, {
 		prepare: !isServerless,
 		max: isServerless ? 3 : 20,
 		idle_timeout: 30,
-		connect_timeout: 5,
+		connect_timeout: 8,
+		...(isCloudDb ? { ssl: "require" as const } : {}),
 		lookup: customLookup,
 	});
 
