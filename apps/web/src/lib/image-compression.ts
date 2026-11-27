@@ -19,7 +19,7 @@ export interface ImageCompressOptions {
 }
 
 /**
- * Compresses an avatar image to 160x160 square WebP base64 (< 6KB - 10KB).
+ * Compresses an avatar image to 128x128 square WebP base64 (~3KB - 5KB).
  */
 export async function compressAvatar(file: File): Promise<string> {
 	return new Promise((resolve, reject) => {
@@ -38,7 +38,7 @@ export async function compressAvatar(file: File): Promise<string> {
 			img.onerror = () => reject(new Error("Failed to decode image."));
 			img.onload = () => {
 				const canvas = document.createElement("canvas");
-				const size = 160;
+				const size = 128;
 				canvas.width = size;
 				canvas.height = size;
 				const ctx = canvas.getContext("2d");
@@ -54,7 +54,7 @@ export async function compressAvatar(file: File): Promise<string> {
 				ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
 
 				try {
-					const webpData = canvas.toDataURL("image/webp", 0.72);
+					const webpData = canvas.toDataURL("image/webp", 0.68);
 					if (webpData.startsWith("data:image/webp")) {
 						return resolve(webpData);
 					}
@@ -62,7 +62,7 @@ export async function compressAvatar(file: File): Promise<string> {
 					// Fall through to jpeg
 				}
 
-				const jpegData = canvas.toDataURL("image/jpeg", 0.75);
+				const jpegData = canvas.toDataURL("image/jpeg", 0.72);
 				resolve(jpegData);
 			};
 			img.src = reader.result as string;
@@ -85,9 +85,9 @@ export async function compressProductImageFile(
 		return file;
 	}
 
-	const maxWidth = options.maxWidth ?? 800;
-	const maxHeight = options.maxHeight ?? 800;
-	const quality = options.quality ?? 0.78;
+	const maxWidth = options.maxWidth ?? 720;
+	const maxHeight = options.maxHeight ?? 720;
+	const quality = options.quality ?? 0.72;
 	const cropSquare = options.cropSquare ?? false;
 
 	return new Promise((resolve) => {
@@ -171,5 +171,27 @@ export async function compressProductImageFile(
 		};
 
 		img.src = objectUrl;
+	});
+}
+
+/**
+ * Compresses any uploaded image (damage evidence, receipts, etc.) to a compact
+ * WebP Data URL (~25KB - 50KB instead of multi-megabyte raw camera photos).
+ */
+export async function compressImageToDataUrl(
+	file: File,
+	options: ImageCompressOptions = {},
+): Promise<string> {
+	const compressed = await compressProductImageFile(file, {
+		maxWidth: options.maxWidth ?? 720,
+		maxHeight: options.maxHeight ?? 720,
+		quality: options.quality ?? 0.7,
+		cropSquare: options.cropSquare,
+	});
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onerror = () => reject(new Error("Failed to read compressed image."));
+		reader.onload = () => resolve(reader.result as string);
+		reader.readAsDataURL(compressed);
 	});
 }

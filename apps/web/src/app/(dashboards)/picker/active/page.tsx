@@ -43,6 +43,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
+import { compressImageToDataUrl } from "@/lib/image-compression";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PickerActivePage() {
@@ -972,14 +973,19 @@ export default function PickerActivePage() {
 												type="file"
 												accept="image/*"
 												className="text-xs file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:bg-primary file:text-primary-foreground hover:file:cursor-pointer"
-												onChange={(e) => {
+												onChange={async (e) => {
 													const file = e.target.files?.[0];
 													if (file) {
-														const reader = new FileReader();
-														reader.onload = () => {
-															setPhotoEvidence(reader.result as string);
-														};
-														reader.readAsDataURL(file);
+														try {
+															const compressed = await compressImageToDataUrl(file, {
+																maxWidth: 720,
+																maxHeight: 720,
+																quality: 0.7,
+															});
+															setPhotoEvidence(compressed);
+														} catch {
+															toast.error("Failed to process image.");
+														}
 													}
 												}}
 											/>
