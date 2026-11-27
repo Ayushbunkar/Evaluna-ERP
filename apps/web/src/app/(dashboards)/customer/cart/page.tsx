@@ -80,8 +80,8 @@ export default function CustomerCartPage() {
 		isLoading: cartLoading,
 		refetch: refetchCart,
 	} = trpc.customer.getCart.useQuery(undefined, {
-		refetchOnWindowFocus: true,
-		refetchInterval: 5000,
+		refetchOnWindowFocus: false,
+		refetchInterval: 60000,
 		enabled: !!session?.user,
 	});
 

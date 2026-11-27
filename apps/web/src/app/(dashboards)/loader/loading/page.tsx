@@ -52,9 +52,9 @@ export default function LoadingQueuePage() {
 	} = trpc.loader.getLoadingQueue.useQuery(
 		{ status: statusFilter, search: searchQuery },
 		{
-			refetchInterval: 30000,
+			refetchInterval: 120000,
 			refetchIntervalInBackground: false,
-			refetchOnWindowFocus: true,
+			refetchOnWindowFocus: false,
 		},
 	);
 
@@ -73,7 +73,7 @@ export default function LoadingQueuePage() {
 						? "ready_for_loading"
 						: "all",
 		},
-		{ refetchInterval: 10000 },
+		{ refetchInterval: 60000 },
 	);
 
 	const markLoadedMutation = trpc.loader.markDirectOrderLoaded.useMutation({

@@ -13,7 +13,7 @@ export function CustomerCartHeaderButton() {
 	const { session } = useSession();
 
 	const { data: serverCart } = trpc.customer.getCart.useQuery(undefined, {
-		refetchOnWindowFocus: true,
+		refetchOnWindowFocus: false,
 		staleTime: 10_000,
 		enabled: !!session?.user,
 	});

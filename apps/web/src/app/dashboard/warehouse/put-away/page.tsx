@@ -61,12 +61,12 @@ export default function PutAwayPage() {
 		isRefetching,
 		refetch,
 	} = trpc.warehouse.getPutAwayQueue.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 	const { data: putterList } = trpc.staff.getPutters.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 	const { data: locationsList } = trpc.warehouse.getLocations.useQuery({});
 

@@ -77,8 +77,8 @@ export default function ReceivingPage() {
 		isRefetching,
 		refetch,
 	} = trpc.warehouse.getReceivingPOs.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 
 	// Mutations

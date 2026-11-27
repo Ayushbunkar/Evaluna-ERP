@@ -57,8 +57,8 @@ export default function TasksPage() {
 		isRefetching: pickingRefetching,
 		refetch: refetchPicking,
 	} = trpc.warehouse.getPickingQueue.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 
 	const {
@@ -67,8 +67,8 @@ export default function TasksPage() {
 		isRefetching: putAwayRefetching,
 		refetch: refetchPutAway,
 	} = trpc.warehouse.getPutAwayQueue.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 
 	const {
@@ -79,8 +79,8 @@ export default function TasksPage() {
 	} = trpc.upc.listTasks.useQuery(
 		{ pageSize: 50 },
 		{
-			refetchInterval: 15000,
-			refetchOnWindowFocus: true,
+			refetchInterval: 90000,
+			refetchOnWindowFocus: false,
 		},
 	);
 

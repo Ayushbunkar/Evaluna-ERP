@@ -54,9 +54,9 @@ export default function TripLoadingDetailsPage({
 	} = trpc.loader.getTripLoadingDetails.useQuery(
 		{ tripId: numericTripId },
 		{
-			refetchInterval: 25000,
+			refetchInterval: 90000,
 			refetchIntervalInBackground: false,
-			refetchOnWindowFocus: true,
+			refetchOnWindowFocus: false,
 		},
 	);
 

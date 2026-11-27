@@ -29,9 +29,9 @@ export default function FinanceLayout({
 	const { data: stats } = trpc.finance.getDashboardStats.useQuery(
 		{},
 		{
-			refetchInterval: 30000,
+			refetchInterval: 120000,
 			refetchIntervalInBackground: false,
-			refetchOnWindowFocus: true,
+			refetchOnWindowFocus: false,
 		},
 	);
 

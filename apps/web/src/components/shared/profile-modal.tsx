@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { compressAvatar } from "@/lib/image-compression";
+import { uploadMediaFile } from "@/lib/image-compression";
 import { useTRPC } from "@/lib/trpc/client";
 
 interface ProfileModalProps {
@@ -78,9 +78,13 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
 
 		try {
 			setIsCompressingImage(true);
-			const compressedDataUrl = await compressAvatar(file);
-			setImage(compressedDataUrl);
-			toast.success("Profile photo compressed & ready to save!");
+			const uploadedUrl = await uploadMediaFile(file, {
+				folder: "avatars",
+				preset: "avatar",
+				entityType: "user_avatar",
+			});
+			setImage(uploadedUrl);
+			toast.success("Profile photo uploaded & ready to save!");
 		} catch (err: unknown) {
 			const msg =
 				err instanceof Error

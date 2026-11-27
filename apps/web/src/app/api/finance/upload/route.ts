@@ -1,10 +1,10 @@
 import { attachments } from "@evaluna/db/schema";
 import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
 import { NextResponse } from "next/server";
 import path from "path";
 import { getAuthUser } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
+import { isExternalDriver, storeMedia } from "@/lib/storage/object-storage";
 
 /**
  * Secure receipt upload for the Finance module.
@@ -67,15 +67,24 @@ export async function POST(req: Request) {
 
 	const buffer = Buffer.from(await file.arrayBuffer());
 
-	// Partition on disk by branch so files are naturally scoped, then a random name.
+	// Partition by branch so files are naturally scoped, then a random name.
 	const branchSeg = user.branchId != null ? `b${user.branchId}` : "shared";
 	const storedName = `${randomUUID()}${ext}`;
 	const relDir = path.join(branchSeg, entityType);
-	const absDir = path.join(uploadRoot(), relDir);
-	await mkdir(absDir, { recursive: true });
-	await writeFile(path.join(absDir, storedName), buffer);
-
 	const relPath = path.join(relDir, storedName).split(path.sep).join("/");
+
+	const storageResult = await storeMedia({
+		folder: `finance/${branchSeg}/${entityType}`,
+		fileName: storedName,
+		buffer,
+		mimeType: file.type,
+		localRoot: path.join(uploadRoot(), relDir),
+		preset: "document",
+	});
+
+	const isExternal = isExternalDriver(storageResult.driver);
+	const storedPath = isExternal ? storageResult.publicUrl : relPath;
+
 	const [row] = await db
 		.insert(attachments)
 		.values({
@@ -85,8 +94,8 @@ export async function POST(req: Request) {
 			file_name: file.name.slice(0, 255),
 			stored_name: storedName,
 			mime_type: file.type,
-			file_size: file.size,
-			storage_path: relPath,
+			file_size: storageResult.size,
+			storage_path: storedPath,
 			uploaded_by: user.userId,
 		})
 		.returning();
@@ -96,5 +105,6 @@ export async function POST(req: Request) {
 		file_name: row.file_name,
 		mime_type: row.mime_type,
 		file_size: row.file_size,
+		url: isExternal ? storageResult.publicUrl : undefined,
 	});
 }

@@ -21,13 +21,15 @@ export function TRPCReactProvider({ children }: { children: React.ReactNode }) {
 					queries: {
 						staleTime: 5 * 60 * 1000, // 5 minutes stale time (preserves offline data snapshots)
 						gcTime: 24 * 60 * 60 * 1000, // 24 hours garbage collection time (offline friendly)
-						refetchOnWindowFocus: true, // Automatically sync data whenever user switches back online
+						refetchOnWindowFocus: false,
+						refetchOnMount: false,
+						refetchIntervalInBackground: false,
 						networkMode: "offlineFirst", // Offline-first network mode for Vercel PWA
 						retry: (failureCount) => {
 							if (typeof window !== "undefined" && !window.navigator.onLine) {
 								return false;
 							}
-							return failureCount < 2;
+							return failureCount < 1;
 						},
 					},
 					mutations: {

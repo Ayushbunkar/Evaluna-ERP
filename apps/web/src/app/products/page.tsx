@@ -124,13 +124,13 @@ export default function PublicProductsCatalogPage() {
 			search: search.trim() || undefined,
 		},
 		{
-			refetchInterval: 10000,
+			refetchInterval: 60000,
 		},
 	);
 
 	// Fetch server cart if user is logged in
 	const { data: serverCart } = trpc.customer.getCart.useQuery(undefined, {
-		refetchInterval: 5000,
+		refetchInterval: 60000,
 		enabled: !!session?.user,
 	});
 

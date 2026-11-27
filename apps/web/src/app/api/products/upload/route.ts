@@ -10,7 +10,7 @@ import { getAuthUser } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 import { notifyStockChanged } from "@/lib/inventory/stock-event-bus";
 import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
-import { storeImageBinary } from "@/lib/storage/object-storage";
+import { isExternalDriver, storeImageBinary } from "@/lib/storage/object-storage";
 
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -151,26 +151,36 @@ export async function POST(req: Request) {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const storedName = `prod_${Date.now()}_${randomUUID().slice(0, 8)}${ext}`;
 
-		// Store via Object Storage (Cloudflare R2 / AWS S3 if configured, or local persistent disk)
+		// Store via Object Storage (Cloudinary / Cloudflare R2 / AWS S3 if configured, or local persistent disk)
 		let storageResult = null;
 		let uploadSucceeded = false;
 		try {
 			const root = productImageUploadRoot();
-			storageResult = await storeImageBinary(storedName, buffer, file.type.toLowerCase(), root);
+			storageResult = await storeImageBinary(
+				storedName,
+				buffer,
+				file.type.toLowerCase(),
+				root,
+				{ folder: "products", preset: "product" },
+			);
 			uploadSucceeded = true;
 		} catch (storageErr) {
 			console.warn("[products/upload] Storage write error, will use DB fallback:", storageErr);
 		}
 
 		// Prevent PostgreSQL Base64 Bloat:
-		// If Cloudflare R2 / S3 or local persistent disk write succeeded, DO NOT duplicate the binary in DB!
+		// If Cloudinary / R2 / S3 or local persistent disk write succeeded, DO NOT duplicate the binary in DB!
 		// Only store base64 as an emergency fallback on ephemeral serverless (Vercel) when no external storage is configured.
 		const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-		const isExternalStorage = storageResult?.driver === "s3_r2";
+		const isExternalStorage = isExternalDriver(storageResult?.driver);
 		const base64Data =
 			!uploadSucceeded || (isServerless && !isExternalStorage)
 				? buffer.toString("base64")
 				: null;
+
+		const storedPath = isExternalStorage
+			? storageResult!.publicUrl
+			: storedName;
 
 		const [attachment] = await db
 			.insert(attachments)
@@ -181,17 +191,16 @@ export async function POST(req: Request) {
 				file_name: file.name,
 				stored_name: storedName,
 				mime_type: file.type.toLowerCase(),
-				file_size: file.size,
-				storage_path: storedName,
+				file_size: storageResult?.size ?? file.size,
+				storage_path: storedPath,
 				file_data: base64Data,
 				uploaded_by: user.name || user.email || "manager",
 			})
 			.returning();
 
-		const imageUrl =
-			storageResult?.driver === "s3_r2"
-				? storageResult.publicUrl
-				: `/api/products/images/${attachment.id}`;
+		const imageUrl = isExternalStorage
+			? storageResult!.publicUrl
+			: `/api/products/images/${attachment.id}`;
 
 		// If a valid productId was provided, update the products table directly
 		if (productId && !Number.isNaN(productId) && productId > 0) {

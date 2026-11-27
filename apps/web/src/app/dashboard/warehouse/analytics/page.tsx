@@ -40,8 +40,8 @@ export default function AnalyticsPage() {
 		isRefetching,
 		refetch,
 	} = trpc.warehouse.getThroughputAnalytics.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 
 	const { data: locationsList } = trpc.warehouse.getLocations.useQuery({});

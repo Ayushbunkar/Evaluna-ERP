@@ -40,7 +40,7 @@ export default function SalesDashboard() {
 	const { data: summary } = trpc.orders.getDashboardSummary.useQuery();
 	const { data: dailyOffersData } = trpc.discounts.listDailyOffers.useQuery(
 		{ status: "active" },
-		{ refetchInterval: 30000 },
+		{ refetchInterval: 120000 },
 	);
 	const activeOffersCount = dailyOffersData?.length || 0;
 

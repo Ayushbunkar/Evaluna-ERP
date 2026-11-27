@@ -92,7 +92,7 @@ export default function PickerPendingPage() {
 			date: datePreset === "custom" ? customDate : undefined,
 		},
 		{
-			refetchInterval: 15000,
+			refetchInterval: 90000,
 			refetchIntervalInBackground: false,
 		},
 	);

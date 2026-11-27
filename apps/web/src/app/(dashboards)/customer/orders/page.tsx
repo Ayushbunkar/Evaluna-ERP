@@ -97,15 +97,15 @@ export default function CustomerOrdersPage() {
 		isLoading,
 		error,
 	} = trpc.customer.getMyOrders.useQuery(undefined, {
-		refetchInterval: 30000, // Poll every 30s when tab is active
+		refetchInterval: 120000, // Poll every 30s when tab is active
 		refetchIntervalInBackground: false,
-		refetchOnWindowFocus: true,
+		refetchOnWindowFocus: false,
 	});
 
 	const { data: orderDetail, isLoading: detailLoading } =
 		trpc.customer.getMyOrder.useQuery(
 			{ id: selectedOrderId! },
-			{ enabled: selectedOrderId !== null, refetchInterval: 5000 },
+			{ enabled: selectedOrderId !== null, refetchInterval: 60000 },
 		);
 
 	const filteredOrders = useMemo(() => {

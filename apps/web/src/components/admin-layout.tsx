@@ -159,7 +159,7 @@ function BranchSwitcher() {
 function NotificationBell() {
 	const { data: notifications } = trpc.notifications.list.useQuery(
 		{ is_read: false },
-		{ refetchInterval: 45000, refetchIntervalInBackground: false, refetchOnWindowFocus: true },
+		{ refetchInterval: 45000, refetchIntervalInBackground: false, refetchOnWindowFocus: false },
 	);
 
 	const unreadCount = notifications?.length || 0;

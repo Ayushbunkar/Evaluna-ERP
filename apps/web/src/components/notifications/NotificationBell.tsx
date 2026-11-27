@@ -35,8 +35,8 @@ export function NotificationBell({
 	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery(
 		branchId ? { branch_id: branchId } : {},
 		{
-			refetchInterval: 10000,
-			refetchOnWindowFocus: true,
+			refetchInterval: 60000,
+			refetchOnWindowFocus: false,
 			enabled: !!session?.user,
 		},
 	);

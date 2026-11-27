@@ -50,9 +50,9 @@ export default function LoadingHistoryPage() {
 			endDate: endDate || undefined,
 		},
 		{
-			refetchInterval: 35000,
+			refetchInterval: 120000,
 			refetchIntervalInBackground: false,
-			refetchOnWindowFocus: true,
+			refetchOnWindowFocus: false,
 		},
 	);
 

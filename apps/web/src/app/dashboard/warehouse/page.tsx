@@ -42,8 +42,8 @@ export default function WMSDashboardOverview() {
 		trpc.warehouse.getOverviewStats.useQuery(
 			{},
 			{
-				refetchInterval: 15000,
-				refetchOnWindowFocus: true,
+				refetchInterval: 90000,
+				refetchOnWindowFocus: false,
 			},
 		);
 
@@ -53,8 +53,8 @@ export default function WMSDashboardOverview() {
 			branch_id: undefined,
 		},
 		{
-			refetchInterval: 30000,
-			refetchOnWindowFocus: true,
+			refetchInterval: 120000,
+			refetchOnWindowFocus: false,
 		},
 	);
 

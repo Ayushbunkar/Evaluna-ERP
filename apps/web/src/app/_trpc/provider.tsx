@@ -26,6 +26,7 @@ export default function TRPCProvider({
 						gcTime: 10 * 60 * 1000,
 						refetchOnWindowFocus: false,
 						refetchOnMount: false,
+						refetchIntervalInBackground: false,
 						retry: 1,
 						networkMode: "offlineFirst",
 					},

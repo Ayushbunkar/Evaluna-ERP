@@ -29,9 +29,9 @@ export default function Layout({
 	const { data: pendingData } = trpc.orders.getPendingCount.useQuery(
 		undefined,
 		{
-			refetchInterval: 30000,
+			refetchInterval: 120000,
 			refetchIntervalInBackground: false,
-			refetchOnWindowFocus: true,
+			refetchOnWindowFocus: false,
 		},
 	);
 

@@ -94,7 +94,7 @@ export default function PickerDashboard() {
 		error,
 	} = trpc.picker.getDashboardStats.useQuery(
 		{},
-		{ refetchInterval: 15000, refetchIntervalInBackground: false },
+		{ refetchInterval: 90000, refetchIntervalInBackground: false },
 	);
 
 	const claimNextMutation = trpc.picker.claimNextTask.useMutation({

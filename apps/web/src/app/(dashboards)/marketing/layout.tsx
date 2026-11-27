@@ -31,8 +31,8 @@ export default function MarketingLayout({
 }) {
 	const trpc = useTRPC();
 	const notifsQuery = trpc.instagram.getNotifications.useQuery(undefined, {
-		refetchInterval: 30000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 120000,
+		refetchOnWindowFocus: false,
 	});
 
 	const unreadNotifs = notifsQuery.data?.unreadCount ?? 0;

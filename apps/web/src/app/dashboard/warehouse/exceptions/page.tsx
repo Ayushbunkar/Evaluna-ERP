@@ -94,8 +94,8 @@ export default function ExceptionsPage() {
 		isRefetching,
 		refetch,
 	} = trpc.warehouse.getExceptions.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 
 	const { data: productsList } = trpc.products.list.useQuery();

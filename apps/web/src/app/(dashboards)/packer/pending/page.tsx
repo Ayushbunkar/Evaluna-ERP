@@ -67,7 +67,7 @@ export default function PackerPendingPage() {
 		error,
 		refetch,
 	} = trpc.packer.getPendingToPack.useQuery(undefined, {
-		refetchInterval: 15000,
+		refetchInterval: 90000,
 		refetchIntervalInBackground: false,
 	});
 

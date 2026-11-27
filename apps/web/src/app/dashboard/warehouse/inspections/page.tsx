@@ -49,8 +49,8 @@ export default function InspectionsPage() {
 		isRefetching,
 		refetch,
 	} = trpc.warehouse.getReceivingInspections.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 
 	// Calculated stats

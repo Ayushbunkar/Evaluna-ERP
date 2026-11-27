@@ -91,7 +91,7 @@ export function WarehouseOffersModal({
 			},
 			{
 				enabled: open,
-				refetchOnWindowFocus: true,
+				refetchOnWindowFocus: false,
 			},
 		);
 

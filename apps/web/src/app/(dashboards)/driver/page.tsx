@@ -49,9 +49,9 @@ export default function DriverDashboard() {
 	} = trpc.driver.getMobileDashboard.useQuery(
 		{},
 		{
-			refetchInterval: 30000,
+			refetchInterval: 120000,
 			refetchIntervalInBackground: false,
-			refetchOnWindowFocus: true,
+			refetchOnWindowFocus: false,
 		},
 	);
 
@@ -61,7 +61,7 @@ export default function DriverDashboard() {
 
 	const { data: dispatches = [] } = trpc.vanStock.getMyDispatches.useQuery(
 		undefined,
-		{ refetchInterval: 15000 }
+		{ refetchInterval: 90000 }
 	);
 	const activeDispatch = (dispatches as any[]).find((d: any) => d.status === "DISPATCHED") || (dispatches as any[])[0];
 

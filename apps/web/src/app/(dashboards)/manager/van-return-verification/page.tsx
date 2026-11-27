@@ -47,7 +47,7 @@ export default function VanReturnVerificationPage() {
 	// Queries
 	const { data: plansData, isLoading: loadingPlans } = trpc.vanStock.listPlans.useQuery(
 		{ limit: 100 },
-		{ refetchInterval: 10000 }
+		{ refetchInterval: 60000 }
 	);
 
 	const { data: planDetail } = trpc.vanStock.getPlanDetail.useQuery(

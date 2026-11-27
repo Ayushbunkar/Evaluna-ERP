@@ -60,9 +60,9 @@ export default function LoaderDashboard() {
 		isLoading: isLoadingStats,
 		refetch: refetchStats,
 	} = trpc.loader.getDashboardStats.useQuery(undefined, {
-		refetchInterval: 30000,
+		refetchInterval: 120000,
 		refetchIntervalInBackground: false,
-		refetchOnWindowFocus: true,
+		refetchOnWindowFocus: false,
 	});
 
 	const {
@@ -70,9 +70,9 @@ export default function LoaderDashboard() {
 		isLoading: isLoadingQueue,
 		refetch: refetchQueue,
 	} = trpc.loader.getLoadingQueue.useQuery(undefined, {
-		refetchInterval: 30000,
+		refetchInterval: 120000,
 		refetchIntervalInBackground: false,
-		refetchOnWindowFocus: true,
+		refetchOnWindowFocus: false,
 	});
 
 	const {
@@ -81,7 +81,7 @@ export default function LoaderDashboard() {
 		refetch: refetchPackedOrders,
 	} = trpc.loader.getPackedOrdersQueue.useQuery(
 		{ search: orderSearch, status: orderStatusFilter },
-		{ refetchInterval: 10000 },
+		{ refetchInterval: 60000 },
 	);
 
 	const markLoadedMutation = trpc.loader.markDirectOrderLoaded.useMutation({

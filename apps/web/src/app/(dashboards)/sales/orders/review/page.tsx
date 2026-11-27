@@ -91,9 +91,9 @@ export default function CustomerOrderInboxPage() {
 		error,
 		refetch,
 	} = trpc.orders.listPendingReview.useQuery(undefined, {
-		refetchInterval: 30000,
+		refetchInterval: 120000,
 		refetchIntervalInBackground: false,
-		refetchOnWindowFocus: true,
+		refetchOnWindowFocus: false,
 	});
 
 	const cancelMutation = trpc.orders.cancelOrder.useMutation({

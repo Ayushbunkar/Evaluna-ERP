@@ -398,7 +398,7 @@ function POSContent() {
 			status: "active",
 		},
 		{
-			refetchInterval: 30000,
+			refetchInterval: 120000,
 		},
 	);
 	const activeOffersCount = dailyOffersData?.length || 0;
@@ -465,7 +465,7 @@ function POSContent() {
 
 	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
 		staleTime: 1000 * 30, // 30 seconds for live warehouse sync
-		refetchOnWindowFocus: true,
+		refetchOnWindowFocus: false,
 	});
 
 	const [effectiveCatalog, setEffectiveCatalog] = useState<any[]>([]);

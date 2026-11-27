@@ -34,6 +34,11 @@ export async function GET(
 		.limit(1);
 	if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+	// If stored on external CDN (Cloudinary / S3 / R2), redirect cleanly
+	if (row.storage_path && /^https?:\/\//i.test(row.storage_path)) {
+		return NextResponse.redirect(row.storage_path, 302);
+	}
+
 	let data: Buffer | null = null;
 
 	// Priority 1: Instant retrieval from PostgreSQL database (100% reliable on Vercel Serverless)

@@ -60,7 +60,7 @@ export default function AuditorDashboard() {
 	} = trpc.audit.getDashboardStats.useQuery(
 		{ branchId: selectedBranchId },
 		{
-			refetchInterval: 30000,
+			refetchInterval: 120000,
 			refetchIntervalInBackground: false,
 			refetchOnWindowFocus: false,
 		},

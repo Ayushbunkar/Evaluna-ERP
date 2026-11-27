@@ -69,8 +69,8 @@ export default function WorkforcePage() {
 	} = trpc.staff.list.useQuery(
 		{ limit: 200 },
 		{
-			refetchInterval: 15000,
-			refetchOnWindowFocus: true,
+			refetchInterval: 90000,
+			refetchOnWindowFocus: false,
 		},
 	);
 

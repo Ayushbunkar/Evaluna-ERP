@@ -139,8 +139,8 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 	} = trpc.cashbook.getDailySummary.useQuery(
 		{ period },
 		{
-			refetchInterval: 15000,
-			refetchOnWindowFocus: true,
+			refetchInterval: 90000,
+			refetchOnWindowFocus: false,
 		},
 	);
 
@@ -158,8 +158,8 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 			search: searchQuery || undefined,
 		},
 		{
-			refetchInterval: 15000,
-			refetchOnWindowFocus: true,
+			refetchInterval: 90000,
+			refetchOnWindowFocus: false,
 		},
 	);
 

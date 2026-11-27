@@ -75,19 +75,19 @@ export default function PickingPage() {
 		isRefetching,
 		refetch,
 	} = trpc.warehouse.getPickingQueue.useQuery(undefined, {
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 60000,
+		refetchOnWindowFocus: false,
 	});
 
 	const { data: pickerList } = trpc.staff.getPickers.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 
 	const { data: pipelineHealth, refetch: refetchPipeline } =
 		trpc.warehouse.getPipelineHealth.useQuery(undefined, {
-			refetchInterval: 10000,
-			refetchOnWindowFocus: true,
+			refetchInterval: 60000,
+			refetchOnWindowFocus: false,
 		});
 
 	// Mutations

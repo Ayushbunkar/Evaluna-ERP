@@ -211,9 +211,9 @@ export default function DriverLiveDeliveryPage() {
 		isLoading: isDashboardLoading,
 		refetch: refetchDashboard,
 	} = trpc.driver.getMobileDashboard.useQuery({}, {
-		refetchInterval: 30000,
+		refetchInterval: 120000,
 		refetchIntervalInBackground: false,
-		refetchOnWindowFocus: true,
+		refetchOnWindowFocus: false,
 	});
 
 	const {
@@ -221,9 +221,9 @@ export default function DriverLiveDeliveryPage() {
 		isLoading: isRouteLoading,
 		refetch: refetchStops,
 	} = trpc.driver.getRouteStops.useQuery(undefined, {
-		refetchInterval: 30000,
+		refetchInterval: 120000,
 		refetchIntervalInBackground: false,
-		refetchOnWindowFocus: true,
+		refetchOnWindowFocus: false,
 	});
 
 	const isLoading = isDashboardLoading || isRouteLoading;
@@ -302,7 +302,7 @@ export default function DriverLiveDeliveryPage() {
 	const { data: vanStockData, refetch: refetchVanStock } =
 		trpc.driver.getVanStock.useQuery(
 			activeStop?.trip_id ? { trip_id: activeStop.trip_id } : undefined,
-			{ refetchInterval: 10000 },
+			{ refetchInterval: 60000 },
 		);
 
 	const availableVanItems = useMemo(() => {

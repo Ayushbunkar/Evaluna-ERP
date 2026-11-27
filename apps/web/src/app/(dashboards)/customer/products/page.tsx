@@ -206,13 +206,13 @@ export default function CustomerProductsPage() {
 			search: search.trim() || undefined,
 		},
 		{
-			refetchInterval: 5000,
+			refetchInterval: 60000,
 		},
 	);
 
 	// Persistent server-side cart synchronization (when logged in)
 	const { data: serverCart } = trpc.customer.getCart.useQuery(undefined, {
-		refetchInterval: 5000,
+		refetchInterval: 60000,
 		enabled: !!session?.user,
 	});
 

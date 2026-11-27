@@ -46,6 +46,11 @@ export async function GET(
 	if (user.branchId != null && row.branch_id !== user.branchId)
 		return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+	// If stored on external CDN (Cloudinary / S3 / R2), redirect cleanly
+	if (row.storage_path && /^https?:\/\//i.test(row.storage_path)) {
+		return NextResponse.redirect(row.storage_path, 302);
+	}
+
 	const root = path.resolve(uploadRoot());
 	const abs = path.resolve(root, row.storage_path);
 	if (abs !== root && !abs.startsWith(root + path.sep))

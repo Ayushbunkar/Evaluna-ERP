@@ -33,9 +33,9 @@ export default function WarehouseWMSLayout({
 	const { data: stats } = trpc.warehouse.getOverviewStats.useQuery(
 		{},
 		{
-			refetchInterval: 30000,
+			refetchInterval: 120000,
 			refetchIntervalInBackground: false,
-			refetchOnWindowFocus: true,
+			refetchOnWindowFocus: false,
 		},
 	);
 

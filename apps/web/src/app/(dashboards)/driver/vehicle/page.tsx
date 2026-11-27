@@ -47,7 +47,7 @@ export default function DriverVehiclePage() {
 		isLoading: isVanStockLoading,
 		refetch: refetchVanStock,
 	} = trpc.driver.getVanStock.useQuery(undefined, {
-		refetchInterval: 10000,
+		refetchInterval: 60000,
 	});
 
 	const [isReportModalOpen, setIsReportModalOpen] = useState(false);

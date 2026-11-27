@@ -63,19 +63,19 @@ export default function PackingPage() {
 		isRefetching,
 		refetch,
 	} = trpc.warehouse.getPackingQueue.useQuery(undefined, {
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 60000,
+		refetchOnWindowFocus: false,
 	});
 
 	const { data: pipelineHealth, refetch: refetchPipeline } =
 		trpc.warehouse.getPipelineHealth.useQuery(undefined, {
-			refetchInterval: 10000,
-			refetchOnWindowFocus: true,
+			refetchInterval: 60000,
+			refetchOnWindowFocus: false,
 		});
 
 	const { data: packerList } = trpc.staff.getPackers.useQuery(undefined, {
-		refetchInterval: 15000,
-		refetchOnWindowFocus: true,
+		refetchInterval: 90000,
+		refetchOnWindowFocus: false,
 	});
 
 	const { data: isEWayBillConfigured } =

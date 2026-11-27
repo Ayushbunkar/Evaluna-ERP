@@ -381,7 +381,7 @@ export function NotificationModal({ open, onOpenChange }: NotificationModalProps
 		refetch,
 	} = trpc.notifications.list.useQuery(
 		{ limit: 40 },
-		{ enabled: open, refetchInterval: 15000, refetchOnWindowFocus: true },
+		{ enabled: open, refetchInterval: 90000, refetchOnWindowFocus: false },
 	);
 
 	const markAsReadMutation = trpc.notifications.markAsRead.useMutation({

@@ -57,7 +57,7 @@ import {
 	acquireAccurateLocation,
 	type GeolocationProgress,
 } from "@/lib/geolocation";
-import { compressAvatar } from "@/lib/image-compression";
+import { uploadMediaFile } from "@/lib/image-compression";
 import { trpc } from "@/lib/trpc/client";
 
 export function DashboardHeader({
@@ -101,7 +101,7 @@ export function DashboardHeader({
 	// Queries
 	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery(
 		{},
-		{ refetchInterval: 45000, refetchIntervalInBackground: false, refetchOnWindowFocus: true },
+		{ refetchInterval: 45000, refetchIntervalInBackground: false, refetchOnWindowFocus: false },
 	);
 	const unreadCount = unreadCountData?.count || 0;
 
@@ -140,9 +140,13 @@ export function DashboardHeader({
 		if (!file) return;
 		try {
 			setIsCompressingImage(true);
-			const compressedDataUrl = await compressAvatar(file);
-			setEditImage(compressedDataUrl);
-			toast.success("Profile photo compressed & ready to save (<15 KB)!");
+			const uploadedUrl = await uploadMediaFile(file, {
+				folder: "avatars",
+				preset: "avatar",
+				entityType: "user_avatar",
+			});
+			setEditImage(uploadedUrl);
+			toast.success("Profile photo uploaded & ready to save!");
 		} catch (err: any) {
 			toast.error(err.message || "Failed to process photo.");
 		} finally {
@@ -160,7 +164,7 @@ export function DashboardHeader({
 		trpc.attendance.getToday.useQuery(undefined, {
 			refetchInterval: 90000,
 			refetchIntervalInBackground: false,
-			refetchOnWindowFocus: true,
+			refetchOnWindowFocus: false,
 		});
 
 	// Camera & GPS State for Production Attendance
