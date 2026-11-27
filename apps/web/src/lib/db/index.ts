@@ -5,34 +5,30 @@ import * as schema from "./schema";
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
-	throw new Error("DATABASE_URL is not set!");
+	throw new Error("DATABASE_URL is missing in environment variables.");
 }
 
-if (DATABASE_URL.startsWith('"') && DATABASE_URL.endsWith('"')) {
-	console.warn("DATABASE_URL has quotes, stripping them");
-}
+function normalizePgUrl(rawUrl: string): string {
+	let cleanUrl = rawUrl
+		.replace(/^"|"$/g, "")
+		.replace(/sslmode=(require|prefer|verify-ca)/g, "sslmode=verify-full");
 
-let cleanUrl = DATABASE_URL.replace(/^"|"$/g, "").replace(
-	/sslmode=(require|prefer|verify-ca)/g,
-	"sslmode=verify-full",
-);
-
-// Automatic Neon Connection Pooler Upgrade:
-// In serverless environments (Vercel), routing through Neon's PgBouncer pooler (-pooler)
-// reuses connections, drastically reducing database CPU load and handshake latency.
-try {
-	const dbUrlParsed = new URL(cleanUrl);
-	if (
-		dbUrlParsed.hostname.endsWith(".neon.tech") &&
-		!dbUrlParsed.hostname.includes("-pooler")
-	) {
-		const hostParts = dbUrlParsed.hostname.split(".");
-		hostParts[0] = `${hostParts[0]}-pooler`;
-		dbUrlParsed.hostname = hostParts.join(".");
-		cleanUrl = dbUrlParsed.toString();
+	// Automatic Neon Connection Pooler Upgrade for serverless environments
+	try {
+		const dbUrlParsed = new URL(cleanUrl);
+		if (
+			dbUrlParsed.hostname.endsWith(".neon.tech") &&
+			!dbUrlParsed.hostname.includes("-pooler")
+		) {
+			const hostParts = dbUrlParsed.hostname.split(".");
+			hostParts[0] = `${hostParts[0]}-pooler`;
+			dbUrlParsed.hostname = hostParts.join(".");
+			cleanUrl = dbUrlParsed.toString();
+		}
+	} catch {
+		// Fall back to cleanUrl if URL parsing fails
 	}
-} catch {
-	// Fall back to cleanUrl if URL parsing fails
+	return cleanUrl;
 }
 
 // DNS lookup fallback helper to bypass ISP/router DNS blocking (e.g. JioFiber query refused)
@@ -79,32 +75,115 @@ function customLookup(host: string, opt: any, cb: any) {
 	return cb(null, host);
 }
 
-// Global singleton to reuse postgres connection pool across warm serverless functions
-declare global {
-	var _evalunaWebSql: ReturnType<typeof postgres> | undefined;
-	var _evalunaWebDb: ReturnType<typeof drizzle> | undefined;
-}
+function createDrizzleInstance(rawUrl: string) {
+	const cleanUrl = normalizePgUrl(rawUrl);
+	const isServerless = Boolean(
+		process.env.VERCEL ||
+			cleanUrl.includes(".neon.tech") ||
+			cleanUrl.includes("supabase.co") ||
+			cleanUrl.includes("pooler.supabase.com"),
+	);
 
-const isServerless = Boolean(
-	process.env.VERCEL || cleanUrl.includes(".neon.tech"),
-);
-
-const sql =
-	globalThis._evalunaWebSql ??
-	postgres(cleanUrl, {
-		prepare: !isServerless, // Prepared statements boost local VPS PostgreSQL speed; disabled for PgBouncer/Neon pooler
-		max: isServerless ? 3 : 20, // Small pool for serverless, 20 for dedicated VPS PostgreSQL
+	const sqlClient = postgres(cleanUrl, {
+		prepare: !isServerless,
+		max: isServerless ? 3 : 20,
 		idle_timeout: 30,
 		connect_timeout: 5,
 		lookup: customLookup,
 	});
 
-globalThis._evalunaWebSql = sql;
+	return {
+		sqlClient,
+		dbInstance: drizzle(sqlClient, { schema }),
+	};
+}
 
-export const db =
-	globalThis._evalunaWebDb ?? drizzle(sql, { schema });
+// Global singleton to reuse postgres connection pool across warm serverless functions
+declare global {
+	var _evalunaWebSql: ReturnType<typeof postgres> | undefined;
+	var _evalunaWebDb: ReturnType<typeof drizzle<typeof schema>> | undefined;
+	var _evalunaAuditSql: ReturnType<typeof postgres> | undefined;
+	var _evalunaAuditDb: ReturnType<typeof drizzle<typeof schema>> | undefined;
+	var _evalunaAuditSchemaReady: Promise<void> | undefined;
+}
 
-globalThis._evalunaWebDb = db;
+if (!globalThis._evalunaWebDb) {
+	const { sqlClient, dbInstance } = createDrizzleInstance(DATABASE_URL);
+	globalThis._evalunaWebSql = sqlClient;
+	globalThis._evalunaWebDb = dbInstance;
+}
+
+export const db = globalThis._evalunaWebDb;
+
+// Optional Secondary Database for Audit Logs & Event Logs (2nd Supabase / Postgres project)
+const RAW_AUDIT_URL = process.env.AUDIT_DATABASE_URL?.trim();
+export const isSplitAuditDb = Boolean(
+	RAW_AUDIT_URL &&
+		normalizePgUrl(RAW_AUDIT_URL) !== normalizePgUrl(DATABASE_URL),
+);
+
+if (isSplitAuditDb && RAW_AUDIT_URL && !globalThis._evalunaAuditDb) {
+	const { sqlClient, dbInstance } = createDrizzleInstance(RAW_AUDIT_URL);
+	globalThis._evalunaAuditSql = sqlClient;
+	globalThis._evalunaAuditDb = dbInstance;
+}
+
+export const auditDb =
+	isSplitAuditDb && globalThis._evalunaAuditDb ? globalThis._evalunaAuditDb : db;
+
+/**
+ * Ensures audit_logs and event_logs tables exist on the secondary auditDb
+ * (without cross-DB foreign keys) so a fresh 2nd Supabase DB works out-of-the-box.
+ */
+export function ensureAuditDbSchema(): Promise<void> {
+	if (!isSplitAuditDb || !globalThis._evalunaAuditSql) {
+		return Promise.resolve();
+	}
+	if (!globalThis._evalunaAuditSchemaReady) {
+		const sql = globalThis._evalunaAuditSql;
+		globalThis._evalunaAuditSchemaReady = (async () => {
+			try {
+				await sql`
+					CREATE TABLE IF NOT EXISTS audit_logs (
+						id SERIAL PRIMARY KEY,
+						user_id INTEGER,
+						action VARCHAR(100) NOT NULL,
+						entity_type VARCHAR(100) NOT NULL,
+						entity_id INTEGER,
+						old_values JSONB,
+						new_values JSONB,
+						ip_address VARCHAR(45),
+						user_agent TEXT,
+						created_at TIMESTAMP DEFAULT NOW()
+					)
+				`;
+				await sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs (created_at DESC)`;
+				await sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs (entity_type, entity_id)`;
+				await sql`
+					CREATE TABLE IF NOT EXISTS event_logs (
+						id SERIAL PRIMARY KEY,
+						branch_id INTEGER,
+						user_id VARCHAR(255),
+						severity VARCHAR(20) NOT NULL DEFAULT 'info',
+						category VARCHAR(50) NOT NULL,
+						event VARCHAR(255) NOT NULL,
+						message TEXT,
+						metadata JSONB,
+						duration_ms INTEGER,
+						status_code INTEGER,
+						ip_address VARCHAR(45),
+						user_agent TEXT,
+						created_at TIMESTAMP NOT NULL DEFAULT NOW()
+					)
+				`;
+				await sql`CREATE INDEX IF NOT EXISTS idx_event_logs_created_at ON event_logs (created_at DESC)`;
+			} catch (err) {
+				console.warn("[auditDb] Non-critical schema bootstrap notice:", err);
+			}
+		})();
+	}
+	return globalThis._evalunaAuditSchemaReady;
+}
 
 // re-export pglite instance for any code that needs direct access (null for postgres mode)
 export const pglite = null;

@@ -12,7 +12,7 @@ import {
 	systemMetrics,
 } from "@evaluna/db/schema";
 import { and, avg, count, eq, gte } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { auditDb, db, ensureAuditDbSchema } from "@/lib/db";
 
 export type LogSeverity = "info" | "warning" | "error" | "critical";
 export type LogCategory =
@@ -43,7 +43,8 @@ export interface LogEntry {
 // ── Core Logger ──────────────────────────────────────────────────────────────
 export async function logEvent(entry: LogEntry): Promise<void> {
 	try {
-		await db.insert(eventLogs).values({
+		await ensureAuditDbSchema();
+		await auditDb.insert(eventLogs).values({
 			branch_id: entry.branchId,
 			user_id: entry.userId,
 			severity: entry.severity ?? "info",

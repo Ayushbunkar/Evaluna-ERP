@@ -35,6 +35,7 @@ import {
 	eq,
 	gte,
 	ilike,
+	inArray,
 	lte,
 	ne,
 	not,
@@ -47,6 +48,7 @@ import {
 	decompressAuditRow,
 	scheduleBackgroundAuditCompression,
 } from "@/lib/audit-compression";
+import { auditDb, ensureAuditDbSchema, isSplitAuditDb } from "@/lib/db";
 import { roleProcedure, router } from "../init";
 
 // ── Access tiers ─────────────────────────────────────────────────────────────
@@ -2541,51 +2543,124 @@ export const adminRouter = router({
 			const from = parse(input.from);
 			const to = parse(input.to);
 
-			const where = and(
-				input.entity_type
-					? eq(auditLogs.entity_type, input.entity_type)
-					: undefined,
-				input.action ? ilike(auditLogs.action, `%${input.action}%`) : undefined,
-				from ? gte(auditLogs.created_at, from) : undefined,
-				to ? lte(auditLogs.created_at, to) : undefined,
-				like
-					? or(
-							ilike(auditLogs.action, like),
-							ilike(auditLogs.entity_type, like),
-							ilike(staff.name, like),
-						)
-					: undefined,
-			);
+			let rows: any[] = [];
+			let totals: Array<{ count: number }> = [];
 
-			const [rows, totals] = await Promise.all([
-				db
-					.select({
-						id: auditLogs.id,
-						action: auditLogs.action,
-						entity_type: auditLogs.entity_type,
-						entity_id: auditLogs.entity_id,
-						old_values: auditLogs.old_values,
-						new_values: auditLogs.new_values,
-						created_at: auditLogs.created_at,
-						actor_name: staff.name,
-						actor_email: staff.email,
-					})
-					.from(auditLogs)
-					.leftJoin(staff, eq(auditLogs.user_id, staff.id))
-					.where(where)
-					.orderBy(
-						input.sortDir === "asc"
-							? asc(auditLogs.created_at)
-							: desc(auditLogs.created_at),
-					)
-					.limit(input.pageSize)
-					.offset((input.page - 1) * input.pageSize),
-				db
-					.select({ count: count() })
-					.from(auditLogs)
-					.leftJoin(staff, eq(auditLogs.user_id, staff.id))
-					.where(where),
-			]);
+			if (isSplitAuditDb) {
+				await ensureAuditDbSchema();
+				const splitWhere = and(
+					input.entity_type
+						? eq(auditLogs.entity_type, input.entity_type)
+						: undefined,
+					input.action ? ilike(auditLogs.action, `%${input.action}%`) : undefined,
+					from ? gte(auditLogs.created_at, from) : undefined,
+					to ? lte(auditLogs.created_at, to) : undefined,
+					like
+						? or(
+								ilike(auditLogs.action, like),
+								ilike(auditLogs.entity_type, like),
+							)
+						: undefined,
+				);
+
+				const [rawRows, rawTotals] = await Promise.all([
+					auditDb
+						.select({
+							id: auditLogs.id,
+							user_id: auditLogs.user_id,
+							action: auditLogs.action,
+							entity_type: auditLogs.entity_type,
+							entity_id: auditLogs.entity_id,
+							old_values: auditLogs.old_values,
+							new_values: auditLogs.new_values,
+							created_at: auditLogs.created_at,
+						})
+						.from(auditLogs)
+						.where(splitWhere)
+						.orderBy(
+							input.sortDir === "asc"
+								? asc(auditLogs.created_at)
+								: desc(auditLogs.created_at),
+						)
+						.limit(input.pageSize)
+						.offset((input.page - 1) * input.pageSize),
+					auditDb
+						.select({ count: count() })
+						.from(auditLogs)
+						.where(splitWhere),
+				]);
+
+				const userIds = Array.from(
+					new Set(
+						rawRows
+							.map((r: any) => r.user_id)
+							.filter((id: unknown): id is number => typeof id === "number"),
+					),
+				);
+				const staffMap = new Map<number, { name: string; email: string | null }>();
+				if (userIds.length > 0) {
+					const staffRows = await db
+						.select({ id: staff.id, name: staff.name, email: staff.email })
+						.from(staff)
+						.where(inArray(staff.id, userIds));
+					for (const s of staffRows) {
+						staffMap.set(s.id, { name: s.name, email: s.email ?? null });
+					}
+				}
+
+				rows = rawRows.map((r: any) => ({
+					...r,
+					actor_name: r.user_id ? staffMap.get(r.user_id)?.name ?? null : null,
+					actor_email: r.user_id ? staffMap.get(r.user_id)?.email ?? null : null,
+				}));
+				totals = rawTotals;
+			} else {
+				const where = and(
+					input.entity_type
+						? eq(auditLogs.entity_type, input.entity_type)
+						: undefined,
+					input.action ? ilike(auditLogs.action, `%${input.action}%`) : undefined,
+					from ? gte(auditLogs.created_at, from) : undefined,
+					to ? lte(auditLogs.created_at, to) : undefined,
+					like
+						? or(
+								ilike(auditLogs.action, like),
+								ilike(auditLogs.entity_type, like),
+								ilike(staff.name, like),
+							)
+						: undefined,
+				);
+
+				[rows, totals] = await Promise.all([
+					db
+						.select({
+							id: auditLogs.id,
+							action: auditLogs.action,
+							entity_type: auditLogs.entity_type,
+							entity_id: auditLogs.entity_id,
+							old_values: auditLogs.old_values,
+							new_values: auditLogs.new_values,
+							created_at: auditLogs.created_at,
+							actor_name: staff.name,
+							actor_email: staff.email,
+						})
+						.from(auditLogs)
+						.leftJoin(staff, eq(auditLogs.user_id, staff.id))
+						.where(where)
+						.orderBy(
+							input.sortDir === "asc"
+								? asc(auditLogs.created_at)
+								: desc(auditLogs.created_at),
+						)
+						.limit(input.pageSize)
+						.offset((input.page - 1) * input.pageSize),
+					db
+						.select({ count: count() })
+						.from(auditLogs)
+						.leftJoin(staff, eq(auditLogs.user_id, staff.id))
+						.where(where),
+				]);
+			}
 
 			// Automatically compress 30+ day old audit log payloads in background (at most 1x/24h)
 			scheduleBackgroundAuditCompression(db);
@@ -2618,7 +2693,9 @@ export const adminRouter = router({
 		}),
 
 	getActivityFacets: adminRead().query(async ({ ctx }) => {
-		const rows = await ctx.db
+		const targetDb = isSplitAuditDb ? auditDb : ctx.db;
+		if (isSplitAuditDb) await ensureAuditDbSchema();
+		const rows = await targetDb
 			.selectDistinct({ value: auditLogs.entity_type })
 			.from(auditLogs)
 			.orderBy(asc(auditLogs.entity_type));
@@ -2635,20 +2712,60 @@ export const adminRouter = router({
 	getRecentActivity: adminRead()
 		.input(optionalInput({ limit: z.number().int().min(1).max(20).default(8) }))
 		.query(async ({ ctx, input }) => {
-			const rows = await ctx.db
-				.select({
-					id: auditLogs.id,
-					action: auditLogs.action,
-					entity_type: auditLogs.entity_type,
-					entity_id: auditLogs.entity_id,
-					new_values: auditLogs.new_values,
-					created_at: auditLogs.created_at,
-					actor_name: staff.name,
-				})
-				.from(auditLogs)
-				.leftJoin(staff, eq(auditLogs.user_id, staff.id))
-				.orderBy(desc(auditLogs.created_at))
-				.limit(input.limit);
+			let rows: any[];
+			if (isSplitAuditDb) {
+				await ensureAuditDbSchema();
+				const rawRows = await auditDb
+					.select({
+						id: auditLogs.id,
+						user_id: auditLogs.user_id,
+						action: auditLogs.action,
+						entity_type: auditLogs.entity_type,
+						entity_id: auditLogs.entity_id,
+						new_values: auditLogs.new_values,
+						created_at: auditLogs.created_at,
+					})
+					.from(auditLogs)
+					.orderBy(desc(auditLogs.created_at))
+					.limit(input.limit);
+
+				const userIds = Array.from(
+					new Set(
+						rawRows
+							.map((r: any) => r.user_id)
+							.filter((id: unknown): id is number => typeof id === "number"),
+					),
+				);
+				const staffMap = new Map<number, string>();
+				if (userIds.length > 0) {
+					const staffRows = await ctx.db
+						.select({ id: staff.id, name: staff.name })
+						.from(staff)
+						.where(inArray(staff.id, userIds));
+					for (const s of staffRows) {
+						staffMap.set(s.id, s.name);
+					}
+				}
+				rows = rawRows.map((r: any) => ({
+					...r,
+					actor_name: r.user_id ? staffMap.get(r.user_id) ?? null : null,
+				}));
+			} else {
+				rows = await ctx.db
+					.select({
+						id: auditLogs.id,
+						action: auditLogs.action,
+						entity_type: auditLogs.entity_type,
+						entity_id: auditLogs.entity_id,
+						new_values: auditLogs.new_values,
+						created_at: auditLogs.created_at,
+						actor_name: staff.name,
+					})
+					.from(auditLogs)
+					.leftJoin(staff, eq(auditLogs.user_id, staff.id))
+					.orderBy(desc(auditLogs.created_at))
+					.limit(input.limit);
+			}
 
 			return rows.map((rawRow: any) => {
 				const r = decompressAuditRow(rawRow);

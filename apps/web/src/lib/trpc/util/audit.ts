@@ -1,6 +1,7 @@
 import { auditLogs, notifications, staff, user } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
+import { auditDb, ensureAuditDbSchema, isSplitAuditDb } from "@/lib/db";
 
 /**
  * Shared helpers for the Auditor role: staff resolution, immutable audit
@@ -86,15 +87,19 @@ export async function logAudit(
 	},
 ): Promise<void> {
 	let validStaffId: number | null = null;
+	let staffName: string | null = null;
+	let staffEmail: string | null = null;
 	if (entry.userId) {
 		try {
 			const rows = await db
-				.select({ id: staff.id })
+				.select({ id: staff.id, name: staff.name, email: staff.email })
 				.from(staff)
 				.where(eq(staff.id, entry.userId))
 				.limit(1);
 			if (rows[0]?.id) {
 				validStaffId = rows[0].id;
+				staffName = rows[0].name ?? null;
+				staffEmail = rows[0].email ?? null;
 			}
 		} catch {
 			validStaffId = null;
@@ -102,6 +107,32 @@ export async function logAudit(
 	}
 
 	try {
+		if (isSplitAuditDb) {
+			await ensureAuditDbSchema();
+			const enrichedNewValues =
+				entry.newValues &&
+				typeof entry.newValues === "object" &&
+				!Array.isArray(entry.newValues)
+					? {
+							...(entry.newValues as Record<string, unknown>),
+							...(!(entry.newValues as any)._actor && staffName
+								? { _actor: { name: staffName, email: staffEmail } }
+								: {}),
+						}
+					: entry.newValues ??
+						(staffName ? { _actor: { name: staffName, email: staffEmail } } : null);
+
+			await auditDb.insert(auditLogs).values({
+				user_id: validStaffId,
+				action: entry.action,
+				entity_type: entry.entityType,
+				entity_id: entry.entityId ?? null,
+				old_values: (entry.oldValues as any) ?? null,
+				new_values: enrichedNewValues as any,
+			});
+			return;
+		}
+
 		await db.insert(auditLogs).values({
 			user_id: validStaffId,
 			action: entry.action,

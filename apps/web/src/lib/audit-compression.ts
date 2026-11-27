@@ -9,6 +9,7 @@ import {
 	vanStockPlans,
 } from "@evaluna/db/schema";
 import { and, eq, lt, sql } from "drizzle-orm";
+import { auditDb, isSplitAuditDb } from "@/lib/db";
 
 // biome-ignore lint/suspicious/noExplicitAny: drizzle db handle
 type DB = any;
@@ -292,8 +293,12 @@ export async function compressAllOldRecords(
 	const olderThanDays = options.olderThanDays ?? 30;
 	const batchSize = options.batchSize ?? 200;
 	const cutoff = new Date(Date.now() - olderThanDays * ONE_DAY_MS);
+	const targetAuditDb = isSplitAuditDb ? auditDb : db;
 
-	const auditRes = await compressOldAuditLogs(db, { olderThanDays, batchSize });
+	const auditRes = await compressOldAuditLogs(targetAuditDb, {
+		olderThanDays,
+		batchSize,
+	});
 
 	const byTable: Record<string, { compressedCount: number; savedBytes: number }> =
 		{
@@ -378,7 +383,7 @@ export async function compressAllOldRecords(
 			name: "event_logs",
 			run: () =>
 				compressSingleJsonColumn(
-					db,
+					targetAuditDb,
 					eventLogs,
 					eventLogs.id,
 					eventLogs.created_at,

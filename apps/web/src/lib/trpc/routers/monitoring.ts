@@ -14,7 +14,7 @@ import {
 	decompressRowFields,
 	scheduleBackgroundAuditCompression,
 } from "@/lib/audit-compression";
-import { db } from "@/lib/db";
+import { auditDb, db, ensureAuditDbSchema } from "@/lib/db";
 import { collectSystemMetrics } from "@/lib/monitor-logger";
 import { protectedProcedure, router } from "../init";
 
@@ -138,6 +138,7 @@ export const monitoringRouter = router({
 			}),
 		)
 		.query(async ({ input }) => {
+			await ensureAuditDbSchema();
 			const since = new Date(Date.now() - input.hours * 3600_000);
 			const conditions = [gte(eventLogs.created_at, since)];
 			if (input.severity)
@@ -145,7 +146,7 @@ export const monitoringRouter = router({
 			if (input.category)
 				conditions.push(eq(eventLogs.category, input.category));
 			scheduleBackgroundAuditCompression(db);
-			const rows = await db
+			const rows = await auditDb
 				.select()
 				.from(eventLogs)
 				.where(and(...conditions))

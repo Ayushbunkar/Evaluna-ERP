@@ -18,6 +18,7 @@ import {
 	decompressAuditRow,
 	scheduleBackgroundAuditCompression,
 } from "@/lib/audit-compression";
+import { auditDb, ensureAuditDbSchema, isSplitAuditDb } from "@/lib/db";
 import { router } from "../init";
 import { permProcedure } from "../util/auditor-procedures";
 
@@ -225,6 +226,54 @@ export const auditorRouter = router({
 			if (input?.entityType)
 				conds.push(eq(auditLogs.entity_type, input.entityType));
 			if (input?.action) conds.push(eq(auditLogs.action, input.action));
+
+			if (isSplitAuditDb) {
+				await ensureAuditDbSchema();
+				const rawRows = await auditDb
+					.select({
+						id: auditLogs.id,
+						user_id: auditLogs.user_id,
+						action: auditLogs.action,
+						entity_type: auditLogs.entity_type,
+						entity_id: auditLogs.entity_id,
+						old_values: auditLogs.old_values,
+						new_values: auditLogs.new_values,
+						created_at: auditLogs.created_at,
+					})
+					.from(auditLogs)
+					.where(conds.length ? and(...conds) : undefined)
+					.orderBy(desc(auditLogs.created_at))
+					.limit(input?.limit ?? 200);
+
+				const userIds = Array.from(
+					new Set(
+						rawRows
+							.map((r: any) => r.user_id)
+							.filter((id: unknown): id is number => typeof id === "number"),
+					),
+				);
+				const staffMap = new Map<number, string>();
+				if (userIds.length > 0) {
+					const staffRows = await ctx.db
+						.select({ id: staff.id, name: staff.name })
+						.from(staff)
+						.where(inArray(staff.id, userIds));
+					for (const s of staffRows) {
+						staffMap.set(s.id, s.name);
+					}
+				}
+
+				scheduleBackgroundAuditCompression(ctx.db);
+				return rawRows.map((r: any) => {
+					const decompressed = decompressAuditRow(r);
+					const actorName =
+						(decompressed.user_id ? staffMap.get(decompressed.user_id) : null) ??
+						(decompressed.new_values as any)?._actor?.name ??
+						null;
+					return { ...decompressed, user_name: actorName };
+				});
+			}
+
 			const rows = await ctx.db
 				.select({
 					id: auditLogs.id,
