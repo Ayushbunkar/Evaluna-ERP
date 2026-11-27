@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import {
 	compressAuditPayload,
+	compressJsonValue,
 	decompressAuditRow,
+	decompressJsonValue,
+	decompressRowFields,
 } from "../audit-compression";
 
 describe("audit-compression (lossless archival)", () => {
@@ -52,5 +55,27 @@ describe("audit-compression (lossless archival)", () => {
 			user_agent: "TestAgent/1.0",
 		};
 		expect(decompressAuditRow(row)).toEqual(row);
+	});
+
+	it("compresses and transparently restores van-stock / payroll / monitoring JSON fields", () => {
+		const checklist = {
+			items: Array.from({ length: 12 }, (_, i) => ({
+				productId: i + 1,
+				checked: true,
+				notes: "Verified and loaded onto van MP-04-AB-1234",
+			})),
+		};
+		const { compressed, worthCompressing } = compressJsonValue(checklist);
+		expect(worthCompressing).toBe(true);
+		expect(decompressJsonValue(compressed)).toEqual(checklist);
+
+		const payrollRow = {
+			id: 10,
+			oldValues: { net: 15000 },
+			newValues: compressed,
+		};
+		const restored = decompressRowFields(payrollRow, ["oldValues", "newValues"]);
+		expect(restored.newValues).toEqual(checklist);
+		expect(restored.oldValues).toEqual({ net: 15000 });
 	});
 });

@@ -14,6 +14,7 @@ import {
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gte, inArray, lte, or } from "drizzle-orm";
 import { z } from "zod";
+import { decompressRowFields } from "@/lib/audit-compression";
 import {
 	calculatePayroll,
 	getDaysInMonth,
@@ -345,7 +346,9 @@ export const payrollRouter = router({
 
 			return {
 				...record,
-				audits,
+				audits: audits.map((a: any) =>
+					decompressRowFields(a, ["oldValues", "newValues"]),
+				),
 			};
 		}),
 
@@ -1142,10 +1145,13 @@ export const payrollRouter = router({
 	])
 		.input(z.object({ payrollId: z.number() }))
 		.query(async ({ ctx, input }) => {
-			return ctx.db
+			const rows = await ctx.db
 				.select()
 				.from(payrollAudit)
 				.where(eq(payrollAudit.payrollId, input.payrollId))
 				.orderBy(desc(payrollAudit.changedAt));
+			return rows.map((a: any) =>
+				decompressRowFields(a, ["oldValues", "newValues"]),
+			);
 		}),
 });

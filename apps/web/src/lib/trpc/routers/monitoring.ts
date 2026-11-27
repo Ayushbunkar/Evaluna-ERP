@@ -10,6 +10,10 @@ import {
 } from "@evaluna/db/schema";
 import { and, avg, count, desc, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
+import {
+	decompressRowFields,
+	scheduleBackgroundAuditCompression,
+} from "@/lib/audit-compression";
 import { db } from "@/lib/db";
 import { collectSystemMetrics } from "@/lib/monitor-logger";
 import { protectedProcedure, router } from "../init";
@@ -140,12 +144,14 @@ export const monitoringRouter = router({
 				conditions.push(eq(eventLogs.severity, input.severity));
 			if (input.category)
 				conditions.push(eq(eventLogs.category, input.category));
-			return await db
+			scheduleBackgroundAuditCompression(db);
+			const rows = await db
 				.select()
 				.from(eventLogs)
 				.where(and(...conditions))
 				.orderBy(desc(eventLogs.created_at))
 				.limit(input.limit);
+			return rows.map((r: any) => decompressRowFields(r, ["metadata"]));
 		}),
 
 	// ── Log an event (callable from frontend for client-side errors) ─────────────

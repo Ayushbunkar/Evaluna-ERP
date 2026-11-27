@@ -43,7 +43,7 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 import {
-	compressOldAuditLogs,
+	compressAllOldRecords,
 	decompressAuditRow,
 	scheduleBackgroundAuditCompression,
 } from "@/lib/audit-compression";
@@ -2676,7 +2676,7 @@ export const adminRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			return compressOldAuditLogs(ctx.db, {
+			return compressAllOldRecords(ctx.db, {
 				olderThanDays: input.olderThanDays,
 				batchSize: input.batchSize,
 			});

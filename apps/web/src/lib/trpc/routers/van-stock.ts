@@ -16,6 +16,10 @@ import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db as defaultDb } from "@/lib/db";
 import { deliveryTrips } from "@evaluna/db/schema/delivery";
+import {
+	decompressJsonValue,
+	scheduleBackgroundAuditCompression,
+} from "@/lib/audit-compression";
 import { protectedProcedure, roleProcedure, router } from "../init";
 
 export const vanStockRouter = router({
@@ -489,7 +493,7 @@ export const vanStockRouter = router({
 				verificationNotes: plan.verification_notes,
 				loadedAt: plan.loaded_at ? plan.loaded_at.toISOString() : null,
 				loadingNotes: plan.loading_notes,
-				loadingChecklist: plan.loading_checklist,
+				loadingChecklist: decompressJsonValue(plan.loading_checklist),
 				dispatchedAt: plan.dispatched_at ? plan.dispatched_at.toISOString() : null,
 				returnedAt: plan.returned_at ? plan.returned_at.toISOString() : null,
 				returnVerifiedAt: plan.return_verified_at ? plan.return_verified_at.toISOString() : null,
@@ -535,7 +539,7 @@ export const vanStockRouter = router({
 					revision: a.revision,
 					reason: a.reason,
 					notes: a.notes,
-					metadata: a.metadata,
+					metadata: decompressJsonValue(a.metadata),
 					createdAt: a.created_at.toISOString(),
 				})),
 			};

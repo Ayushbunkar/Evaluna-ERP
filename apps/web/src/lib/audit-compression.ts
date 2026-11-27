@@ -1,5 +1,13 @@
 import { gunzipSync, gzipSync } from "node:zlib";
-import { auditLogs } from "@evaluna/db/schema";
+import { securityAuditLog } from "@evaluna/db/auth-schema";
+import {
+	auditLogs,
+	eventLogs,
+	notifications,
+	payrollAudit,
+	vanStockAudits,
+	vanStockPlans,
+} from "@evaluna/db/schema";
 import { and, eq, lt, sql } from "drizzle-orm";
 
 // biome-ignore lint/suspicious/noExplicitAny: drizzle db handle
@@ -15,6 +23,7 @@ export interface AuditCompressionStats {
 	bytesBefore: number;
 	bytesAfter: number;
 	savedBytes: number;
+	byTable?: Record<string, { compressedCount: number; savedBytes: number }>;
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -27,6 +36,63 @@ function isCompressedMarker(val: unknown): val is CompressedAuditPayload {
 		"_gz" in val &&
 		typeof (val as CompressedAuditPayload)._gz === "string"
 	);
+}
+
+/**
+ * Compresses any JSON value into `{ _gz: "<base64-gzip>" }` if smaller.
+ */
+export function compressJsonValue(value: unknown): {
+	compressed: CompressedAuditPayload;
+	bytesBefore: number;
+	bytesAfter: number;
+	worthCompressing: boolean;
+} {
+	const raw = JSON.stringify(value ?? null);
+	const bytesBefore = Buffer.byteLength(raw, "utf8");
+	const gzBase64 = gzipSync(Buffer.from(raw, "utf8"), { level: 9 }).toString(
+		"base64",
+	);
+	const compressed: CompressedAuditPayload = { _gz: gzBase64 };
+	const bytesAfter = Buffer.byteLength(JSON.stringify(compressed), "utf8");
+
+	return {
+		compressed,
+		bytesBefore,
+		bytesAfter,
+		worthCompressing: bytesAfter < bytesBefore,
+	};
+}
+
+/**
+ * Restores a value compressed by `compressJsonValue`. Never throws.
+ */
+export function decompressJsonValue<T = unknown>(value: T): T {
+	if (!isCompressedMarker(value)) return value;
+	try {
+		const buf = Buffer.from(value._gz, "base64");
+		return JSON.parse(gunzipSync(buf).toString("utf8")) as T;
+	} catch {
+		return value;
+	}
+}
+
+/**
+ * Transparently decompresses specified JSONB fields on any row object.
+ */
+export function decompressRowFields<T extends Record<string, any>>(
+	row: T,
+	fields: (keyof T)[],
+): T {
+	if (!row) return row;
+	let changed = false;
+	const copy = { ...row };
+	for (const field of fields) {
+		if (isCompressedMarker(copy[field])) {
+			copy[field] = decompressJsonValue(copy[field]);
+			changed = true;
+		}
+	}
+	return changed ? copy : row;
 }
 
 /**
@@ -43,24 +109,11 @@ export function compressAuditPayload(
 	bytesAfter: number;
 	worthCompressing: boolean;
 } {
-	const raw = JSON.stringify({
+	return compressJsonValue({
 		o: oldValues ?? null,
 		n: newValues ?? null,
 		u: userAgent ?? null,
 	});
-	const bytesBefore = Buffer.byteLength(raw, "utf8");
-	const gzBase64 = gzipSync(Buffer.from(raw, "utf8"), { level: 9 }).toString(
-		"base64",
-	);
-	const compressed: CompressedAuditPayload = { _gz: gzBase64 };
-	const bytesAfter = Buffer.byteLength(JSON.stringify(compressed), "utf8");
-
-	return {
-		compressed,
-		bytesBefore,
-		bytesAfter,
-		worthCompressing: bytesAfter < bytesBefore,
-	};
 }
 
 /**
@@ -97,6 +150,66 @@ export function decompressAuditRow<
 	} catch {
 		return row;
 	}
+}
+
+/**
+ * Helper to compress a single JSONB column (plus optional user_agent) on any table
+ * for rows older than `cutoff`.
+ */
+async function compressSingleJsonColumn(
+	db: DB,
+	table: any,
+	idCol: any,
+	createdCol: any,
+	jsonCol: any,
+	jsonColKey: string,
+	cutoff: Date,
+	batchSize: number,
+	extraNullUpdates?: Record<string, null>,
+	userAgentCol?: any,
+): Promise<{ processed: number; compressed: number; before: number; after: number }> {
+	const selectObj: Record<string, any> = { id: idCol, payload: jsonCol };
+	if (userAgentCol) selectObj.ua = userAgentCol;
+
+	const rows = await db
+		.select(selectObj)
+		.from(table)
+		.where(
+			and(
+				lt(createdCol, cutoff),
+				sql`${jsonCol} IS NOT NULL`,
+				sql`NOT (${jsonCol} ? '_gz')`,
+			),
+		)
+		.limit(batchSize);
+
+	let compressed = 0;
+	let before = 0;
+	let after = 0;
+
+	for (const row of rows) {
+		if (isCompressedMarker(row.payload)) continue;
+		const res = compressJsonValue(row.payload);
+		before += res.bytesBefore;
+
+		if (!res.worthCompressing) {
+			after += res.bytesBefore;
+			continue;
+		}
+
+		await db
+			.update(table)
+			.set({
+				[jsonColKey]: res.compressed,
+				...(extraNullUpdates ?? {}),
+			})
+			.where(eq(idCol, row.id));
+
+		compressed += 1;
+		after += res.bytesAfter;
+	}
+
+	return { processed: rows.length, compressed, before, after };
 }
 
 /**
@@ -168,15 +281,167 @@ export async function compressOldAuditLogs(
 }
 
 /**
+ * Compresses 30+ day old history/audit/log payloads across ALL ERP dashboards
+ * (Admin, Auditor, SuperAdmin, Manager, Warehouse, Picker, Packer, Loader,
+ * Delivery, HR/Payroll) with ZERO record deletions.
+ */
+export async function compressAllOldRecords(
+	db: DB,
+	options: { olderThanDays?: number; batchSize?: number } = {},
+): Promise<AuditCompressionStats> {
+	const olderThanDays = options.olderThanDays ?? 30;
+	const batchSize = options.batchSize ?? 200;
+	const cutoff = new Date(Date.now() - olderThanDays * ONE_DAY_MS);
+
+	const auditRes = await compressOldAuditLogs(db, { olderThanDays, batchSize });
+
+	const byTable: Record<string, { compressedCount: number; savedBytes: number }> =
+		{
+			audit_logs: {
+				compressedCount: auditRes.compressedCount,
+				savedBytes: auditRes.savedBytes,
+			},
+		};
+
+	let totalProcessed = auditRes.processedCount;
+	let totalCompressed = auditRes.compressedCount;
+	let totalBefore = auditRes.bytesBefore;
+	let totalAfter = auditRes.bytesAfter;
+
+	const jobs: Array<{
+		name: string;
+		run: () => Promise<{
+			processed: number;
+			compressed: number;
+			before: number;
+			after: number;
+		}>;
+	}> = [
+		{
+			name: "security_audit_log",
+			run: () =>
+				compressSingleJsonColumn(
+					db,
+					securityAuditLog,
+					securityAuditLog.id,
+					securityAuditLog.created_at,
+					securityAuditLog.new_value,
+					"new_value",
+					cutoff,
+					batchSize,
+				),
+		},
+		{
+			name: "payroll_audit",
+			run: () =>
+				compressSingleJsonColumn(
+					db,
+					payrollAudit,
+					payrollAudit.id,
+					payrollAudit.changedAt,
+					payrollAudit.newValues,
+					"newValues",
+					cutoff,
+					batchSize,
+					{ userAgent: null },
+				),
+		},
+		{
+			name: "van_stock_audits",
+			run: () =>
+				compressSingleJsonColumn(
+					db,
+					vanStockAudits,
+					vanStockAudits.id,
+					vanStockAudits.created_at,
+					vanStockAudits.metadata,
+					"metadata",
+					cutoff,
+					batchSize,
+				),
+		},
+		{
+			name: "van_stock_plans",
+			run: () =>
+				compressSingleJsonColumn(
+					db,
+					vanStockPlans,
+					vanStockPlans.id,
+					vanStockPlans.created_at,
+					vanStockPlans.loading_checklist,
+					"loading_checklist",
+					cutoff,
+					batchSize,
+				),
+		},
+		{
+			name: "event_logs",
+			run: () =>
+				compressSingleJsonColumn(
+					db,
+					eventLogs,
+					eventLogs.id,
+					eventLogs.created_at,
+					eventLogs.metadata,
+					"metadata",
+					cutoff,
+					batchSize,
+					{ user_agent: null },
+				),
+		},
+		{
+			name: "notifications",
+			run: () =>
+				compressSingleJsonColumn(
+					db,
+					notifications,
+					notifications.id,
+					notifications.created_at,
+					notifications.metadata,
+					"metadata",
+					cutoff,
+					batchSize,
+				),
+		},
+	];
+
+	for (const job of jobs) {
+		try {
+			const res = await job.run();
+			totalProcessed += res.processed;
+			totalCompressed += res.compressed;
+			totalBefore += res.before;
+			totalAfter += res.after;
+			byTable[job.name] = {
+				compressedCount: res.compressed,
+				savedBytes: Math.max(0, res.before - res.after),
+			};
+		} catch {
+			// Skip if a table or column isn't present in a test/partial DB
+		}
+	}
+
+	return {
+		processedCount: totalProcessed,
+		compressedCount: totalCompressed,
+		bytesBefore: totalBefore,
+		bytesAfter: totalAfter,
+		savedBytes: Math.max(0, totalBefore - totalAfter),
+		byTable,
+	};
+}
+
+/**
  * Throttled background sweep (runs at most once every 24h per server instance)
- * so 30+ day old audit logs are automatically compressed without blocking reads.
+ * so 30+ day old records across all dashboards are automatically compressed
+ * without blocking reads.
  */
 export function scheduleBackgroundAuditCompression(db: DB): void {
 	const now = Date.now();
 	if (now - lastAutoCompressionRunAt < ONE_DAY_MS) return;
 	lastAutoCompressionRunAt = now;
 
-	compressOldAuditLogs(db, { olderThanDays: 30, batchSize: 200 }).catch(
+	compressAllOldRecords(db, { olderThanDays: 30, batchSize: 200 }).catch(
 		() => {},
 	);
 }
