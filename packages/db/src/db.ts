@@ -9,6 +9,15 @@ function customLookup(host: string, opt: any, cb: any) {
 		cb = opt;
 		opt = {};
 	}
+	// Fast-path for local PostgreSQL on VPS / localhost (avoid external 8.8.8.8 DNS query)
+	if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+		const ip = host === "::1" ? "::1" : "127.0.0.1";
+		const family = host === "::1" ? 6 : 4;
+		if (opt && opt.all) {
+			return cb(null, [{ address: ip, family }]);
+		}
+		return cb(null, ip, family);
+	}
 	try {
 		const req = typeof eval !== "undefined" ? eval("require") : null;
 		const dns = req ? req("node:dns") : null;
@@ -70,11 +79,15 @@ declare global {
 	var _evalunaPgPool: Pool | undefined;
 }
 
+const isServerless = Boolean(
+	process.env.VERCEL || cleanDbUrl.includes(".neon.tech"),
+);
+
 const pool =
 	globalThis._evalunaPgPool ??
 	new Pool({
 		connectionString: cleanDbUrl,
-		max: 3, // Keep pool small for serverless instances
+		max: isServerless ? 3 : 20, // Small pool for serverless, 20 for dedicated VPS PostgreSQL
 		idleTimeoutMillis: 30000,
 		connectionTimeoutMillis: 5000,
 		...({ lookup: customLookup } as any),

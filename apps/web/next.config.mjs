@@ -84,6 +84,8 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	poweredByHeader: false,
+	compress: true,
 	basePath: process.env.BASE_PATH || "",
 	env: {
 		NEXT_PUBLIC_BASE_PATH: process.env.BASE_PATH || "",

@@ -42,7 +42,9 @@ export function createAuth({
 				? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
 				: "",
 			process.env.NEXT_PUBLIC_APP_URL || "",
+			process.env.BETTER_AUTH_URL || "",
 			process.env.BASE_URL || "",
+			baseURL || "",
 			...(trustedOrigins || []),
 		].filter(Boolean),
 		database: drizzleAdapter(db, { provider: "pg" }),
@@ -324,8 +326,7 @@ export function createAuth({
 			cookiePrefix: "evaluna",
 			useSecureCookies:
 				process.env.NODE_ENV === "production" &&
-				!baseURL?.includes("localhost") &&
-				!baseURL?.includes("127.0.0.1"),
+				Boolean(baseURL?.startsWith("https://")),
 			generateId: () => crypto.randomUUID(),
 		},
 	});
